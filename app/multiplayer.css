@@ -40,3 +40,40 @@
 .connection-page h1{font-size:clamp(32px,5vw,50px);line-height:1.1;margin-bottom:24px}
 .connection-page p{margin-bottom:24px;color:var(--muted)}
 .connection-page a{display:inline-block;margin:12px 16px 12px 0}
+
+/* ── 3D board ─────────────────────────────────────────────────────────────── */
+
+/* Wrapper that sits where .board-scroll used to be */
+.board-3d-wrap{position:relative;width:100%;aspect-ratio:1/1;min-height:320px;max-height:72vh;overflow:hidden;border-radius:4px;background:#0e1117}
+
+/* The Three.js canvas container fills its parent */
+.board-3d-container{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none;outline:none}
+.board-3d-container:active{cursor:grabbing}
+.board-3d-container canvas{display:block;width:100%!important;height:100%!important}
+
+/* The accessibility CSS-grid board is hidden visually but kept for screen readers */
+.board-3d-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;pointer-events:none;opacity:0}
+
+/* Camera control buttons in the toolbar */
+.board-3d-controls{display:flex;gap:6px;align-items:center}
+.board-3d-btn{display:grid;place-items:center;width:32px;height:32px;padding:0;font-size:16px;line-height:1;background:var(--panel);border:1px solid var(--line);border-radius:4px;color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s}
+.board-3d-btn:hover{background:var(--line);border-color:var(--muted)}
+.board-3d-btn:active{background:var(--ink);color:var(--bg)}
+
+/* Hint bar below the canvas — update text to match 3D controls */
+.board-caption{margin-top:8px}
+
+/* On narrow viewports the canvas goes full-width and drops the aspect ratio cap */
+@media(max-width:900px){
+  .board-3d-wrap{max-height:56vw;min-height:260px}
+}
+@media(max-width:600px){
+  .board-3d-wrap{aspect-ratio:unset;height:58vw;min-height:220px;max-height:none}
+  .board-3d-btn{width:28px;height:28px;font-size:14px}
+}
+
+/* Reduced-motion: disable Three.js animations via a CSS custom property that
+   board-3d.ts can read if needed; the renderer still draws every frame. */
+@media(prefers-reduced-motion:reduce){
+  .board-3d-container{--reduce-motion:1}
+}
