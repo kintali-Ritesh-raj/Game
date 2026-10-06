@@ -3,6 +3,7 @@ import { authenticate } from '@/lib/supabase-server';
 import { ApiError, apiResponse, command, jsonBody, profile, requestId, revision, roomCode } from '@/lib/validation';
 import { readRoom, roomRpc } from '@/lib/room-store';
 import { applyGameAction, requireRevision, startGame } from '@/lib/game-actions';
+import type { GameState, Room } from '@/lib/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ code: string }> };
@@ -41,9 +42,14 @@ export async function POST(request: Request, context: Context) {
     requireRevision(room, expected);
     let authoritative = room;
     if (action) {
-      const {data, error} = await db.from('mw_game_secrets').select('state').eq('code',code).single();
+      // Read the revision and private state in one database snapshot. Another
+      // command can commit between separate reads of the public and private rows.
+      const {data, error} = await db.from('mw_rooms').select('*,mw_game_secrets(state)').eq('code',code).single();
       if (error) throw error;
-      authoritative = {...room, state:data.state};
+      const {mw_game_secrets:secrets,...snapshot}=data as unknown as Room & {mw_game_secrets:{state:GameState}|null};
+      requireRevision(snapshot,expected);
+      if (!secrets) throw new ApiError(503,'The game state is unavailable. Try again.');
+      authoritative = {...snapshot,state:secrets.state};
     }
     const result = action ? await applyGameAction(authoritative, actor, action) : { state: startGame(room, actor), transition: null };
     return Response.json({ room: await roomRpc(db, 'mw_commit_game', {

@@ -4,6 +4,8 @@ An original strategy board game for 2–4 people playing on separate phones, tab
 
 The application uses **Next.js 16, TypeScript, Supabase Auth/Postgres/Realtime, and Vercel**. Every game command runs on the server and is committed to Supabase. There is no offline game-state fallback.
 
+**Play online:** [game-wine-kappa-71.vercel.app](https://game-wine-kappa-71.vercel.app). The Vercel project is connected to this repository and automatically deploys pushes to `main`.
+
 ## Run locally
 
 Use Node.js 22 or newer (Node 24 is used in CI).
@@ -90,6 +92,8 @@ The board fits small screens by default. Use **Zoom in** for larger labels and s
 
 The API verifies the Supabase access token with `auth.getUser()`. It never trusts a caller-supplied player ID, balance, dice roll, or complete state. Dice use Node's cryptographic random source. The database locks the room and checks its revision before accepting a mutation. A request ID and command fingerprint make retries idempotent. Two actions calculated from the same revision cannot both commit.
 
+Game commands read the room revision and private game state together in one database snapshot, so concurrent commands cannot combine an old revision with a newer state.
+
 Lobby joins, unique tokens/names, four-seat capacity, profile edits, and host transfers run inside database transactions. RLS blocks outsiders from reading a room. Browser roles cannot mutate any game table or execute privileged RPCs. Future event deck order is excluded from the public snapshot and Realtime stream.
 
 Realtime delivers committed snapshots. A fetch after subscription, periodic reconciliation, and reconnect/visibility handlers recover missed messages. Client animations replay accepted moves without calculating new game outcomes. The server state is already durable if a tab closes mid-animation.
@@ -123,7 +127,7 @@ $env:TEST_APP_URL = 'http://localhost:3000'
 npm run test:online
 ```
 
-`TEST_APP_URL` can also be a Vercel test deployment using the same project. The test creates five temporary anonymous identities, verifies actual Realtime delivery, joins, capacity, authorization, simultaneous rolls, restoration and RLS, then deletes its test rooms and identities. The server key is required for cleanup. No live test is silently replaced with a mock when configuration is missing.
+`TEST_APP_URL` can also be a Vercel test deployment using the same project. The test verifies server cleanup access before creating five temporary anonymous identities, then checks actual Realtime delivery, joins, capacity, authorization, simultaneous rolls, restoration and RLS. It checks every room and identity cleanup result before reporting success. If cleanup fails, exact recovery IDs remain in an ignored `output/live-tests/` receipt. The server key is required for cleanup. No live test is silently replaced with a mock when configuration is missing.
 
 Before inviting friends, also open the deployed link on two different devices/networks, make a purchase, refresh one device, and confirm both show the same turn and money.
 
