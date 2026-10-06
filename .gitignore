@@ -1,0 +1,13 @@
+.cache/
+.playwright-cli/
+output/
+node_modules/
+.next/
+.env*
+!.env.example
+*.tsbuildinfo
+supabase/.temp/
+supabase/.branches/
+.vercel/
+test-results/
+playwright-report/

@@ -1,0 +1,42 @@
+.online-entry{max-width:520px;margin:48px auto;padding:0 24px 48px}
+.online-entry h1{font-size:clamp(36px,6vw,56px);letter-spacing:-2px;margin:20px 0 16px}
+.online-entry>p{line-height:1.7;color:var(--muted);margin-bottom:24px}
+.online-player-form{padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.online-player-form>.setup-role-note{margin:16px 0 24px;line-height:1.7}
+.online-entry>.text-button{margin-top:16px}
+.join-code-field{margin-bottom:24px}
+#join-room-code{text-transform:uppercase;font:24px var(--mono);letter-spacing:4px}
+.online-lobby{max-width:960px;padding:40px 32px 64px;margin:auto}
+.online-lobby .setup-intro{margin-bottom:32px}
+.room-invite{display:grid;grid-template-columns:1fr 1.8fr;gap:24px;background:var(--panel);border:2px solid var(--ink);padding:24px;margin:32px 0}
+.copy-field{display:flex;gap:8px;align-items:center;min-width:0}
+.copy-field input{min-width:0;background:var(--bg)}
+.copy-field button{flex-shrink:0;white-space:nowrap}
+#room-code-display{font:28px var(--mono);letter-spacing:4px;font-weight:700}
+#room-link-display{font-size:13px}
+.copy-status{grid-column:1/-1;font-size:12px;color:var(--muted);min-height:18px}
+.lobby-topline{display:flex;justify-content:space-between;font:12px var(--mono);margin:24px 0 16px;gap:16px}
+.lobby-topline b{margin-left:8px}
+.lobby-players{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0;margin:0}
+.lobby-player{display:flex;align-items:center;gap:16px;border:1px solid var(--line);background:var(--panel);padding:20px;min-width:0}
+.lobby-token{display:grid;place-items:center;font-size:28px;flex:0 0 40px}
+.lobby-player>div{min-width:0;flex:1}
+.lobby-player strong{display:block;overflow-wrap:anywhere;font-size:15px}
+.lobby-player>div>span{display:block;color:var(--muted);font-size:11px;margin-top:8px}
+.connection-badge{font:10px var(--mono);color:var(--muted)}
+.is-connected{color:#286346}
+.empty-seat{background:transparent;color:var(--muted);border-style:dashed}
+.lobby-choices{margin:24px 0 16px}
+.online-lobby>.online-player-form{max-width:480px;margin-bottom:24px}
+.lobby-note{color:var(--muted);font-size:12px;line-height:1.8;max-width:640px;margin-top:24px}
+.online-lobby .setup-footer{margin-top:24px}
+.online-notices{max-width:960px;margin:16px auto 0;padding:0 32px}
+.network-status{font:11px var(--mono);margin-bottom:12px}
+.pending-action{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12px;padding:16px;border:1px solid var(--line);margin-bottom:16px;background:var(--panel)}
+.online-notices .form-error:empty{display:none}
+@media(max-width:700px){.online-lobby{padding:24px 20px 48px}.room-invite{grid-template-columns:1fr;padding:16px;gap:16px}.lobby-players{grid-template-columns:1fr}.lobby-player{padding:16px}.online-notices{padding:0 20px}.online-lobby .setup-intro h1{font-size:40px}.lobby-topline{font-size:10px}.copy-field button{padding:10px 12px;font-size:12px}.copy-status{line-height:1.6}.online-player-form{padding:20px}.online-entry{margin-top:32px}.online-entry h1{font-size:40px}}
+@media(prefers-reduced-motion:reduce){.online-entry,.online-lobby{scroll-behavior:auto}}
+.connection-page{max-width:720px;margin:70px auto;padding:24px;line-height:1.7}
+.connection-page h1{font-size:clamp(32px,5vw,50px);line-height:1.1;margin-bottom:24px}
+.connection-page p{margin-bottom:24px;color:var(--muted)}
+.connection-page a{display:inline-block;margin:12px 16px 12px 0}

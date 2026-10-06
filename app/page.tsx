@@ -1,0 +1,3 @@
+import GameClient from '@/components/GameClient';
+export const dynamic = 'force-dynamic';
+export default function Home() { return <GameClient />; }
