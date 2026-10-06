@@ -52,7 +52,8 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
       case 'roll': await game.rollDice(); break;
       case 'end': game.nextTurn(); break;
       case 'buy': game.purchaseProperty(); break;
-      case 'auction': game.startAuction(); break;
+      case 'skip': game.declineProperty(); break;
+      case 'auction': game.startAuction(command.id); break;
       case 'bid': game.auctionBid(command.increment); break;
       case 'pass': game.auctionPass(); break;
       case 'apply-event': await game.applyCard(); break;

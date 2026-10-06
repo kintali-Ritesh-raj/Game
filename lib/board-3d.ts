@@ -1,878 +1,345 @@
-/**
- * board-3d.ts
- * Three.js 3D board renderer for Market Wars.
- *
- * Replaces the CSS-grid board with a perspective 3D scene:
- *  - Raised tile geometry with colour-coded district strips
- *  - Animated 3D dice with real pip geometry
- *  - 3D player tokens (capped cylinders) that glide between tiles
- *  - Orbit controls (drag to rotate, scroll to zoom, right-drag to pan)
- *  - Click-to-select tile (fires the same data-action="inspect" flow)
- *  - "Top-down" reset button to snap back to the default view
- *
- * The module is intentionally self-contained: it exports a single
- * `createBoard3D(container, board, groups, onSelect)` factory that returns
- * a controller object consumed by game-ui.js.
- */
-
 import * as THREE from 'three';
 
-// ─── types ────────────────────────────────────────────────────────────────────
-
-export interface SpaceData {
-  id: number;
-  name: string;
-  type: string;
-  group?: string;
-  price?: number;
-  symbol?: string;
-}
-
-export interface GroupData {
-  name: string;
-  color: string;
-}
-
-export interface TokenState {
-  id: number;
-  position: number; // board space index 0-39
-  color: string;
-  token: string;    // emoji key – used for label only
-  bankrupt: boolean;
-  active: boolean;
-}
-
-export interface AssetState {
-  owner: number | null;
-  buildings: number;       // 0-5
-  mortgaged: boolean;
-  ownerColor?: string;
-}
-
+export interface SpaceData { id:number; name:string; type:string; group?:string; price?:number; symbol?:string }
+export interface GroupData { name:string; color:string }
+export interface TokenState { id:number; position:number; color:string; token:string; symbol?:string; bankrupt:boolean; active:boolean }
+export interface AssetState { owner:number|null; buildings:number; mortgaged:boolean; ownerColor?:string; ownerName?:string; ownerSymbol?:string }
 export interface Board3DController {
-  /** Called once to set up the initial scene inside `container`. */
-  init(): void;
-  /** Update tile ownership / buildings / selection highlight. */
-  updateTiles(assets: Record<number, AssetState>, selectedId: number): void;
-  /** Move / create token pieces.  */
-  updateTokens(tokens: TokenState[], movementSpeedMultiplier: number): void;
-  /** Animate dice roll then settle on final values. */
-  rollDice(values: [number, number], phase: 'rolling' | 'settled'): void;
-  /** Show dice with fixed values (no animation). */
-  setDice(values: [number, number]): void;
-  /** Resize the renderer when the container changes size. */
-  resize(): void;
-  /** Snap camera back to the default angled perspective. */
-  resetCamera(): void;
-  /** Snap camera to a top-down bird's-eye view. */
-  topCamera(): void;
-  /** Clean up WebGL resources. */
-  destroy(): void;
+  init():void;
+  updateTiles(assets:Record<number,AssetState>,selectedId:number):void;
+  updateTokens(tokens:TokenState[],speed:number):void;
+  rollDice(values:[number,number],phase:'rolling'|'settled',speed?:number):void;
+  setDice(values:[number,number]):void;
+  resize():void; resetCamera():void; topCamera():void; destroy():void;
 }
 
-// ─── constants ────────────────────────────────────────────────────────────────
-
-const BOARD_SIZE = 11;        // 11×11 grid cells
-const TILE_W     = 1.0;       // world-units per cell
-const TILE_GAP   = 0.04;
-const CORNER_W   = 1.5 * TILE_W;
-const SIDE_W     = TILE_W;
-const TILE_H     = 0.18;      // height of the raised tile block
-const STRIP_H    = 0.06;      // colour strip on purchasable tiles
-const BOARD_BASE = 0.08;      // thickness of the green felt base
-
-const CAMERA_DEFAULT = new THREE.Vector3(0, 14, 10);
-const CAMERA_TARGET  = new THREE.Vector3(0, 0, 0);
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-function hexToThree(hex: string): THREE.Color {
-  return new THREE.Color(hex);
+const HEIGHT=.18, SIZE=.72;
+const UP=new THREE.Vector3(0,1,0);
+const ease=(t:number)=>1-Math.pow(1-t,3);
+const clamp=(n:number)=>Math.max(0,Math.min(1,n));
+function grid(id:number):[number,number] {
+  if(id<=10)return [10,10-id];
+  if(id<=20)return [20-id,0];
+  if(id<=30)return [0,id-20];
+  return [id-30,10];
 }
-
-/** Convert board-space id (0–39) to a grid [row, col] in the 11×11 matrix. */
-function spaceToGrid(id: number): [number, number] {
-  if (id <= 10)  return [10, 10 - id];
-  if (id <= 20)  return [20 - id, 0];
-  if (id <= 30)  return [0, id - 20];
-  return [id - 30, 10];
+function tile(id:number) {
+  const [row,col]=grid(id);
+  const axis=(n:number)=>n===0?-5.25:n===10?5.25:n-5;
+  return {row,col,x:axis(col),z:axis(row),w:col===0||col===10?1.5:1,d:row===0||row===10?1.5:1};
 }
-
-/** Map grid [row, col] to world XZ (Y is up in Three.js). */
-function gridToWorld(row: number, col: number, w: number, d: number): [number, number] {
-  // Board occupies roughly [-5.5, 5.5] on both X and Z
-  const totalW = CORNER_W + 9 * SIDE_W + CORNER_W;
-  const originX = -totalW / 2;
-  const originZ = -totalW / 2;
-  return [originX + col * TILE_W + w / 2, originZ + row * TILE_W + d / 2];
-}
-
-/** Tile dimensions vary: corners are larger. */
-function tileDims(id: number): [number, number] {
-  const isCorner = id % 10 === 0;
-  const size = isCorner ? CORNER_W : SIDE_W;
-  return [size - TILE_GAP, size - TILE_GAP];
-}
-
-// ─── pip positions for each die face (UV in ±0.28 space) ─────────────────────
-
-const PIP_LAYOUTS: [number, number][][] = [
-  [],                                                              // 0 placeholder
-  [[0, 0]],                                                        // 1
-  [[-0.28, -0.28], [0.28, 0.28]],                                  // 2
-  [[-0.28, -0.28], [0, 0], [0.28, 0.28]],                         // 3
-  [[-0.28, -0.28], [0.28, -0.28], [-0.28, 0.28], [0.28, 0.28]],  // 4
-  [[-0.28, -0.28], [0.28, -0.28], [0, 0], [-0.28, 0.28], [0.28, 0.28]], // 5
-  [[-0.28, -0.28], [0.28, -0.28], [-0.28, 0], [0.28, 0], [-0.28, 0.28], [0.28, 0.28]], // 6
-];
-
-// ─── main factory ─────────────────────────────────────────────────────────────
-
-export function createBoard3D(
-  container: HTMLElement,
-  board: SpaceData[],
-  groups: Record<string, GroupData>,
-  onSelect: (spaceId: number) => void,
-): Board3DController {
-
-  // ── scene setup ─────────────────────────────────────────────────────────────
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
-  container.appendChild(renderer.domElement);
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#0e1117');
-  scene.fog = new THREE.Fog('#0e1117', 30, 60);
-
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-  camera.position.copy(CAMERA_DEFAULT);
-  camera.lookAt(CAMERA_TARGET);
-
-  // ── lights ───────────────────────────────────────────────────────────────────
-  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
-  scene.add(ambient);
-
-  const sun = new THREE.DirectionalLight(0xfff5e0, 1.6);
-  sun.position.set(8, 18, 8);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 0.5;
-  sun.shadow.camera.far = 50;
-  sun.shadow.camera.left = -14;
-  sun.shadow.camera.right = 14;
-  sun.shadow.camera.top = 14;
-  sun.shadow.camera.bottom = -14;
-  sun.shadow.bias = -0.0005;
-  scene.add(sun);
-
-  const fill = new THREE.DirectionalLight(0xb0c8ff, 0.5);
-  fill.position.set(-10, 6, -6);
-  scene.add(fill);
-
-  // ── board base ───────────────────────────────────────────────────────────────
-  const totalW = CORNER_W + 9 * SIDE_W + CORNER_W; // 12.0
-  const baseGeo = new THREE.BoxGeometry(totalW + 0.3, BOARD_BASE, totalW + 0.3);
-  const baseMat = new THREE.MeshLambertMaterial({ color: '#1a3320' });
-  const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-  baseMesh.position.y = -BOARD_BASE / 2 - 0.001;
-  baseMesh.receiveShadow = true;
-  scene.add(baseMesh);
-
-  // subtle grid lines on the felt
-  const gridHelper = new THREE.GridHelper(totalW, 11, '#223322', '#1e2e1e');
-  gridHelper.position.y = 0.001;
-  scene.add(gridHelper);
-
-  // ── tile meshes ──────────────────────────────────────────────────────────────
-
-  const tileMeshes: Map<number, THREE.Mesh> = new Map();
-  const stripMeshes: Map<number, THREE.Mesh> = new Map();
-  const tileClickTargets: THREE.Mesh[] = []; // for raycasting
-
-  const tileMat = (color: string | number, emissive = 0x000000) =>
-    new THREE.MeshLambertMaterial({ color, emissive });
-
-  const BASE_TILE_COLOR  = '#e8e0d0';
-  const CORNER_COLOR     = '#d0cfc8';
-  const SPECIAL_COLOR    = '#c8d4c0';
-
-  board.forEach(space => {
-    const [row, col] = spaceToGrid(space.id);
-    const [w, d]     = tileDims(space.id);
-    const [wx, wz]   = gridToWorld(row, col, w, d);
-
-    const isCorner  = space.id % 10 === 0;
-    const isSpecial = !space.price;
-    const baseColor = isCorner ? CORNER_COLOR : isSpecial ? SPECIAL_COLOR : BASE_TILE_COLOR;
-
-    // Main tile body
-    const geo  = new THREE.BoxGeometry(w, TILE_H, d);
-    const mat  = tileMat(baseColor);
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(wx, TILE_H / 2, wz);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData = { spaceId: space.id };
-    scene.add(mesh);
-    tileMeshes.set(space.id, mesh);
-    tileClickTargets.push(mesh);
-
-    // Colour strip on purchasable tiles (top surface, near the outer edge)
-    if (space.price && space.group && groups[space.group]) {
-      const groupColor = groups[space.group].color;
-      const stripDepth = d * 0.28;
-      const stripGeo   = new THREE.BoxGeometry(w - 0.02, STRIP_H, stripDepth);
-      const stripMat   = new THREE.MeshLambertMaterial({ color: hexToThree(groupColor) });
-      const stripMesh  = new THREE.Mesh(stripGeo, stripMat);
-
-      // Determine which edge faces outward
-      let stripZ = wz;
-      if (row === 10) stripZ += (d / 2) - (stripDepth / 2) - 0.01;   // south
-      else if (row === 0) stripZ -= (d / 2) - (stripDepth / 2) - 0.01; // north
-      else if (col === 0) { /* handled below */ }
-      else if (col === 10) { /* handled below */ }
-
-      let stripX = wx;
-      if (col === 0)  stripX -= (w / 2) - (stripDepth / 2) - 0.01;  // west → swap axes
-      if (col === 10) stripX += (w / 2) - (stripDepth / 2) - 0.01;  // east
-
-      if (col === 0 || col === 10) {
-        // Reorient: strip runs along X axis for vertical sides
-        const sGeo2 = new THREE.BoxGeometry(stripDepth, STRIP_H, d - 0.02);
-        const sm2   = new THREE.Mesh(sGeo2, stripMat);
-        sm2.position.set(stripX, TILE_H + STRIP_H / 2, wz);
-        sm2.castShadow = false;
-        scene.add(sm2);
-        stripMeshes.set(space.id, sm2);
-      } else {
-        stripMesh.position.set(wx, TILE_H + STRIP_H / 2, stripZ);
-        stripMesh.castShadow = false;
-        scene.add(stripMesh);
-        stripMeshes.set(space.id, stripMesh);
-      }
+function release(object:THREE.Object3D) {
+  object.removeFromParent();
+  const textures=new Set<THREE.Texture>(), materials=new Set<THREE.Material>(), geometries=new Set<THREE.BufferGeometry>();
+  object.traverse(child=>{
+    const mesh=child as THREE.Mesh;
+    if(mesh.geometry)geometries.add(mesh.geometry);
+    if(mesh.material)for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material]){
+      materials.add(material);
+      const map=(material as THREE.MeshBasicMaterial).map;if(map)textures.add(map);
     }
+  });
+  textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());
+}
+function paintedTexture(width:number,height:number,paint:(ctx:CanvasRenderingContext2D)=>void) {
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+  const ctx=canvas.getContext('2d');if(ctx)paint(ctx);
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  return texture;
+}
+function wrap(ctx:CanvasRenderingContext2D,text:string,x:number,y:number,width:number,lineHeight:number) {
+  let line='';for(const word of text.split(' ')){
+    const next=line?line+' '+word:word;
+    if(ctx.measureText(next).width>width&&line){ctx.fillText(line,x,y);y+=lineHeight;line=word;}else line=next;
+  }ctx.fillText(line,x,y);
+}
 
-    // Special-space symbol – tiny flat cylinder as a "token pad"
-    if (!space.price && !isCorner) {
-      const padGeo = new THREE.CylinderGeometry(w * 0.22, w * 0.22, 0.03, 16);
-      const padMat = new THREE.MeshLambertMaterial({ color: '#334433' });
-      const pad    = new THREE.Mesh(padGeo, padMat);
-      pad.position.set(wx, TILE_H + 0.015, wz);
-      scene.add(pad);
+/** One animation loop owns all motion. Server snapshots remain the only game state. */
+export function createBoard3D(container:HTMLElement,board:SpaceData[],groups:Record<string,GroupData>,onSelect:(id:number)=>void):Board3DController {
+  const motion=matchMedia('(prefers-reduced-motion: reduce)');
+  const listeners=new AbortController();
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  const canvas=renderer.domElement;canvas.setAttribute('aria-label','Interactive city board. Use arrow keys to inspect spaces; Enter opens the selected property.');canvas.tabIndex=0;
+  container.append(canvas);
+  const overlay=document.createElement('div');overlay.className='board-owner-overlay';container.append(overlay);
+  const scene=new THREE.Scene();scene.background=new THREE.Color('#e8e3d5');
+  const camera=new THREE.PerspectiveCamera(43,1,.1,80);
+  const ambient=new THREE.HemisphereLight('#fff8e6','#71837c',2.1);scene.add(ambient);
+  const sun=new THREE.DirectionalLight('#fff4dc',2.2);sun.position.set(-4,16,8);sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-8,right:8,top:8,bottom:-8,near:.5,far:40});
+  sun.shadow.bias=-.001;scene.add(sun);
+
+  const base=new THREE.Mesh(new THREE.BoxGeometry(12.35,.22,12.35),new THREE.MeshStandardMaterial({color:'#202c2e',roughness:.85}));
+  base.position.y=-.15;base.receiveShadow=true;scene.add(base);
+  const center=new THREE.Mesh(new THREE.BoxGeometry(9.1,.05,9.1),new THREE.MeshStandardMaterial({color:'#bce3ed',roughness:.9}));
+  center.position.y=-.005;center.receiveShadow=true;scene.add(center);
+  const brandTexture=paintedTexture(1024,1024,ctx=>{
+    ctx.fillStyle='#bce3ed';ctx.fillRect(0,0,1024,1024);
+    ctx.translate(512,512);ctx.rotate(-Math.PI/7);
+    ctx.fillStyle='#1c292b';ctx.fillRect(-430,-74,860,148);
+    ctx.textAlign='center';ctx.fillStyle='#fff7e4';ctx.font='900 98px Arial';ctx.fillText('MARKET WARS',0,33);
+    ctx.font='bold 22px Arial';ctx.fillStyle='#344e53';ctx.fillText('BUILD YOUR ADVANTAGE. OWN YOUR STRATEGY.',0,117);
+    for(const [x,y,label] of [[-185,-300,'MARKET EVENTS'],[185,320,'ECONOMIC EVENTS']] as [number,number,string][]){
+      ctx.fillStyle='#fff9e9';ctx.fillRect(x-172,y-74,344,148);
+      ctx.strokeStyle='#243536';ctx.lineWidth=4;ctx.strokeRect(x-172,y-74,344,148);
+      ctx.font='bold 26px Arial';ctx.fillStyle='#243536';ctx.fillText(label,x,y+10);
     }
+  });
+  const branding=new THREE.Mesh(new THREE.PlaneGeometry(8.7,8.7),new THREE.MeshBasicMaterial({map:brandTexture}));
+  branding.rotation.x=-Math.PI/2;branding.position.y=.025;scene.add(branding);
 
-    // Building slots: tiny raised platforms (filled in updateTiles)
-    mesh.userData.buildings = 0;
+  const tiles=new Map<number,THREE.Group>(),surfaces=new Map<number,THREE.Mesh>(),targets:THREE.Object3D[]=[];
+  const buildings=new Map<number,THREE.Group>(),owners=new Map<number,{button:HTMLButtonElement;anchor:THREE.Vector3;key:string}>();
+  const assetsCache=new Map<number,string>();
+  const popIns=new Map<THREE.Object3D,{start:number;delay:number}>();
+  let selected=0,ready=false,destroyed=false;
+  const createdAt=performance.now();
+  board.forEach(space=>{
+    const p=tile(space.id),group=new THREE.Group();group.position.set(p.x,0,p.z);scene.add(group);tiles.set(space.id,group);
+    const body=new THREE.Mesh(new THREE.BoxGeometry(p.w-.045,HEIGHT,p.d-.045),new THREE.MeshStandardMaterial({color:space.price?'#f5f0df':'#cde8ed',roughness:.8}));
+    body.position.y=HEIGHT/2;body.castShadow=true;body.receiveShadow=true;body.userData.spaceId=space.id;
+    group.add(body);surfaces.set(space.id,body);targets.push(body);
+    const texture=paintedTexture(256,320,ctx=>{
+      ctx.fillStyle=space.price?'#f5f0df':'#cde8ed';ctx.fillRect(0,0,256,320);
+      if(space.group){ctx.fillStyle=groups[space.group]?.color||'#9ab5ba';ctx.fillRect(0,0,256,55);}
+      ctx.fillStyle='#1e2c2d';ctx.textAlign='center';ctx.font='bold 30px Arial';
+      wrap(ctx,space.name,128,space.price?96:93,234,35);
+      ctx.font='bold 35px Arial';ctx.fillText(space.price?'$'+space.price:(space.symbol||'◇'),128,278);
+    });
+    const face=new THREE.Mesh(new THREE.PlaneGeometry(p.w-.065,p.d-.065),new THREE.MeshBasicMaterial({map:texture}));
+    face.rotation.set(-Math.PI/2,0,0);face.position.y=HEIGHT+.002;group.add(face);
   });
 
-  // ── building objects ─────────────────────────────────────────────────────────
-
-  const buildingObjects: Map<number, THREE.Object3D[]> = new Map();
-
-  function clearBuildings(spaceId: number) {
-    const objs = buildingObjects.get(spaceId) || [];
-    objs.forEach(o => scene.remove(o));
-    buildingObjects.set(spaceId, []);
+  function buildingGroup(id:number,count:number,color:string,animate:boolean) {
+    const previous=buildings.get(id);if(previous){popIns.delete(previous);release(previous);buildings.delete(id);}
+    if(!count)return;
+    const p=tile(id),group=new THREE.Group();
+    group.position.set(p.x,HEIGHT,p.z);scene.add(group);buildings.set(id,group);
+    const n=count===5?1:count;
+    for(let i=0;i<n;i++){
+      const house=new THREE.Group(),h=count===5?.94:.23;
+      const body=new THREE.Mesh(new THREE.BoxGeometry(count===5?.38:.19,h,.25),new THREE.MeshStandardMaterial({color,roughness:.75}));
+      body.position.y=h/2;body.castShadow=true;house.add(body);
+      const roof=new THREE.Mesh(new THREE.ConeGeometry(count===5?.32:.17,.15,4),new THREE.MeshStandardMaterial({color:'#fff2d5'}));
+      roof.rotation.y=Math.PI/4;roof.position.y=h+.075;roof.castShadow=true;house.add(roof);
+      const offset=(i-(n-1)/2)*.235;
+      house.position.set(p.col===0?.40:p.col===10?-.40:offset,0,p.row===0?.40:p.row===10?-.40:offset);
+      group.add(house);
+    }
+    if(animate&&!motion.matches)popIns.set(group,{start:performance.now(),delay:0});
+  }
+  function ownerBadge(id:number,asset:AssetState,animate:boolean) {
+    const old=owners.get(id);
+    if(asset.owner===null){old?.button.remove();owners.delete(id);return;}
+    const key=[asset.owner,asset.ownerName,asset.buildings,asset.mortgaged].join('|');
+    if(old?.key===key)return;
+    const button=old?.button||document.createElement('button');
+    button.type='button';button.className='board-owner-marker';button.dataset.property=String(id);
+    button.style.setProperty('--owner-color',asset.ownerColor||'#304d50');
+    button.replaceChildren();
+    const icon=document.createElement('span');icon.className='owner-marker-icon';icon.textContent=asset.ownerSymbol||'●';icon.setAttribute('aria-hidden','true');
+    const amount=document.createElement('span');amount.className='owner-marker-count';
+    amount.textContent=asset.buildings===5?'▥ 1':asset.buildings?'⌂ '+asset.buildings:'';
+    button.append(icon,amount);
+    const buildingLabel=asset.buildings===5?'1 tower':asset.buildings+' houses';
+    button.title=board[id].name+' belongs to '+asset.ownerName+' · '+buildingLabel;
+    button.setAttribute('aria-label',button.title);button.onclick=()=>onSelect(id);
+    if(!old)overlay.append(button);
+    const p=tile(id),anchor=new THREE.Vector3(p.x,HEIGHT+.5,p.z);
+    if(p.row===0)anchor.z-=.48;else if(p.row===10)anchor.z+=.48;else if(p.col===0)anchor.x-=.48;else anchor.x+=.48;
+    owners.set(id,{button,anchor,key});
+    if(animate&&!motion.matches)icon.animate([{transform:'translateY(-22px) scale(.3)',opacity:0},{transform:'translateY(-5px) scale(1.3)',opacity:1,offset:.65},{transform:'translateY(0) scale(1)',opacity:1}],{duration:650,easing:'cubic-bezier(.2,.8,.2,1)'});
   }
 
-  function addBuildings(spaceId: number, count: number, color: string) {
-    clearBuildings(spaceId);
-    if (count === 0) return;
-    const [row, col] = spaceToGrid(spaceId);
-    const [w, d]     = tileDims(spaceId);
-    const [wx, wz]   = gridToWorld(row, col, w, d);
-    const objs: THREE.Object3D[] = [];
+  const tokens=new Map<number,THREE.Group>();
+  const moves=new Map<number,{from:THREE.Vector3;to:THREE.Vector3;start:number;duration:number}>();
+  const tokenHomes=new Map<number,THREE.Vector3>();
+  function makeToken(t:TokenState){
+    const group=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.CylinderGeometry(.12,.20,.35,16),new THREE.MeshStandardMaterial({color:t.color,roughness:.35,metalness:.15}));
+    body.position.y=.18;body.castShadow=true;group.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.13,12,10),new THREE.MeshStandardMaterial({color:t.color,roughness:.3}));
+    head.position.y=.42;head.castShadow=true;group.add(head);
+    const iconTexture=paintedTexture(96,96,ctx=>{
+      ctx.fillStyle=t.color;ctx.beginPath();ctx.arc(48,48,44,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#fff9ea';ctx.lineWidth=5;ctx.stroke();ctx.font='48px "Segoe UI Emoji",Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t.symbol||'●',48,49);
+    });
+    const badge=new THREE.Sprite(new THREE.SpriteMaterial({map:iconTexture,depthTest:false}));badge.scale.set(.38,.38,1);badge.position.y=.74;group.add(badge);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(.24,.022,6,24),new THREE.MeshBasicMaterial({color:'#fff8db'}));
+    ring.rotation.x=Math.PI/2;ring.position.y=.025;ring.name='active-ring';group.add(ring);
+    scene.add(group);tokens.set(t.id,group);return group;
+  }
+  function updateTokens(list:TokenState[],speed=1){
+    const live=new Set(list.map(t=>t.id));
+    for(const [id,group] of tokens)if(!live.has(id)){release(group);tokens.delete(id);moves.delete(id);tokenHomes.delete(id);}
+    list.forEach(t=>{
+      const existing=tokens.get(t.id),group=existing||makeToken(t);group.visible=!t.bankrupt;
+      group.userData.active=t.active;group.getObjectByName('active-ring')!.visible=t.active&&!t.bankrupt;
+      const shared=list.filter(other=>!other.bankrupt&&other.position===t.position),index=shared.findIndex(other=>other.id===t.id),p=tile(t.position);
+      const dest=new THREE.Vector3(p.x+(shared.length>1?(index%2? .23:-.23):0),HEIGHT+.02,p.z+(shared.length>2?(index<2?-.20:.20):0));
+      if(tokenHomes.get(t.id)?.equals(dest))return;
+      tokenHomes.set(t.id,dest);
+      if(!existing||motion.matches){moves.delete(t.id);group.position.copy(dest);}
+      else moves.set(t.id,{from:group.position.clone(),to:dest,start:performance.now(),duration:150/Math.max(1,speed)});
+    });
+  }
 
-    if (count === 5) {
-      // Commercial tower
-      const h   = 1.1;
-      const geo = new THREE.BoxGeometry(w * 0.38, h, d * 0.38);
-      const mat = new THREE.MeshLambertMaterial({ color, emissive: hexToThree(color).multiplyScalar(0.12) });
-      const m   = new THREE.Mesh(geo, mat);
-      m.position.set(wx, TILE_H + h / 2, wz);
-      m.castShadow = true;
-      scene.add(m);
-      objs.push(m);
-
-      // Roof accent
-      const rGeo = new THREE.BoxGeometry(w * 0.42, 0.06, d * 0.42);
-      const rMat = new THREE.MeshLambertMaterial({ color: '#ffffff' });
-      const r    = new THREE.Mesh(rGeo, rMat);
-      r.position.set(wx, TILE_H + h + 0.03, wz);
-      scene.add(r);
-      objs.push(r);
-    } else {
-      // Houses — evenly spaced along the tile
-      const houseW = Math.min((w - 0.1) / count - 0.04, 0.22);
-      const houseH = 0.25 + count * 0.04;
-      for (let i = 0; i < count; i++) {
-        const offset = count === 1 ? 0 : (i / (count - 1) - 0.5) * (w - 0.18);
-        const geo    = new THREE.BoxGeometry(houseW, houseH, d * 0.32);
-        const mat    = new THREE.MeshLambertMaterial({ color, emissive: hexToThree(color).multiplyScalar(0.1) });
-        const m      = new THREE.Mesh(geo, mat);
-        // houses sit along the tile's inner edge
-        const houseOffset = row === 10 ? -(d * 0.28) : row === 0 ? (d * 0.28) : 0;
-        const houseOffsetX = col === 0 ? (w * 0.28) : col === 10 ? -(w * 0.28) : 0;
-        m.position.set(wx + offset + houseOffsetX, TILE_H + houseH / 2, wz + houseOffset);
-        m.castShadow = true;
-        scene.add(m);
-        objs.push(m);
+  const normals=[new THREE.Vector3(),new THREE.Vector3(0,1,0),new THREE.Vector3(0,0,1),new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),new THREE.Vector3(0,0,-1),new THREE.Vector3(0,-1,0)];
+  const pipLayouts:number[][][]=[[],[[0,0]],[[-1,-1],[1,1]],[[-1,-1],[0,0],[1,1]],[[-1,-1],[1,-1],[-1,1],[1,1]],[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],[[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]]];
+  const dice=[new THREE.Group(),new THREE.Group()];
+  dice.forEach((group,index)=>{
+    const box=new THREE.Mesh(new THREE.BoxGeometry(SIZE,SIZE,SIZE),new THREE.MeshStandardMaterial({color:'#fff9ec',roughness:.38}));box.castShadow=true;group.add(box);
+    for(let value=1;value<=6;value++){
+      const normal=normals[value],u=new THREE.Vector3(Math.abs(normal.y)>.5?1:0,Math.abs(normal.x)>.5?1:0,0);
+      if(Math.abs(normal.z)>.5)u.set(1,0,0);
+      const v=new THREE.Vector3().crossVectors(normal,u);
+      const pipMaterial=new THREE.MeshBasicMaterial({color:'#1b2b2e'});
+      for(const [x,y] of pipLayouts[value]){
+        const pip=new THREE.Mesh(new THREE.CircleGeometry(.05,10),pipMaterial);
+        pip.position.copy(normal).multiplyScalar(SIZE/2+.002).addScaledVector(u,x*.19).addScaledVector(v,y*.19);
+        pip.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);group.add(pip);
       }
     }
-    buildingObjects.set(spaceId, objs);
+    group.position.set(index? .65:-.65,.44,.45);scene.add(group);
+  });
+  let roll:{start:number;duration:number;values:[number,number];settle:THREE.Quaternion[]}|null=null;
+  const dieQuaternion=(value:number,index:number)=>new THREE.Quaternion().setFromAxisAngle(UP,index?.16:-.16).multiply(new THREE.Quaternion().setFromUnitVectors(normals[value]||UP,UP));
+  function setDice(values:[number,number]){
+    roll=null;container.dataset.diceState='settled';container.dataset.diceValues=values.join(',');
+    dice.forEach((die,i)=>{die.quaternion.copy(dieQuaternion(values[i],i));die.position.set(i?.65:-.65,.44,.45);});
+  }
+  function rollDice(values:[number,number],phase:'rolling'|'settled',speed=1){
+    if(phase==='settled'||motion.matches){setDice(values);return;}
+    if(roll)return;
+    roll={start:performance.now(),duration:950/Math.max(1,speed),values,settle:[]};
+    container.dataset.diceState='rolling';delete container.dataset.diceValues;
   }
 
-  // ── owner mark ring ──────────────────────────────────────────────────────────
-
-  const ownerRings: Map<number, THREE.Mesh> = new Map();
-
-  function setOwnerRing(spaceId: number, color: string | null) {
-    if (ownerRings.has(spaceId)) {
-      scene.remove(ownerRings.get(spaceId)!);
-      ownerRings.delete(spaceId);
+  const view={phi:.90,theta:0,radius:18.8,x:0,z:0};
+  const desired={...view};
+  let movingCamera=false;
+  function cameraPosition(){
+    const distance=view.radius*Math.max(1,1.15/camera.aspect);
+    camera.position.set(view.x+distance*Math.cos(view.phi)*Math.sin(view.theta),distance*Math.sin(view.phi),view.z+distance*Math.cos(view.phi)*Math.cos(view.theta));
+    camera.lookAt(view.x,0,view.z);camera.updateMatrixWorld();
+  }
+  function resetCamera(){Object.assign(desired,{phi:.90,theta:0,radius:18.8,x:0,z:0});movingCamera=true;}
+  function topCamera(){Object.assign(desired,{phi:Math.PI/2-.025,theta:0,radius:17.4,x:0,z:0});movingCamera=true;}
+  cameraPosition();
+  const pointers=new Map<number,{x:number;y:number}>();let startPoint={x:0,y:0},dragged=false,lastPinch=0;
+  const on=(type:string,fn:EventListener,options:AddEventListenerOptions={})=>canvas.addEventListener(type,fn,{...options,signal:listeners.signal});
+  function pick(x:number,y:number){
+    const rect=canvas.getBoundingClientRect(),point=new THREE.Vector2((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);
+    const ray=new THREE.Raycaster();ray.setFromCamera(point,camera);const hit=ray.intersectObjects(targets)[0];if(hit)onSelect(hit.object.userData.spaceId);
+  }
+  on('pointerdown',((event:PointerEvent)=>{
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});canvas.setPointerCapture(event.pointerId);
+    startPoint={x:event.clientX,y:event.clientY};dragged=false;lastPinch=0;
+  }) as EventListener);
+  on('pointermove',((event:PointerEvent)=>{
+    const old=pointers.get(event.pointerId);if(!old)return;
+    const dx=event.clientX-old.x,dy=event.clientY-old.y;
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(Math.hypot(event.clientX-startPoint.x,event.clientY-startPoint.y)>5)dragged=true;
+    if(pointers.size===2){
+      dragged=true;const [a,b]=[...pointers.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);
+      if(lastPinch)desired.radius=THREE.MathUtils.clamp(desired.radius-(distance-lastPinch)*.035,9,26);lastPinch=distance;
+    }else if(event.buttons===2){desired.x-=dx*.012;desired.z-=dy*.012;}
+    else{desired.theta-=dx*.007;desired.phi=THREE.MathUtils.clamp(desired.phi-dy*.005,.35,Math.PI/2-.025);}
+    movingCamera=true;
+  }) as EventListener);
+  on('pointerup',((event:PointerEvent)=>{
+    if(!dragged&&pointers.size===1&&event.button===0)pick(event.clientX,event.clientY);
+    pointers.delete(event.pointerId);lastPinch=0;
+  }) as EventListener);
+  on('pointercancel',((event:PointerEvent)=>{pointers.delete(event.pointerId);lastPinch=0;}) as EventListener);
+  on('contextmenu',event=>event.preventDefault());
+  on('wheel',((event:WheelEvent)=>{event.preventDefault();desired.radius=THREE.MathUtils.clamp(desired.radius+event.deltaY*.012,9,26);movingCamera=true;}) as EventListener,{passive:false});
+  on('keydown',((event:KeyboardEvent)=>{
+    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();selected=(selected+(['ArrowLeft','ArrowDown'].includes(event.key)?1:39))%40;canvas.setAttribute('aria-label',board[selected].name+'. Press Enter for property details.');}
+    if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect(selected);}
+    if(event.key==='Home')resetCamera();
+  }) as EventListener);
+  function updateTiles(assets:Record<number,AssetState>,selectedId:number){
+    selected=selectedId;
+    for(const space of board){
+      const asset=assets[space.id];if(!asset)continue;
+      const key=JSON.stringify(asset);if(assetsCache.get(space.id)===key)continue;
+      const animate=ready&&assetsCache.has(space.id);
+      assetsCache.set(space.id,key);
+      ownerBadge(space.id,asset,animate);
+      const old=buildings.get(space.id),buildingKey=asset.buildings+'|'+asset.ownerColor;
+      if(old?.userData.key!==buildingKey){
+        buildingGroup(space.id,asset.buildings,asset.ownerColor||groups[space.group||'']?.color||'#356452',animate);
+        const next=buildings.get(space.id);if(next)next.userData.key=buildingKey;
+      }
+      const surface=surfaces.get(space.id)!;
+      (surface.material as THREE.MeshStandardMaterial).color.set(asset.mortgaged?'#969f9a':'#f5f0df');
     }
-    if (!color) return;
-    const [row, col] = spaceToGrid(spaceId);
-    const [w, d]     = tileDims(spaceId);
-    const [wx, wz]   = gridToWorld(row, col, w, d);
-    const geo = new THREE.RingGeometry(Math.min(w, d) * 0.38, Math.min(w, d) * 0.46, 32);
-    const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
-    const m   = new THREE.Mesh(geo, mat);
-    m.rotation.x = -Math.PI / 2;
-    m.position.set(wx, TILE_H + 0.005, wz);
-    scene.add(m);
-    ownerRings.set(spaceId, m);
+    ready=true;
   }
-
-  // ── selection highlight ──────────────────────────────────────────────────────
-
-  let selectedHighlight: THREE.Mesh | null = null;
-
-  function setSelection(spaceId: number) {
-    if (selectedHighlight) scene.remove(selectedHighlight);
-    const [row, col] = spaceToGrid(spaceId);
-    const [w, d]     = tileDims(spaceId);
-    const [wx, wz]   = gridToWorld(row, col, w, d);
-    const geo = new THREE.BoxGeometry(w + 0.06, 0.02, d + 0.06);
-    const mat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.18 });
-    const m   = new THREE.Mesh(geo, mat);
-    m.position.set(wx, TILE_H + 0.01, wz);
-    scene.add(m);
-    selectedHighlight = m;
+  function resize(){
+    const w=container.clientWidth,h=container.clientHeight;if(!w||!h)return;
+    renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();cameraPosition();
   }
-
-  // ── player tokens ─────────────────────────────────────────────────────────
-
-  const tokenMeshes: Map<number, THREE.Group> = new Map();
-
-  function ensureToken(t: TokenState): THREE.Group {
-    if (tokenMeshes.has(t.id)) return tokenMeshes.get(t.id)!;
-
-    const group = new THREE.Group();
-
-    // Base cylinder
-    const bodyGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.38, 20);
-    const bodyMat = new THREE.MeshLambertMaterial({
-      color: hexToThree(t.color),
-      emissive: hexToThree(t.color).multiplyScalar(0.15),
+  const observer=new ResizeObserver(resize);observer.observe(container);
+  let raf=0,last=performance.now();
+  function frame(now:number){
+    if(destroyed)return;raf=requestAnimationFrame(frame);
+    if(!container.clientWidth||document.hidden){last=now;return;}
+    const dt=Math.min((now-last)/1000,.05);last=now;
+    if(movingCamera){
+      let difference=0;
+      for(const key of Object.keys(view) as (keyof typeof view)[]){difference+=Math.abs(desired[key]-view[key]);view[key]=motion.matches?desired[key]:THREE.MathUtils.lerp(view[key],desired[key],1-Math.exp(-10*dt));}
+      movingCamera=difference>.001;cameraPosition();
+    }
+    tiles.forEach((group,id)=>{
+      const entrance=motion.matches?1:clamp((now-createdAt-id*12)/550);
+      const lift=id===selected?.055:0;
+      group.position.y=motion.matches?lift:entrance<1?-.65*(1-ease(entrance)):THREE.MathUtils.lerp(group.position.y,lift,1-Math.exp(-12*dt));
     });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.castShadow = true;
-    group.add(body);
-
-    // Dome cap
-    const capGeo = new THREE.SphereGeometry(0.18, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-    const capMat = new THREE.MeshLambertMaterial({
-      color: hexToThree(t.color).clone().addScalar(0.08),
+    for(const [object,pop] of popIns){
+      const t=motion.matches?1:clamp((now-pop.start-pop.delay)/550);
+      const scale=t===1?1:1+2.7*Math.pow(t-1,3)+1.7*Math.pow(t-1,2);
+      object.scale.setScalar(Math.max(.01,scale));if(t===1)popIns.delete(object);
+    }
+    tokens.forEach((group,id)=>{
+      const move=moves.get(id),home=tokenHomes.get(id);
+      if(move){
+        const t=motion.matches?1:clamp((now-move.start)/move.duration);
+        group.position.lerpVectors(move.from,move.to,ease(t));group.position.y+=motion.matches?0:Math.sin(Math.PI*t)*.24;
+        if(t===1)moves.delete(id);
+      }else if(home)group.position.y=home.y+(group.userData.active&&!motion.matches?Math.sin(now*.003)*.025:0);
+      const ring=group.getObjectByName('active-ring');if(ring)ring.scale.setScalar(motion.matches?1:1+Math.sin(now*.004)*.08);
     });
-    const cap = new THREE.Mesh(capGeo, capMat);
-    cap.position.y = 0.19;
-    cap.castShadow = true;
-    group.add(cap);
-
-    // Glowing ring for active player
-    const ringGeo = new THREE.TorusGeometry(0.24, 0.03, 8, 24);
-    const ringMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0 });
-    const ring    = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.02;
-    ring.name = 'activeRing';
-    group.add(ring);
-
-    scene.add(group);
-    tokenMeshes.set(t.id, group);
-    return group;
-  }
-
-  // ── 3D dice ──────────────────────────────────────────────────────────────────
-
-  const DIE_SIZE = 0.55;
-  type DieGroup = THREE.Group & { _spin?: { vx: number; vy: number; vz: number }; _value?: number };
-
-  const diceGroups: [DieGroup, DieGroup] = [new THREE.Group() as DieGroup, new THREE.Group() as DieGroup];
-  let diceAnimating = false;
-  let diceAnimId    = 0;
-
-  function buildDie(group: DieGroup) {
-    group.clear();
-    const geo = new THREE.BoxGeometry(DIE_SIZE, DIE_SIZE, DIE_SIZE, 1, 1, 1);
-    const mat = new THREE.MeshLambertMaterial({ color: '#f8f4e8' });
-    const body = new THREE.Mesh(geo, mat);
-    body.castShadow = true;
-    group.add(body);
-
-    // Rounded edges hint via outline
-    const edges = new THREE.EdgesGeometry(geo);
-    const eMat  = new THREE.LineBasicMaterial({ color: '#c8c0a8', linewidth: 1 });
-    group.add(new THREE.LineSegments(edges, eMat));
-
-    // Pip spheres for all 6 faces
-    const pipMat = new THREE.MeshLambertMaterial({ color: '#1a1a1a' });
-    const faceNormals: [THREE.Vector3, number][] = [
-      [new THREE.Vector3(0, 1, 0), 1],  // top → 1
-      [new THREE.Vector3(0, -1, 0), 6], // bottom → 6
-      [new THREE.Vector3(1, 0, 0), 3],  // right → 3
-      [new THREE.Vector3(-1, 0, 0), 4], // left → 4
-      [new THREE.Vector3(0, 0, 1), 2],  // front → 2
-      [new THREE.Vector3(0, 0, -1), 5], // back → 5
-    ];
-
-    faceNormals.forEach(([normal, faceValue]) => {
-      const layout = PIP_LAYOUTS[faceValue];
-      layout.forEach(([u, v]) => {
-        const pipGeo  = new THREE.SphereGeometry(0.055, 8, 8);
-        const pipMesh = new THREE.Mesh(pipGeo, pipMat);
-        // Place pip on the face: normal * half-size + uv tangents
-        const tangentU = new THREE.Vector3();
-        const tangentV = new THREE.Vector3();
-        if (Math.abs(normal.y) > 0.5) {
-          tangentU.set(1, 0, 0);
-          tangentV.set(0, 0, 1);
-        } else if (Math.abs(normal.x) > 0.5) {
-          tangentU.set(0, 1, 0);
-          tangentV.set(0, 0, 1);
-        } else {
-          tangentU.set(1, 0, 0);
-          tangentV.set(0, 1, 0);
+    if(roll){
+      const t=motion.matches?1:clamp((now-roll.start)/roll.duration);
+      dice.forEach((die,i)=>{
+        const spin=Math.min(t/.75,1),direction=i?-1:1;
+        if(t<.75)die.rotation.set(spin*Math.PI*5,spin*Math.PI*4*direction,spin*Math.PI*3);
+        else {
+          if(!roll!.settle[i])roll!.settle[i]=die.quaternion.clone();
+          die.quaternion.slerpQuaternions(roll!.settle[i],dieQuaternion(roll!.values[i],i),ease((t-.75)/.25));
         }
-        pipMesh.position.copy(
-          normal.clone().multiplyScalar(DIE_SIZE / 2 + 0.012)
-            .add(tangentU.clone().multiplyScalar(u))
-            .add(tangentV.clone().multiplyScalar(v))
-        );
-        pipMesh.castShadow = false;
-        group.add(pipMesh);
+        die.position.set((i?.65:-.65)+Math.sin(t*Math.PI*2+i)*.4*(1-t),.44+Math.abs(Math.sin(t*Math.PI*3))*(1-t)*1.6,.45+Math.sin(t*Math.PI)*.4*direction);
       });
-    });
-  }
-
-  /** Rotate die so face `value` points upward. */
-  function orientDie(group: DieGroup, value: number) {
-    group.rotation.set(0, 0, 0);
-    // Mapping: face normals were assigned top=1,front=2,right=3,left=4,back=5,bottom=6
-    const rotations: Record<number, [number, number, number]> = {
-      1: [0, 0, 0],
-      6: [Math.PI, 0, 0],
-      2: [-Math.PI / 2, 0, 0],
-      5: [Math.PI / 2, 0, 0],
-      3: [0, 0, -Math.PI / 2],
-      4: [0, 0, Math.PI / 2],
-    };
-    const [rx, ry, rz] = rotations[value] || [0, 0, 0];
-    group.rotation.set(rx, ry, rz);
-  }
-
-  // Position dice to the right of the board center
-  function positionDice() {
-    diceGroups[0].position.set(0.7, TILE_H + DIE_SIZE / 2 + 0.05, 0.2);
-    diceGroups[1].position.set(-0.7, TILE_H + DIE_SIZE / 2 + 0.05, 0.2);
-  }
-
-  diceGroups.forEach(g => {
-    buildDie(g);
-    scene.add(g);
-  });
-  positionDice();
-
-  let diceValues: [number, number] = [1, 1];
-
-  function animateDice(values: [number, number]) {
-    diceAnimating = true;
-    const startTime = performance.now();
-    const duration  = 900;
-    const id        = ++diceAnimId;
-
-    // Give each die a random spin velocity
-    diceGroups.forEach(g => {
-      (g as DieGroup)._spin = {
-        vx: (Math.random() - 0.5) * 14,
-        vy: (Math.random() - 0.5) * 14,
-        vz: (Math.random() - 0.5) * 14,
-      };
-    });
-
-    function tick() {
-      if (id !== diceAnimId) return;
-      const elapsed = performance.now() - startTime;
-      const t       = Math.min(elapsed / duration, 1);
-      // Ease out
-      const eased   = 1 - Math.pow(1 - t, 3);
-
-      diceGroups.forEach(g => {
-        const spin = (g as DieGroup)._spin!;
-        const scale = 1 - eased * 0.85;
-        g.rotation.x += spin.vx * (1 - eased) * 0.016;
-        g.rotation.y += spin.vy * (1 - eased) * 0.016;
-        g.rotation.z += spin.vz * (1 - eased) * 0.016;
-        g.position.y  = TILE_H + DIE_SIZE / 2 + 0.05 + Math.sin(eased * Math.PI) * 1.2 * scale;
-      });
-
-      if (t < 1) {
-        requestAnimationFrame(tick);
-      } else {
-        diceAnimating = false;
-        diceValues    = values;
-        diceGroups.forEach((g, i) => {
-          orientDie(g, values[i]);
-          positionDice();
-        });
-      }
+      if(t===1)setDice(roll.values);
     }
-    requestAnimationFrame(tick);
-  }
-
-  // ── orbit controls (manual, no external dep) ─────────────────────────────────
-
-  let orbiting  = false;
-  let panning   = false;
-  let lastMouse = { x: 0, y: 0 };
-  // Spherical coords
-  let phi       = Math.atan2(CAMERA_DEFAULT.z, Math.sqrt(CAMERA_DEFAULT.x ** 2 + CAMERA_DEFAULT.z ** 2)); // elevation
-  let theta     = 0; // azimuth
-  let radius    = CAMERA_DEFAULT.distanceTo(CAMERA_TARGET);
-  const panTarget = new THREE.Vector3();
-
-  function updateCamera() {
-    const x = radius * Math.cos(phi) * Math.sin(theta);
-    const y = radius * Math.sin(phi);
-    const z = radius * Math.cos(phi) * Math.cos(theta);
-    camera.position.set(
-      x + panTarget.x,
-      Math.max(y, 2),
-      z + panTarget.z,
-    );
-    camera.lookAt(panTarget);
-  }
-
-  function onMouseDown(e: MouseEvent) {
-    if (e.button === 2) { panning = true; }
-    else { orbiting = true; }
-    lastMouse = { x: e.clientX, y: e.clientY };
-  }
-  function onMouseMove(e: MouseEvent) {
-    const dx = e.clientX - lastMouse.x;
-    const dy = e.clientY - lastMouse.y;
-    lastMouse = { x: e.clientX, y: e.clientY };
-    if (orbiting) {
-      theta -= dx * 0.008;
-      phi    = Math.max(0.18, Math.min(Math.PI / 2 - 0.04, phi - dy * 0.006));
-      updateCamera();
-    }
-    if (panning) {
-      panTarget.x -= dx * 0.018;
-      panTarget.z -= dy * 0.018;
-      updateCamera();
-    }
-  }
-  function onMouseUp()    { orbiting = false; panning = false; }
-  function onWheel(e: WheelEvent) {
-    radius = Math.max(5, Math.min(30, radius + e.deltaY * 0.022));
-    updateCamera();
-    e.preventDefault();
-  }
-
-  // Touch support
-  let lastTouchDist = 0;
-  function onTouchStart(e: TouchEvent) {
-    if (e.touches.length === 1) {
-      orbiting  = true;
-      lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    } else if (e.touches.length === 2) {
-      lastTouchDist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY,
-      );
-    }
-  }
-  function onTouchMove(e: TouchEvent) {
-    if (e.touches.length === 1 && orbiting) {
-      const dx = e.touches[0].clientX - lastMouse.x;
-      const dy = e.touches[0].clientY - lastMouse.y;
-      lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      theta -= dx * 0.008;
-      phi    = Math.max(0.18, Math.min(Math.PI / 2 - 0.04, phi - dy * 0.006));
-      updateCamera();
-    } else if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY,
-      );
-      radius = Math.max(5, Math.min(30, radius - (dist - lastTouchDist) * 0.06));
-      lastTouchDist = dist;
-      updateCamera();
-      e.preventDefault();
-    }
-  }
-  function onTouchEnd() { orbiting = false; }
-
-  const canvas = renderer.domElement;
-  canvas.addEventListener('mousedown',  onMouseDown,  { passive: true });
-  canvas.addEventListener('mousemove',  onMouseMove,  { passive: true });
-  canvas.addEventListener('mouseup',    onMouseUp,    { passive: true });
-  canvas.addEventListener('mouseleave', onMouseUp,    { passive: true });
-  canvas.addEventListener('wheel',      onWheel,      { passive: false });
-  canvas.addEventListener('touchstart', onTouchStart, { passive: true });
-  canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
-  canvas.addEventListener('touchend',   onTouchEnd,   { passive: true });
-  canvas.setAttribute('tabindex', '0');
-
-  // Initialise spherical coords from default camera position
-  phi    = Math.asin(CAMERA_DEFAULT.y / CAMERA_DEFAULT.length());
-  theta  = Math.atan2(CAMERA_DEFAULT.x, CAMERA_DEFAULT.z);
-  radius = CAMERA_DEFAULT.length();
-  updateCamera();
-
-  // ── raycasting / click-to-select ─────────────────────────────────────────────
-
-  const raycaster = new THREE.Raycaster();
-  const mouse2d   = new THREE.Vector2();
-  let   mouseHasMoved = false;
-
-  canvas.addEventListener('mousedown', () => { mouseHasMoved = false; });
-  canvas.addEventListener('mousemove', () => { mouseHasMoved = true; });
-  canvas.addEventListener('mouseup', (e: MouseEvent) => {
-    if (mouseHasMoved || e.button !== 0) return;
-    const rect = canvas.getBoundingClientRect();
-    mouse2d.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-    mouse2d.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouse2d, camera);
-    const hits = raycaster.intersectObjects(tileClickTargets);
-    if (hits.length > 0) {
-      const spaceId = hits[0].object.userData.spaceId as number;
-      onSelect(spaceId);
-    }
-  });
-
-  // ── render loop ──────────────────────────────────────────────────────────────
-
-  let rafId = 0;
-  let lastTime = 0;
-
-  function animate(time: number) {
-    rafId = requestAnimationFrame(animate);
-    const delta = (time - lastTime) / 1000;
-    lastTime    = time;
-
-    // Gently bob active tokens
-    tokenMeshes.forEach((group, id) => {
-      const ring = group.getObjectByName('activeRing') as THREE.Mesh | undefined;
-      if (!ring) return;
-      const mat = ring.material as THREE.MeshBasicMaterial;
-      if (mat.opacity > 0.01) {
-        group.position.y += Math.sin(time * 0.003) * 0.0008;
-      }
+    owners.forEach(({button,anchor})=>{
+      const point=anchor.clone().project(camera);
+      button.style.transform='translate(-50%,-50%) translate('+((point.x+1)*container.clientWidth/2)+'px,'+((-point.y+1)*container.clientHeight/2)+'px)';
+      button.hidden=point.z>1||point.z< -1;
     });
-
-    renderer.render(scene, camera);
+    renderer.render(scene,camera);
   }
-  rafId = requestAnimationFrame(animate);
-
-  // ── resize ───────────────────────────────────────────────────────────────────
-
-  function resize() {
-    const w = container.clientWidth;
-    const h = container.clientHeight || w;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+  function init(){resize();setDice([1,1]);raf=requestAnimationFrame(frame);}
+  function destroy(){
+    destroyed=true;cancelAnimationFrame(raf);listeners.abort();observer.disconnect();
+    owners.forEach(owner=>owner.button.remove());moves.clear();popIns.clear();
+    release(scene);renderer.dispose();canvas.remove();overlay.remove();
   }
-
-  // ── token placement ──────────────────────────────────────────────────────────
-
-  const tokenTargets: Map<number, THREE.Vector3> = new Map();
-  const tokenVelocities: Map<number, THREE.Vector3> = new Map();
-
-  function tokenWorldPos(spaceId: number, index: number, total: number): THREE.Vector3 {
-    const [row, col] = spaceToGrid(spaceId);
-    const [w, d]     = tileDims(spaceId);
-    const [wx, wz]   = gridToWorld(row, col, w, d);
-    const offsetX = total > 1 ? (index % 2 === 0 ? -0.22 : 0.22) : 0;
-    const offsetZ = total > 2 ? (index < 2    ? -0.18 : 0.18)    : 0;
-    return new THREE.Vector3(wx + offsetX, TILE_H + 0.19, wz + offsetZ);
-  }
-
-  // ── public API ───────────────────────────────────────────────────────────────
-
-  function init() {
-    resize();
-  }
-
-  function updateTiles(assets: Record<number, AssetState>, selectedId: number) {
-    board.forEach(space => {
-      if (!space.price) return;
-      const asset = assets[space.id];
-      if (!asset) return;
-
-      // Owner ring
-      setOwnerRing(space.id, asset.ownerColor ?? null);
-
-      // Buildings
-      if (asset.buildings !== (tileMeshes.get(space.id)?.userData.buildings ?? -1)) {
-        tileMeshes.get(space.id)!.userData.buildings = asset.buildings;
-        const groupColor = space.group && groups[space.group] ? groups[space.group].color : '#888888';
-        if (asset.buildings > 0 && !asset.mortgaged) {
-          addBuildings(space.id, asset.buildings, groupColor);
-        } else {
-          clearBuildings(space.id);
-        }
-      }
-
-      // Tile surface tint for mortgaged
-      const tileMesh = tileMeshes.get(space.id);
-      if (tileMesh) {
-        const mat = tileMesh.material as THREE.MeshLambertMaterial;
-        mat.color.set(asset.mortgaged ? '#9e9e9e' : BASE_TILE_COLOR);
-      }
-    });
-    setSelection(selectedId);
-  }
-
-  function updateTokens(tokens: TokenState[], speedMult = 1) {
-    // Ensure all token groups exist
-    tokens.forEach(t => {
-      if (!t.bankrupt) ensureToken(t);
-    });
-
-    // Group tokens by position for offset calculation
-    const byPosition: Map<number, TokenState[]> = new Map();
-    tokens.forEach(t => {
-      if (t.bankrupt) return;
-      const list = byPosition.get(t.position) || [];
-      list.push(t);
-      byPosition.set(t.position, list);
-    });
-
-    tokens.forEach(t => {
-      const group = tokenMeshes.get(t.id);
-      if (!group) return;
-      group.visible = !t.bankrupt;
-      if (t.bankrupt) return;
-
-      const list  = byPosition.get(t.position) || [t];
-      const index = list.findIndex(x => x.id === t.id);
-      const target = tokenWorldPos(t.position, index, list.length);
-      tokenTargets.set(t.id, target);
-
-      // Active ring opacity
-      const ring = group.getObjectByName('activeRing') as THREE.Mesh | undefined;
-      if (ring) {
-        (ring.material as THREE.MeshBasicMaterial).opacity = t.active ? 0.9 : 0;
-      }
-
-      // Body emissive pulse for active player
-      const body = group.children[0] as THREE.Mesh;
-      if (body) {
-        const mat = body.material as THREE.MeshLambertMaterial;
-        mat.emissive.set(t.active
-          ? hexToThree(t.color).multiplyScalar(0.3)
-          : hexToThree(t.color).multiplyScalar(0.1));
-      }
-    });
-
-    // Animate tokens toward targets in the next few frames
-    const duration = Math.max(80, 150 / speedMult);
-    let elapsed    = 0;
-    const startPositions: Map<number, THREE.Vector3> = new Map();
-    tokens.forEach(t => {
-      const g = tokenMeshes.get(t.id);
-      if (g) startPositions.set(t.id, g.position.clone());
-    });
-
-    function moveStep() {
-      elapsed += 16;
-      const progress = Math.min(elapsed / duration, 1);
-      const ease     = 1 - Math.pow(1 - progress, 3);
-      let allDone    = true;
-      tokens.forEach(t => {
-        const g      = tokenMeshes.get(t.id);
-        const target = tokenTargets.get(t.id);
-        const start  = startPositions.get(t.id);
-        if (!g || !target || !start) return;
-        g.position.lerpVectors(start, target, ease);
-        if (progress < 1) allDone = false;
-      });
-      if (!allDone) setTimeout(moveStep, 16);
-    }
-    setTimeout(moveStep, 0);
-  }
-
-  function rollDice(values: [number, number], phase: 'rolling' | 'settled') {
-    if (phase === 'rolling') {
-      animateDice(values);
-    } else {
-      diceAnimating = false;
-      diceAnimId++;
-      diceValues = values;
-      diceGroups.forEach((g, i) => {
-        orientDie(g, values[i]);
-        positionDice();
-      });
-    }
-  }
-
-  function setDice(values: [number, number]) {
-    diceAnimId++;
-    diceAnimating = false;
-    diceValues    = values;
-    diceGroups.forEach((g, i) => {
-      orientDie(g, values[i]);
-      positionDice();
-    });
-  }
-
-  function resetCamera() {
-    phi    = Math.asin(CAMERA_DEFAULT.y / CAMERA_DEFAULT.length());
-    theta  = Math.atan2(CAMERA_DEFAULT.x, CAMERA_DEFAULT.z);
-    radius = CAMERA_DEFAULT.length();
-    panTarget.set(0, 0, 0);
-    updateCamera();
-  }
-
-  function topCamera() {
-    phi    = Math.PI / 2 - 0.04; // near-vertical, just shy of the gimbal limit
-    theta  = 0;
-    radius = 17;
-    panTarget.set(0, 0, 0);
-    updateCamera();
-  }
-
-  function destroy() {
-    cancelAnimationFrame(rafId);
-    canvas.removeEventListener('mousedown',  onMouseDown);
-    canvas.removeEventListener('mousemove',  onMouseMove);
-    canvas.removeEventListener('mouseup',    onMouseUp);
-    canvas.removeEventListener('mouseleave', onMouseUp);
-    canvas.removeEventListener('wheel',      onWheel);
-    canvas.removeEventListener('touchstart', onTouchStart);
-    canvas.removeEventListener('touchmove',  onTouchMove);
-    canvas.removeEventListener('touchend',   onTouchEnd);
-    renderer.dispose();
-    if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
-  }
-
-  return { init, updateTiles, updateTokens, rollDice, setDice, resize, resetCamera, topCamera, destroy };
+  return {init,updateTiles,updateTokens,rollDice,setDice,resize,resetCamera,topCamera,destroy};
 }

@@ -1,6 +1,6 @@
 ﻿# MARKET WARS — Online Multiplayer
 
-An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers. The original tabletop board, rules, animations, and supplied dice and property-visit sounds are preserved.
+An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers, with an animated 3D tabletop, shared dice and card reveals, and the supplied dice and property-visit sounds.
 
 The application uses **Next.js 16, TypeScript, Supabase Auth/Postgres/Realtime, and Vercel**. Every game command runs on the server and is committed to Supabase. There is no offline game-state fallback.
 
@@ -73,7 +73,11 @@ The GitHub Actions workflow runs the rule, authorization, database-policy tests,
 - An uncertain command response keeps the original request ID for safe retry, including after refresh. Known invalid/stale actions refresh the room before another attempt.
 - Clearing browser site data or switching browser profiles loses an anonymous identity. A room code identifies the room, not an existing player's identity. New devices can join as new players before the game starts; account-based identity recovery is outside this version.
 
-The board fits small screens by default. Use **Zoom in** for larger labels and swipe the board horizontally. Mobile controls remain accessible at the bottom. Sound can be muted in Settings; browser audio requires an initial user interaction.
+The board fits small screens by default. Drag to rotate, pinch or scroll to zoom, and use the camera buttons to reset or look straight down. Keyboard users can focus the board, select spaces with arrow keys, and open a deed with Enter. A flat board is available when WebGL cannot initialize. Mobile controls remain accessible at the bottom. Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
+
+Buying a property shows the owner's token on the board and a purchase popup for everyone. Player cards and deeds show individual house icons and counts; the board also displays the buildings. A tower represents the fifth development level.
+
+Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with the bank. After purchase, the owner can choose **Auction property** during their own turn, before rolling or after resolving their landing. Other players bid; the seller receives the winning amount and the buyer receives the property with its buildings. If everyone passes, the owner keeps it. Mortgaged properties must be unmortgaged first.
 
 ## Architecture and integrity
 
@@ -81,9 +85,9 @@ The board fits small screens by default. Use **Zoom in** for larger labels and s
 | --- | --- |
 | Pages and room links | Next.js App Router in `app/` |
 | Room creation and commands | Authenticated route handlers under `app/api/rooms/` |
-| Authoritative rules | `lib/game-engine.cjs`, shared unchanged rules model |
+| Authoritative rules | `lib/game-engine.cjs`, shared server-validated rules model |
 | Identity/turn checks | `lib/game-actions.ts`, `lib/validation.ts` |
-| Board renderer | `lib/game-ui.js`, original markup and `style.css` |
+| Board renderer | `lib/board-3d.ts` (Three.js), `lib/game-ui.js`, `style.css`, and `app/multiplayer.css` |
 | Online UI and recovery | `components/useMultiplayer.ts`, `GameClient`, `Lobby`, `PlayerForm` |
 | Public room state | `mw_rooms`, read-only to authenticated room members |
 | Private state/deck order | `mw_game_secrets`, server access only |
@@ -106,7 +110,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs 28 original rule checks, 8 server authorization checks, and 6 PostgreSQL/PGlite checks. These cover complete games, auctions, off-turn debt, detention continuations, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, and private deck order. PGlite exercises PostgreSQL rules and policies; it does not test the hosted Realtime service.
+`npm test` runs 31 rule checks, 9 server authorization checks, and 6 PostgreSQL/PGlite checks. These cover complete games, owner auctions, off-turn debt, detention continuations, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, and private deck order. PGlite exercises PostgreSQL rules and policies; it does not test the hosted Realtime service.
 
 Deterministic two-browser UI checks use the Playwright CLI. Start the app at port 3000 first, then:
 
@@ -117,7 +121,7 @@ npx playwright-cli -s=market-online run-code --filename=output/playwright/online
 npx playwright-cli -s=market-online close
 ```
 
-These browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized display, both audio files, room-link entry, refresh, and mobile layout. Screenshots are written under `output/playwright/`.
+These browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, house counts, owner auctions, shared event cards, reduced motion, both audio files, room-link entry, refresh, and layouts from 320px to 1440px. Screenshots are written under `output/playwright/`.
 
 For a **real internet/Supabase smoke test**, configure a test Supabase project with anonymous sign-ins and the migration, start the Next app against it, and run:
 
@@ -133,4 +137,4 @@ Before inviting friends, also open the deployed link on two different devices/ne
 
 ## Rules preserved
 
-Everyone begins with $1,500. The last financially active player wins. The 40 spaces, original property names, two 15-card event decks, role differences, dice/doubles rules, mortgages, auctions, taxes, detention, and bankruptcy rules are unchanged. The in-game **How to play** dialog contains the full rules.
+Everyone begins with $1,500. The last financially active player wins. The 40 spaces, original property names, two 15-card event decks, role differences, dice/doubles rules, mortgages, taxes, detention, and bankruptcy rules are preserved. Auctions now start only when a property owner chooses to sell; the auction space offers an unowned property for purchase first. Existing saved bank auctions can still finish. The in-game **How to play** dialog contains the full rules.

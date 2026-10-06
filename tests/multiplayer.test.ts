@@ -54,7 +54,7 @@ test('Offers, purchases, rents, and turns reuse the model', async () => {
 
 test('Only the current auction bidder can bid or pass', async () => {
   const room = playing(), game = fixture();
-  game.state.phase = 'moving'; game.startAuction(1); game.auctionPass();
+  game.state.properties[1].owner = 0; game.startAuction(1);
   room.state = saved(game);
   assert.equal(room.state.auction?.bidder, 1);
   await assert.rejects(applyGameAction(room, 'host', { action: 'bid', increment: 10 }), /acting player/);
@@ -62,6 +62,20 @@ test('Only the current auction bidder can bid or pass', async () => {
   const bid = await applyGameAction(room, 'guest', { action: 'bid', increment: 10 });
   assert.equal(bid.state.properties['1'].owner, 1);
   assert.equal(bid.state.players[1].cash, 1490);
+  assert.equal(bid.state.players[0].cash, 1510);
+});
+
+test('Only the owner can offer a purchased property and skipping never starts an auction', async () => {
+  const room = playing(), game = fixture();
+  game.state.phase = 'moving'; game.state.players[0].position = 1; game.resolveSpace(); room.state = saved(game);
+  await assert.rejects(applyGameAction(room, 'host', { action: 'auction', id: 1 }), /owner/);
+  const skipped = await applyGameAction(room, 'host', { action: 'skip' });
+  assert.equal(skipped.state.properties[1].owner, null); assert.equal(skipped.state.auction, null);
+  room.state = (await applyGameAction(room, 'host', { action: 'buy' })).state;
+  await assert.rejects(applyGameAction(room, 'guest', { action: 'auction', id: 1 }), /acting player/);
+  room.state = (await applyGameAction(room, 'host', { action: 'auction', id: 1 })).state;
+  assert.equal(room.state.auction?.seller, 0); assert.deepEqual(room.state.auction?.order, [1]);
+  assert.throws(() => command({ action: 'auction' }), /Invalid property/);
 });
 
 test('Only the off-turn debtor can liquidate, settle, or declare bankruptcy', async () => {

@@ -77,3 +77,55 @@
 @media(prefers-reduced-motion:reduce){
   .board-3d-container{--reduce-motion:1}
 }
+
+/* Ownership and development remain readable while the board moves. */
+.board-area{position:relative;min-width:0}
+.board-3d-wrap{aspect-ratio:1;min-height:340px;max-height:760px;background:#e8e3d5;border:2px solid var(--ink);border-radius:4px}
+.board-owner-overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.board-owner-marker{position:absolute;left:0;top:0;pointer-events:auto;display:flex;align-items:center;justify-content:center;gap:2px;min-height:30px;min-width:30px;padding:2px 4px;border:2px solid var(--owner-color);border-radius:16px;background:#fffaf0;box-shadow:0 2px 0 #1e2c2d33;color:var(--ink);font:700 10px var(--mono);will-change:transform}
+.owner-marker-icon{font-size:18px;line-height:22px;display:inline-block}
+.owner-marker-count:empty{display:none}
+.board-owner-marker:hover,.board-owner-marker:focus-visible{outline:3px solid var(--owner-color);outline-offset:2px;z-index:2}
+.property-owner{display:flex;align-items:center;gap:8px;font-size:11px;line-height:1.5;margin:12px 0;color:var(--ink);overflow-wrap:anywhere}
+.owner-avatar{display:grid;place-items:center;flex:0 0 32px;height:32px;border:2px solid var(--owner-color);border-radius:50%;font-size:18px;background:var(--bg)}
+.property-owner.unowned{color:var(--muted)}
+.building-display{display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:var(--ink);font:11px var(--mono);margin:8px 0}
+.house-icons{display:inline-flex;gap:2px;color:var(--owner-color)}
+.house-icon{width:20px;height:22px;fill:color-mix(in srgb,var(--owner-color) 18%,transparent);stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.empty-house{opacity:.4;fill:none;stroke-dasharray:3 2}
+.no-buildings{font-size:10px;color:var(--muted)}
+.player-properties{max-height:180px;overflow-y:auto;margin-top:12px;border-top:1px solid var(--line)}
+.player-properties:empty{display:none}
+.player-property{display:flex;width:100%;align-items:flex-start;text-align:left;gap:8px;padding:10px 2px;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;color:var(--ink);min-height:44px}
+.player-property>b,.player-property>span{min-width:0}
+.player-property b{font-size:11px;line-height:1.4;display:block;overflow-wrap:anywhere}
+.player-property .building-display{font-size:10px;margin:6px 0 0;gap:4px}
+.player-property .house-icon{width:14px;height:16px}
+.property-dot{display:inline-block;width:6px;min-width:6px;height:24px;margin-top:2px}
+.property-preview>.secondary{margin-top:8px;width:100%}
+.sidebar-dice{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.sidebar-dice>.dice{display:flex;gap:10px;margin:0}
+.sidebar-dice .die{width:42px;height:42px;padding:7px;border-radius:7px}
+.sidebar-dice>span{font:9px var(--mono);letter-spacing:1px;text-align:right;color:var(--muted)}
+.ownership-notice{position:absolute;z-index:3;top:56px;left:16px;right:16px;max-width:420px;margin:auto;display:flex;align-items:center;gap:12px;padding:16px;background:#fff9ea;border:2px solid var(--ink);box-shadow:4px 4px 0 #1e2c2d33;pointer-events:none}
+.purchase-seal{display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;border:3px solid var(--owner-color);border-radius:50%;font-size:28px}
+.ownership-notice small{font:9px var(--mono);letter-spacing:1.5px;color:var(--muted);display:block;margin-bottom:4px}
+.ownership-notice b{font-size:15px;display:block;overflow-wrap:anywhere}
+.ownership-notice>span>span{font-size:12px;display:block;margin-top:4px}
+.board-fallback{aspect-ratio:auto;height:auto!important;overflow:auto;max-height:none}
+.board-fallback #game-board{width:100%;min-width:600px;position:relative;opacity:1;clip:auto}
+.fallback-token{position:absolute;transform:translate(-50%,-50%);border:2px solid var(--owner-color);background:#fff9ea;border-radius:50%;width:28px;height:28px;display:grid;place-items:center;transition:left .15s,top .15s;z-index:4}
+.board-3d-container canvas:focus-visible{outline:3px solid var(--red);outline-offset:-4px}
+.board-3d-btn{min-width:44px;min-height:44px}
+@keyframes card-arrive{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes deck-breathe{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-5px) rotate(-2deg)}}
+.online-entry,.online-lobby,.lobby-player{animation:card-arrive .5s both}
+.lobby-player:nth-child(2){animation-delay:.07s}.lobby-player:nth-child(3){animation-delay:.14s}.lobby-player:nth-child(4){animation-delay:.21s}
+.preview-board{animation:card-arrive .8s both}
+.event-icon{animation:deck-breathe 2s ease-in-out infinite}
+.event-card{transform-origin:center bottom}
+#modal[data-kind=offer] .detail-banner,#modal[data-kind=details] .detail-banner{animation:card-arrive .45s both}
+@media(max-width:1024px){.board-3d-wrap{max-height:none;min-height:340px}.player-properties{max-height:128px}.ownership-notice{top:56px}}
+@media(max-width:768px){.board-3d-wrap{height:auto;aspect-ratio:1;min-height:320px}.board-owner-marker{min-width:26px;min-height:26px;padding:1px 3px}.owner-marker-icon{font-size:16px}.board-owner-marker .owner-marker-count{font-size:8px}.ownership-notice{left:8px;right:8px;padding:12px}.purchase-seal{width:36px;height:36px;flex-basis:36px;font-size:22px}}
+@media(max-width:400px){.board-3d-wrap{min-height:280px}.player-property b{font-size:10px}.ownership-notice b{font-size:13px}.house-icons{gap:0}.detail-grid .building-display{font-size:11px}.modal-inner{padding:20px}}
+@media(prefers-reduced-motion:reduce){.online-entry,.online-lobby,.lobby-player,.preview-board,.event-icon,#modal .detail-banner{animation:none!important}.fallback-token{transition:none}.board-owner-marker{will-change:auto}}

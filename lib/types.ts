@@ -8,7 +8,7 @@ export type GameState = {
   version: number; players: Player[]; properties: Record<string, { owner: number | null; buildings: number; mortgaged: boolean }>;
   currentPlayer: number; turn: number; phase: 'ready' | 'end' | 'offer' | 'auction' | 'event' | 'debt' | 'victory' | 'rolling' | 'moving';
   dice: number[]; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
-  auction: { bidder: number; property: number; bid: number; leader: number | null; order: number[]; passed: number[] } | null;
+  auction: { bidder: number; property: number; seller?: number | null; returnPhase?: 'ready' | 'end'; bid: number; leader: number | null; order: number[]; passed: number[] } | null;
   settings: Record<string, boolean | number>; winner: number | null;
 };
 export type Room = {
@@ -18,6 +18,6 @@ export type Room = {
 };
 export type Transition = { action: string; player: number; dice: number[]; path: number[]; sounds: string[] };
 export type Connection = { code: string; user_id: string; client_id: string; seen_at: string; connected: boolean };
-export const ACTIONS = ['roll', 'end', 'buy', 'auction', 'bid', 'pass', 'apply-event', 'release', 'build', 'sell', 'mortgage', 'unmortgage', 'settle', 'bankrupt'] as const;
+export const ACTIONS = ['roll', 'end', 'buy', 'skip', 'auction', 'bid', 'pass', 'apply-event', 'release', 'build', 'sell', 'mortgage', 'unmortgage', 'settle', 'bankrupt'] as const;
 export type GameAction = typeof ACTIONS[number];
 export type Command = { action: GameAction; id?: number; increment?: number };

@@ -40,8 +40,9 @@ async (page) => {
         else{room.state=clone(fixture.states[0]);room.status='playing';room.revision++;payload={room};broadcast('mw_rooms',room);}
       }else if(body.operation==='action'){
         const next=body.action==='roll'?(seat===0?1:4):body.action==='buy'?2:body.action==='end'?3:null;
-        if(next===null)throw Error('Unexpected fixture action '+body.action);
-        room.state=clone(fixture.states[next]);room.revision++;
+        const special=body.action==='auction'?fixture.extras.auction:body.action==='bid'?fixture.extras.resold:null;
+        if(next===null&&!special)throw Error('Unexpected fixture action '+body.action);
+        room.state=clone(special||fixture.states[next]);room.revision++;
         room.transition={action:body.action,player:seat,dice:room.state.dice,path:body.action==='roll'?[1,2,3,4]:[],sounds:body.action==='roll'?(seat===0?['dice']:['dice','visitor']):[]};
         payload={room};broadcast('mw_rooms',room);
       }else throw Error('Unexpected fixture operation '+body.operation);
@@ -73,14 +74,24 @@ async (page) => {
   assert(await page.locator('.lobby-player:not(.empty-seat)').count()===2,'Host sees both connected players');
   await guest.screenshot({path:'output/playwright/online-lobby-mobile.png',fullPage:true});
   await page.getByRole('button',{name:'Start Game'}).click();await page.locator('#game-screen').waitFor({state:'visible'});await guest.locator('#game-screen').waitFor({state:'visible'});
-  await page.locator('#board-center [data-action=roll]').waitFor();
+  await page.locator('#turn-action-card [data-action=roll]').waitFor();
+  assert(await page.locator('#board-3d-container canvas').count()===1,'3D board initializes successfully');
   assert(await guest.locator('#board-center [data-action=roll]').isDisabled(),'Guest cannot roll during host turn');
-  await page.locator('#board-center [data-action=roll]').click();
-  await page.locator('#modal [data-action=buy]').waitFor();await page.locator('#modal [data-action=buy]').click();
+  await page.locator('#turn-action-card [data-action=roll]').click();
+  await page.waitForFunction(()=>document.querySelector('#board-3d-container').dataset.diceState==='rolling');
+  assert(await page.locator('#turn-action-card .dice.rolling').count()===1,'Dice animate on both the board and action card');
+  await page.locator('#modal [data-action=buy]').waitFor();
+  assert(await page.locator('#modal [data-action=auction]').count()===0,'Unowned property offers purchase or skip, never an auction');
+  assert(await page.locator('#board-3d-container').getAttribute('data-dice-values')==='2,2','3D dice settle on the synchronized result');
+  await page.locator('#modal [data-action=buy]').click();
   await guest.locator('#cash-0').filter({hasText:'$1,360'}).waitFor();
   assert(await guest.locator('#cash-0').textContent()==='$1,360','Purchase cash synchronized to guest');
+  assert(await page.locator('#turn-action-card [data-action=roll]').count()===1,'Desktop doubles offer a visible Roll again button');
   assert((await guest.locator('#game-board [data-id="4"]').getAttribute('aria-label')).includes('owned by Host'),'Property ownership synchronized');
-  await page.locator('#board-center [data-action=end]').click();
+  await guest.locator('.board-owner-marker[data-property="4"]').waitFor();
+  assert((await guest.locator('.board-owner-marker[data-property="4"]').getAttribute('aria-label')).includes('belongs to Host'),'Persistent board marker identifies the owner');
+  assert((await guest.locator('#ownership-notice').textContent()).includes('Now belongs to Host'),'Purchase popup is synchronized to the other player');
+  await page.locator('#turn-action-card [data-action=end]').click();
   await guest.waitForFunction(()=>!document.querySelector('#board-center [data-action=roll]').disabled);
   assert(await page.locator('#board-center [data-action=roll]').isDisabled(),'Host cannot roll during guest turn');
   await guest.locator('.mobile-controls [data-action=roll]').click();
@@ -109,6 +120,35 @@ async (page) => {
   await guest.locator('#join-room-code').fill('AB12CD');await guest.getByRole('button',{name:'Join lobby',exact:true}).click();
   await guest.locator('#game-screen').waitFor({state:'visible'});
   assert(await guest.locator('#cash-1').textContent()==='$1,488','Manual room-code entry rejoins the same game');
+  room.state=clone(fixture.extras.developed);room.revision++;room.transition={action:'build',player:0,dice:room.state.dice,path:[],sounds:['build']};broadcast('mw_rooms',room);
+  await page.locator('.player-property[data-id="4"] [data-buildings="2"]').waitFor();
+  await guest.locator('.board-owner-marker[data-property="4"] .owner-marker-count').filter({hasText:'2'}).waitFor();
+  assert(await page.locator('.player-property[data-id="4"] .house-icon').count()===2,'Player card lists two visible houses for this property');
+  await guest.locator('.board-owner-marker[data-property="4"]').click();
+  assert(await guest.locator('#modal [data-buildings="2"] .house-icon').count()===2,'Property deed shows the owner and individual house icons');
+  await guest.locator('#modal [data-action=close]').last().click();
+  for(const width of [320,768,1024,1440]){
+    await page.setViewportSize({width,height:900});
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px layout fits without page overflow');
+  }
+  await page.locator('.player-property[data-id="4"]').click();await page.locator('#modal [data-action=manager]').click();
+  await page.locator('#modal [data-action=auction][data-id="4"]').click();
+  await guest.locator('#modal [data-action=bid]').waitFor();
+  assert(await page.locator('#modal [data-action=bid]').isDisabled(),'Seller watches the live auction but cannot bid');
+  await guest.locator('#bid-increment').fill('20');await guest.locator('#modal [data-action=bid]').click();
+  await page.locator('.board-owner-marker[data-property="4"]').filter({has:page.locator('[aria-hidden="true"]')}).waitFor();
+  await page.waitForFunction(()=>document.querySelector('.board-owner-marker[data-property="4"]').getAttribute('aria-label').includes('Guest'));
+  assert(await guest.locator('.player-card').filter({hasText:'Guest'}).locator('.player-property[data-id="4"] [data-buildings="2"]').count()===1,'Auction transfers the property and both houses to the winner');
+  assert(await page.locator('#cash-0').textContent()==='$'+fixture.extras.resold.players[0].cash.toLocaleString('en-US'),'Winning bid is credited to the seller');
+  await page.waitForTimeout(700); // Let the ownership and house entrance animations finish for visual inspection.
+  await page.screenshot({path:'output/playwright/animated-board-desktop.png',fullPage:true});
+  await guest.screenshot({path:'output/playwright/animated-board-mobile.png',fullPage:true});
+  room.state=clone(fixture.extras.event);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#modal .event-card').waitFor();await guest.locator('#modal .event-card').waitFor();
+  assert(await guest.locator('#modal [data-action=apply-event]').isDisabled(),'Both players see the event card and only its player can resolve it');
+  await page.screenshot({path:'output/playwright/animated-event-card.png',fullPage:true});
+  await guest.emulateMedia({reducedMotion:'reduce'});await guest.reload();await guest.locator('#modal .event-card').waitFor();
+  assert(await guest.locator('#modal .event-card').evaluate(el=>el.getAnimations().length===0),'Reduced motion suppresses card animation and preserves event state');
   assert(errors.length===0,'No browser runtime errors: '+errors.join('; '));
   await guestContext.close();
   return {transport:'Mocked Supabase Auth, HTTP and Realtime; real browser client and rules fixtures',checks};

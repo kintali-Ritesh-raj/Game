@@ -9,7 +9,7 @@ declare class Game {
   static restore(save:string,options?:EngineOptions):Game;
   serialize():string;
   rollDice():Promise<void>; applyCard():Promise<void>; nextTurn():void;
-  purchaseProperty():void; startAuction(id?:number):void; auctionBid(increment?:number):void; auctionPass():void;
+  purchaseProperty():void; declineProperty():void; startAuction(id?:number):void; auctionBid(increment?:number):void; auctionPass():void;
   payPenalty():void; buildStructure(id?:number):void; sellBuilding(id?:number):void; mortgageProperty(id?:number):void; unmortgageProperty(id?:number):void;
   settleDebt():void; declareBankruptcy():void; resolveSpace():void;
   beginPayments(payments:{payer:number;creditor:number|null;amount:number;reason:string;category:string}[],continuation?:{kind:string;steps?:number}):void;
