@@ -18,7 +18,9 @@ async function saveReceipt(){
   await writeFile(receiptPath,JSON.stringify({runId,projectUrl:url,appUrl:base,rooms,userIds:users.map(session=>session.user.id)},null,2));
 }
 async function request(index,path,body){
-  const res=await fetch(base+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+users[index].access_token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(20000)});
+  let res;
+  try{res=await fetch(base+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+users[index].access_token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(20000)});}
+  catch(error){throw Error((body?.operation||(!body?'restore':'create'))+' request failed: '+error.message);}
   return {status:res.status,data:await res.json()};
 }
 const profile=(i)=>({name:'Live Test '+(i+1),role:i%2?'competitor':'monopolist',token:['briefcase','rocket','building','car','coin'][i]});
