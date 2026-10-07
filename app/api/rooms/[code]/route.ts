@@ -6,6 +6,7 @@ import { applyGameAction, requireRevision, startGame } from '@/lib/game-actions'
 import { addBotMembers, membersAfterLeaving, removeBotMembers, saveLobbyMembers } from '@/lib/lobby-bots';
 import { advanceBot } from '@/lib/bot-runner';
 import { expireTurn, forfeitGame } from '@/lib/turn-timeout';
+import { reclaimSeat, seatKey } from '@/lib/seat-keys';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ code: string }> };
@@ -23,7 +24,9 @@ export async function POST(request: Request, context: Context) {
     const { db, actor } = await authenticate(request);
     const code = roomCode((await context.params).code), body = await jsonBody(request);
     if (body.operation === 'join') return Response.json({ room: await roomRpc(db, 'mw_join_room', { p_code: code, p_actor: actor, p_profile: profile(body) }) });
+    if (body.operation === 'reclaim') return Response.json({ room: await reclaimSeat(db, code, actor, body.rejoin_code) });
     const room = await readRoom(db, code, actor);
+    if (body.operation === 'rejoin-code') return Response.json({ rejoin_code: await seatKey(db, room, actor) });
     if (body.operation === 'add-bot' || body.operation === 'remove-bot') {
       const expected = revision(body.revision);
       const members = body.operation === 'add-bot' ? addBotMembers(room,actor,expected,body.role) : removeBotMembers(room,actor,expected,body.bot_id);

@@ -1,10 +1,10 @@
 ﻿# MARKET WARS — Online Multiplayer
 
-An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers, with a readable responsive board, shared dice and card reveals, and the supplied dice and property-visit sounds.
+An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers. It has a tabletop-style square board that scales to the screen, light and dark modes, shared dice and card reveals, and the supplied dice and property-visit sounds.
 
 The application uses **Next.js 16, TypeScript, Supabase Auth/Postgres/Realtime, and Vercel**. Every game command runs on the server and is committed to Supabase. There is no offline game-state fallback.
 
-**Play online:** [game-wine-kappa-71.vercel.app](https://game-wine-kappa-71.vercel.app). The Vercel project is connected to this repository and automatically deploys pushes to `main`.
+**Play online:** [market-wars-flax.vercel.app](https://market-wars-flax.vercel.app). Server functions run in Vercel's Mumbai region (`bom1`, set in `vercel.json`) next to the Supabase database (`ap-south-1`).
 
 ## Run locally
 
@@ -38,11 +38,15 @@ Open `http://localhost:3000`. Creating or joining a room requires the configured
 
 1. Create or resume a Supabase project.
 2. In Authentication, enable **anonymous sign-ins**. Players get a persistent identity without an email/password form. See [Supabase anonymous sign-ins](https://supabase.com/docs/guides/auth/auth-anonymous).
-3. In the project's SQL Editor, run the complete migration in [`supabase/migrations/20261005182109_online_multiplayer.sql`](supabase/migrations/20261005182109_online_multiplayer.sql) once on a new database. The migration creates the tables, grants, RLS policies, server-only RPC functions, and Realtime publication entries together.
-4. Confirm the `supabase_realtime` publication includes `mw_rooms` and `mw_connections`. The migration adds them; do not publish `mw_game_secrets` or `mw_commands`.
+3. In the project's SQL Editor, run both migrations in `supabase/migrations/` once each, in filename order, on a new database:
+   - [`20261005182109_online_multiplayer.sql`](supabase/migrations/20261005182109_online_multiplayer.sql) creates the tables, grants, RLS policies, server-only RPC functions, and Realtime publication entries.
+   - [`20261007120000_cleanup_and_rejoin.sql`](supabase/migrations/20261007120000_cleanup_and_rejoin.sql) enables `pg_cron`, schedules the room cleanup job, and adds private rejoin codes (`mw_seat_keys`) with the `mw_reclaim_seat` function.
+4. Confirm the `supabase_realtime` publication includes `mw_rooms` and `mw_connections`. The first migration adds them; do not publish `mw_game_secrets`, `mw_commands`, or `mw_seat_keys`.
 5. Add the project's URL, publishable key, and secret key to your environment.
 
-The SQL migration is versioned for the Supabase CLI too. If you already use linked Supabase migrations, apply it with `npm run db:push` after linking the intended project. Do not re-run the initial migration against an already migrated database; create a new migration for subsequent schema changes.
+The SQL migrations are versioned for the Supabase CLI too. If you already use linked Supabase migrations, apply them with `npm run db:push` after linking the intended project. Do not re-run a migration against a database that already has it; create a new migration for later schema changes.
+
+**Room cleanup:** a `pg_cron` job runs every minute and deletes rooms that are closed or have had no game activity for 15 minutes, along with their private state, connections, command receipts, and rejoin codes. Lobbies and paused games are included, so a game left idle for 15 minutes is gone. Check recent runs with `select * from cron.job_run_details order by start_time desc limit 5;`.
 
 A missing/paused project, disabled anonymous sign-ins, missing migration, or missing server key prevents online play. The app reports a connection/configuration error instead of starting a local game.
 
@@ -67,18 +71,20 @@ The GitHub Actions workflow runs the rule, authorization, database-policy tests,
 - Every player sees the same dice, movement, money, assets, buildings, events, rent, Prison/Price War status, bankruptcy, and winner.
 - Each browser can act only for its own player. Auctions authorize the current bidder; an event debt authorizes its debtor even outside their normal turn.
 - Refresh or reopen the room link **in the same browser profile** to recover your seat. Supabase retains the game; the browser retains your anonymous identity.
+- **Rejoin codes:** select **Show rejoin code** on the room status line to see your private 8-character code (like `ABCD-2345`). On another device, or after clearing browser data, choose **Join Game → Already have a seat? Rejoin with a code**, enter the room code and your rejoin code, and your seat, cash, and properties move to that device. Whoever holds the code can move the seat, so keep it private. Bots have no codes.
+- **Exit game** (top bar) leaves a running game for good: your properties and buildings return to the bank and play continues. It is unavailable during an auction or unpaid payment.
 - Connection status uses a separate heartbeat for every tab. An abrupt disconnect is marked offline after approximately 45 seconds. A clean tab departure is reported immediately where the browser permits it.
 - Each player has 90 seconds to act. When time runs out, any connected player's browser asks the server to pass the turn: an open offer is skipped, an event is applied, an auction bid is passed, and a pending payment is settled (or the player goes bankrupt if their assets cannot cover it).
 - Rolling doubles makes that landing a waypoint with no action; the player must roll again, and only the final landing is resolved. The Host does not need to stay online after the game starts.
 - Leaving a lobby transfers hosting to the next remaining player. Simply refreshing or briefly disconnecting does not transfer hosting.
 - An uncertain command response keeps the original request ID for safe retry, including after refresh. Known invalid/stale actions refresh the room before another attempt.
-- Clearing browser site data or switching browser profiles loses an anonymous identity. A room code identifies the room, not an existing player's identity. New devices can join as new players before the game starts; account-based identity recovery is outside this version.
+- Clearing browser site data or switching browser profiles loses the anonymous identity; use your rejoin code to take your seat back. A room code identifies the room, not a player.
 
-The default **Board** view uses the original square board: all 40 spaces around the edges, moving player tokens, property ownership and buildings, and dice in the center. Player details and actions sit beside the board on desktop; phones show the board first. Tap any space to read its full deed. **Your token** focuses your current space, and keyboard users can open a focused deed with Enter or Space.
+The square board is the only board view: all 40 spaces around the edges, moving player tokens, property ownership and buildings, and dice in the center. On laptops, market activity sits on the left and players and actions on the right; tablets and phones show the board first at full width. Tap any space to read its full deed. **Your token** focuses your current space, and keyboard users can open a focused deed with Enter or Space. The ☾/☀ button in the header switches dark mode, remembered per browser.
 
 Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
 
-Buying a property shows the owner's token on the board and a purchase popup for everyone. Player cards and deeds show individual house icons and counts; the board also displays the buildings. A tower represents the fifth development level.
+Purchases, rent, taxes, Launch income, events, and penalties appear as short notifications at the top of the screen for every player. Player cards and deeds show individual house icons and counts; the board also displays the buildings. A tower represents the fifth development level.
 
 Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with the bank. After purchase, the owner can choose **Auction property** during their own turn, before rolling or after resolving their landing. Other players bid; the seller receives the winning amount and the buyer receives the property with its buildings. If everyone passes, the owner keeps it. Mortgaged properties must be unmortgaged first.
 
@@ -90,12 +96,16 @@ Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with 
 | Room creation and commands | Authenticated route handlers under `app/api/rooms/` |
 | Authoritative rules | `lib/game-engine.cjs`, shared server-validated rules model |
 | Identity/turn checks | `lib/game-actions.ts`, `lib/validation.ts` |
-| Board renderer | `lib/game-ui.js`, `app/readable-board.css`, and `app/classic-board.css` |
+| Turn timer and leaving | `lib/turn-timeout.ts`, `lib/bot-timing.ts` |
+| Rejoin codes | `lib/seat-keys.ts`, `mw_reclaim_seat` |
+| Board renderer | `lib/game-ui.js`, `app/classic-board.css`, `app/tabletop.css`, and `app/dark.css` |
 | Online UI and recovery | `components/useMultiplayer.ts`, `GameClient`, `Lobby`, `PlayerForm` |
 | Public room state | `mw_rooms`, read-only to authenticated room members |
 | Private state/deck order | `mw_game_secrets`, server access only |
 | Connection status | `mw_connections`, read-only to room members |
 | Deduplication | `mw_commands`, server access only |
+| Rejoin codes | `mw_seat_keys`, server access only |
+| Room cleanup | `mw_cleanup_rooms()` on a one-minute `pg_cron` schedule |
 
 The API verifies the Supabase access token with `auth.getUser()`. It never trusts a caller-supplied player ID, balance, dice roll, or complete state. Dice use Node's cryptographic random source. The database locks the room and checks its revision before accepting a mutation. A request ID and command fingerprint make retries idempotent. Two actions calculated from the same revision cannot both commit.
 
@@ -113,18 +123,18 @@ npm test
 npm run build
 ```
 
-`npm test` runs 31 rule checks, 9 server authorization checks, and 6 PostgreSQL/PGlite checks. These cover complete games, owner auctions, off-turn debt, detention continuations, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, and private deck order. PGlite exercises PostgreSQL rules and policies; it does not test the hosted Realtime service.
+`npm test` runs 36 rule checks, 16 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games, rents by role, building permission, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
 
-Deterministic two-browser UI checks use the Playwright CLI. Start the app at port 3000 first, then:
+Deterministic two-browser UI checks use the Playwright CLI. Start the app with `npm run dev` first, then open it at `localhost` (the Next.js dev server rejects `127.0.0.1`):
 
 ```sh
 node tests/prepare-ui-checks.cjs
-npx playwright-cli -s=market-online open http://127.0.0.1:3000 --headed
+npx playwright-cli -s=market-online open http://localhost:3000 --headed
 npx playwright-cli -s=market-online run-code --filename=output/playwright/online-ui-checks.js
 npx playwright-cli -s=market-online close
 ```
 
-These browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, house counts, owner auctions, shared event cards, reduced motion, both audio files, room-link entry, refresh, and layouts from 320px to 1440px. Every space is checked for readable text sizes and unclipped labels. The checks also cover keyboard access, locating a token, switching board views, and a device without WebGL. Screenshots are written under `output/playwright/`.
+These 59 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
 
 For a **real internet/Supabase smoke test**, configure a test Supabase project with anonymous sign-ins and the migration, start the Next app against it, and run:
 
@@ -138,6 +148,13 @@ npm run test:online
 
 Before inviting friends, also open the deployed link on two different devices/networks, make a purchase, refresh one device, and confirm both show the same turn and money.
 
-## Rules preserved
+## Rules
 
-Everyone begins with $1,500. The last financially active player wins. The 40 spaces, original property names, two 15-card event decks, role differences, dice/doubles rules, mortgages, taxes, detention, and bankruptcy rules are preserved. Auctions now start only when a property owner chooses to sell; the auction space offers an unowned property for purchase first. Existing saved bank auctions can still finish. The in-game **How to play** dialog contains the full rules.
+Everyone begins with $1,500 and the last financially active player wins. The 40 spaces, property names, two 15-card event decks, mortgages, taxes, detention, and bankruptcy work as before. The in-game **How to play** dialog has the full rules. Changes from the original version:
+
+- **Rent by role:** an undeveloped property charges a Monopolist owner's higher rate (about 2.5× base rent) whether or not they own the whole color; Competitors charge base rent.
+- **Building:** you can build only on the property your token landed on this turn, after the dice moved you there. A newly bought property must be landed on again on a later turn before its first build. Monopolists also need at least 2 unmortgaged properties of that color.
+- **Doubles:** a doubles landing is a waypoint with no purchase, rent, tax, or event. You must roll again; only the final landing resolves, and End turn stays disabled until then. Three doubles in a row still sends you to Prison or Price War.
+- **Prison and Price War:** a detained turn offers **Roll for doubles** and **Pay $50 to leave** side by side.
+- **Turn timer:** 90 seconds of inactivity passes the turn, as described above.
+- **Auctions** start only when an owner chooses to sell; the auction space offers an unowned property for purchase first. Existing saved bank auctions can still finish.

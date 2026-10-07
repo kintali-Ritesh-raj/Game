@@ -24,6 +24,10 @@ before(async () => {
   const sql = readFileSync(join(__dirname,'../supabase/migrations',file),'utf8');
   // PGlite implements PostgreSQL SQL, locks and RLS but not logical replication.
   await db.exec(sql.split('-- Postgres Changes supplies')[0]);
+  // PGlite has no pg_cron; load everything except the extension and schedule.
+  const cleanup = readFileSync(join(__dirname,'../supabase/migrations','20261007120000_cleanup_and_rejoin.sql'),'utf8')
+    .replace(/create extension if not exists pg_cron;/, '').replace(/select cron\.schedule\([^;]*\);/, '');
+  await db.exec(cleanup);
 });
 after(async () => { await db.close(); });
 
@@ -105,4 +109,30 @@ test('Future event order stays private and simultaneous revisions commit once', 
   assert.equal(outcomes.filter(r=>r.status==='rejected').length,1);
   const final=(await query('select revision,state from public.mw_rooms where code=$1',[room.code]))[0];
   assert.equal(final.revision,room.revision+1);assert.equal(final.state.players[0].cash,1450);
+});
+
+test('A rejoin code moves a seat to a new identity; wrong codes and double seats are refused', async () => {
+  const owner = randomUUID(), other = randomUUID(), device = randomUUID();
+  const room = await create('RJ0001', owner);
+  await joinRoom(room.code, other, p('Other'));
+  await query("insert into public.mw_seat_keys(code,user_id,rejoin_code) values ('RJ0001',$1,'ABCD-2345')", [owner]);
+  const reclaim = (actor, code) => rpc('mw_reclaim_seat', ['RJ0001', actor, code], ['text','uuid','text']);
+  await assert.rejects(reclaim(device, 'WXYZ-9999'), /does not match/);
+  await assert.rejects(reclaim(other, 'ABCD-2345'), /already has a different seat/);
+  const moved = await reclaim(device, ' abcd-2345 ');
+  assert.equal(moved.host_id, device); assert.deepEqual(moved.member_ids, [device, other]);
+  assert.equal(moved.members[0].user_id, device); assert.equal(moved.members[0].name, 'Host');
+  assert.equal((await query("select user_id from public.mw_seat_keys where code='RJ0001'"))[0].user_id, device);
+  assert.equal((await reclaim(owner, 'ABCD-2345')).host_id, owner); // The code holder can always move the seat back.
+});
+
+test('Cleanup removes closed rooms and rooms idle for 15 minutes, with their private rows', async () => {
+  await create('CL0001', randomUUID()); await create('CL0002', randomUUID()); await create('CL0003', randomUUID());
+  await query("update public.mw_rooms set updated_at = now() - interval '16 minutes' where code='CL0001'");
+  await query("update public.mw_rooms set status='closed', member_ids='{}', members='[]' where code='CL0002'");
+  await query("insert into public.mw_seat_keys(code,user_id,rejoin_code) select 'CL0001', host_id, 'CLNP-0001' from public.mw_rooms where code='CL0001'");
+  await query('select public.mw_cleanup_rooms()');
+  const left = (await query("select code from public.mw_rooms where code like 'CL%'")).map(r => r.code);
+  assert.deepEqual(left, ['CL0003']);
+  assert.equal((await query("select count(*)::int n from public.mw_seat_keys where code='CL0001'"))[0].n, 0);
 });

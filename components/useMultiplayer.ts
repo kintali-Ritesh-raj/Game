@@ -210,6 +210,18 @@ export function useMultiplayer(initialCode?: string) {
     finally { setBusy(false); }
   };
 
+  // Take over an existing seat on this device using its private rejoin code.
+  const reclaim = async (target: string, rejoinCode: string) => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      const id = await ensureIdentity(); userRef.current = id; setUserId(id);
+      enter(await request<Snapshot>('/api/rooms/' + target.trim().toUpperCase(), 'POST', { operation: 'reclaim', rejoin_code: rejoinCode }));
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not rejoin this room.'); }
+    finally { setBusy(false); }
+  };
+  const rejoinCode = async () => (await request<{ rejoin_code: string }>('/api/rooms/' + code, 'POST', { operation: 'rejoin-code' })).rejoin_code;
+
   const runPending = async (retry: Pending) => {
     setBusy(true); setError('');
     try {
@@ -303,7 +315,7 @@ export function useMultiplayer(initialCode?: string) {
   };
 
   return { screen, code, room, connections, userId, connection, busy, loading, error, setError,
-    pending, navigate, joinOrCreate, updateProfile, leave, exitGame,
+    pending, navigate, joinOrCreate, updateProfile, leave, exitGame, reclaim, rejoinCode,
     addBot: (role:Role) => manageBot('add-bot',{role}), removeBot: (id:string) => manageBot('remove-bot',{bot_id:id}),
     start: () => send('start'), command: (action: Command) => send('action', action),
     retry: () => pending ? runPending(pending) : Promise.resolve(),

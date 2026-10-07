@@ -14,6 +14,13 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
   const ui = useRef<ReturnType<typeof initializeUI> | null>(null);
   const [joinCode, setJoinCode] = useState(initialCode || '');
   const [ready, setReady] = useState(false);
+  const [rejoinMode, setRejoinMode] = useState(false);
+  const [rejoinInput, setRejoinInput] = useState('');
+  const [myRejoinCode, setMyRejoinCode] = useState('');
+  useEffect(() => { setMyRejoinCode(''); }, [multiplayer.code, multiplayer.screen]);
+  const showRejoinCode = async () => {
+    try { setMyRejoinCode(await multiplayer.rejoinCode()); } catch (caught) { setMyRejoinCode(caught instanceof Error ? caught.message : 'Unavailable'); }
+  };
   useEffect(() => {
     ui.current = initializeUI({
       navigate: (action: string) => current.current.navigate(action),
@@ -41,6 +48,9 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
     {multiplayer.screen !== 'home' && <div className="online-notices" aria-live="polite">
       {inRoom && <p className={'network-status ' + (multiplayer.connection === 'connected' ? 'is-connected' : '')}>
         Room {multiplayer.code} · {multiplayer.connection === 'connected' ? 'Connected · Saved online' : 'Reconnecting… Your seat and game are saved.'}
+        {' · '}{myRejoinCode
+          ? <span className="rejoin-code">Your rejoin code: <b>{myRejoinCode}</b> <button className="text-button" onClick={() => void navigator.clipboard?.writeText(myRejoinCode)}>Copy</button></span>
+          : <button className="text-button" onClick={() => void showRejoinCode()} title="Use this code to get your seat back on another device or after clearing browser data">Show rejoin code</button>}
       </p>}
       {multiplayer.error && <p className="form-error" role="alert">{multiplayer.error}</p>}
       {multiplayer.pending && <div className="pending-action"><span>An action is awaiting confirmation.</span>
@@ -54,7 +64,15 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
       <h1>{multiplayer.screen === 'create' ? 'Create Game' : 'Join Game'}</h1>
       <p>{multiplayer.screen === 'create' ? 'Become the Host and invite friends with a room code or link.' : 'Choose your player name and enter the lobby.'}</p>
       {multiplayer.screen === 'join' && <div className="join-code-field"><label htmlFor="join-room-code">Room code</label><input id="join-room-code" maxLength={6} value={joinCode} autoComplete="off" autoCapitalize="characters" onChange={event => setJoinCode(event.target.value.toUpperCase())} /></div>}
-      <PlayerForm busy={multiplayer.busy} label={multiplayer.screen === 'create' ? 'Create Game' : 'Join lobby'} onSubmit={player => multiplayer.joinOrCreate(player, multiplayer.screen === 'join' ? joinCode || ' ' : undefined)} />
+      {multiplayer.screen === 'join' && rejoinMode
+        ? <form className="online-player-form" onSubmit={event => { event.preventDefault(); void multiplayer.reclaim(joinCode || ' ', rejoinInput); }}>
+            <label htmlFor="rejoin-code">Your rejoin code</label>
+            <input id="rejoin-code" value={rejoinInput} maxLength={9} placeholder="ABCD-2345" autoComplete="off" autoCapitalize="characters" required onChange={event => setRejoinInput(event.target.value.toUpperCase())} />
+            <p className="setup-role-note">Find it under “Show rejoin code” on the device you played on. It moves your seat, cash and properties to this device.</p>
+            <button className="primary full" type="submit" disabled={multiplayer.busy}>{multiplayer.busy ? 'Connecting…' : 'Rejoin my seat'}</button>
+          </form>
+        : <PlayerForm busy={multiplayer.busy} label={multiplayer.screen === 'create' ? 'Create Game' : 'Join lobby'} onSubmit={player => multiplayer.joinOrCreate(player, multiplayer.screen === 'join' ? joinCode || ' ' : undefined)} />}
+      {multiplayer.screen === 'join' && <button className="text-button" onClick={() => setRejoinMode(!rejoinMode)}>{rejoinMode ? 'Join as a new player instead' : 'Already have a seat? Rejoin with a code'}</button>}
       <button className="text-button" onClick={() => multiplayer.navigate('menu')}>Back to menu</button>
     </main>}
     {inRoom && multiplayer.room?.status === 'lobby' && <Lobby
