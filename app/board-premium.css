@@ -8,7 +8,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .classic-board-view{
+  /* Card zones. Every piece stays inside its own card:
+     band (inner edge) → building zone (houses / tower) → main area (name, price, pawns). */
   --band:2.4cqw;                       /* property colour band */
+  --zone:2.9cqw;                       /* building zone beside the band on top/bottom rows */
+  --shield-w:2.3cqw;--shield-h:2.65cqw; /* owner shield, kept in the building zone */
+  --side-zone:3.2cqw;                  /* band + buildings on the side rows */
+  --piece-margin:.3cqw;                /* pieces keep this distance from card edges */
   --sx:.24cqw;--sy:.34cqw;             /* key-light shadow offset */
   --shadow:drop-shadow(var(--sx) var(--sy) .22cqw #0000008c);
   --ivory:#f1e6c8;
@@ -105,12 +111,12 @@
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35cqw;
   width:100%;height:100%;padding:.6cqw;
 }
-#game-board .edge-south .tile-face{justify-content:flex-start;padding:calc(var(--band) + 1.1cqw) .45cqw .6cqw}
-#game-board .edge-north .tile-face{justify-content:flex-start;padding:1.2cqw .45cqw calc(var(--band) + .6cqw)}
-#game-board .edge-west .tile-face{padding:.5cqw calc(var(--band) + .6cqw) .5cqw .7cqw}
-#game-board .edge-east .tile-face{padding:.5cqw .7cqw .5cqw calc(var(--band) + .6cqw)}
+#game-board .edge-south .tile-face{padding:calc(var(--band) + var(--zone) + .3cqw) .45cqw .5cqw}
+#game-board .edge-north .tile-face{padding:.5cqw .45cqw calc(var(--band) + var(--zone) + .3cqw)}
+#game-board .edge-west .tile-face{padding:.5cqw calc(var(--side-zone) + .3cqw) .5cqw .5cqw}
+#game-board .edge-east .tile-face{padding:.5cqw .5cqw .5cqw calc(var(--side-zone) + .3cqw)}
 #game-board .tile-name{
-  --name-size:1.62cqw;
+  --name-size:1.55cqw;
   display:block;width:100%;margin:0;
   font:700 calc(var(--name-size) * var(--name-fit,1))/1 'Barlow Condensed',system-ui,sans-serif;
   text-transform:uppercase;letter-spacing:.015em;text-align:center;color:#17180f;
@@ -206,29 +212,32 @@
 #game-board .tile-pieces svg{display:block;width:100%;height:100%;overflow:visible;position:relative}
 .piece-contact{position:absolute;pointer-events:none;border-radius:50%;background:radial-gradient(closest-side,#000000a6,#0000)}
 
-/* Ownership shield: fixed to the outer edge, overhanging the wooden lip. */
-.piece-badge{position:absolute;width:3.7cqw;height:4.26cqw;filter:var(--shadow)}
+/* Ownership shield: in the building zone at the band's end (top/bottom rows) or above the houses (side rows). */
+.piece-badge{position:absolute;width:var(--shield-w);height:var(--shield-h);filter:var(--shadow)}
 .piece-badge .piece-contact{display:none}
-#game-board .edge-south>.piece-badge{right:.25cqw;bottom:-3.1cqw}
-#game-board .edge-north>.piece-badge{right:.25cqw;top:-3.1cqw}
-#game-board .edge-west>.piece-badge{left:-3.1cqw;top:.15cqw}
-#game-board .edge-east>.piece-badge{right:-3.1cqw;top:.15cqw}
+#game-board .edge-south>.piece-badge{right:var(--piece-margin);top:calc(var(--band) + (var(--zone) - var(--shield-h)) / 2)}
+#game-board .edge-north>.piece-badge{right:var(--piece-margin);bottom:calc(var(--band) + (var(--zone) - var(--shield-h)) / 2)}
+#game-board .edge-west>.piece-badge{right:calc((var(--side-zone) - var(--shield-w)) / 2);top:var(--piece-margin)}
+#game-board .edge-east>.piece-badge{left:calc((var(--side-zone) - var(--shield-w)) / 2);top:var(--piece-margin)}
 #game-board .tile-pieces.is-mortgaged>.piece-badge{filter:grayscale(.85) brightness(.85) var(--shadow)}
 
-/* Houses: painted miniatures standing on the colour band, never inside the text. */
-.piece-buildings{position:absolute;display:flex;align-items:flex-end;justify-content:center;--house:3.15cqw}
-#game-board .edge-south>.piece-buildings{left:0;right:0;bottom:calc(100% - var(--band) * .78)}
-#game-board .edge-north>.piece-buildings{left:0;right:0;bottom:calc(var(--band) * .7)}
-#game-board .edge-west>.piece-buildings,#game-board .edge-east>.piece-buildings{--house:2.75cqw;flex-direction:column;align-items:center;justify-content:flex-end;top:.2cqw;bottom:.25cqw;width:var(--band)}
+/* Houses: painted miniatures in the building zone, beside the shield, inside the card.
+   One to three stand in a row; four form a 2×2 block with the back pair behind the front pair. */
+.piece-buildings{position:absolute;display:flex;align-items:flex-end;justify-content:center;--house:2cqw}
+#game-board .edge-south>.piece-buildings,#game-board .edge-north>.piece-buildings{left:var(--piece-margin);right:calc(var(--piece-margin) + var(--shield-w) + .2cqw);height:var(--zone)}
+#game-board .edge-south>.piece-buildings{top:var(--band)}
+#game-board .edge-north>.piece-buildings{bottom:var(--band)}
+#game-board .edge-west>.piece-buildings,#game-board .edge-east>.piece-buildings{flex-direction:column;align-items:center;justify-content:flex-end;top:calc(var(--piece-margin) + var(--shield-h) + .2cqw);bottom:var(--piece-margin);width:var(--side-zone)}
 #game-board .edge-west>.piece-buildings{right:0}
 #game-board .edge-east>.piece-buildings{left:0}
 .piece-house{position:relative;flex:none;width:var(--house);height:var(--house);filter:var(--shadow)}
-#game-board .edge-south>.piece-buildings .piece-house+.piece-house,#game-board .edge-north>.piece-buildings .piece-house+.piece-house{margin-left:calc(var(--house) * -.24)}
-#game-board .edge-west .piece-house+.piece-house,#game-board .edge-east .piece-house+.piece-house{margin-top:calc(var(--house) * -.4)}
-/* Four houses form a compact 2×2 block, back pair slightly behind the front pair. */
-#game-board .edge-south>.piece-buildings[data-count="4"],#game-board .edge-north>.piece-buildings[data-count="4"]{flex-wrap:wrap;width:calc(var(--house) * 1.85);left:calc(50% - var(--house) * .925);right:auto;align-content:flex-end}
-#game-board .piece-buildings[data-count="4"]>.piece-house:nth-child(n+3){margin-top:calc(var(--house) * -.5)}
-#game-board .edge-south>.piece-buildings[data-count="4"]>.piece-house:nth-child(odd),#game-board .edge-north>.piece-buildings[data-count="4"]>.piece-house:nth-child(odd){margin-left:0}
+#game-board .edge-south>.piece-buildings .piece-house+.piece-house,#game-board .edge-north>.piece-buildings .piece-house+.piece-house{margin-left:calc(var(--house) * -.25)}
+#game-board .edge-west .piece-house+.piece-house,#game-board .edge-east .piece-house+.piece-house{margin-top:calc(var(--house) * -.55)}
+#game-board .edge-south>.piece-buildings[data-count="4"],#game-board .edge-north>.piece-buildings[data-count="4"]{flex-wrap:wrap;align-content:flex-end;right:auto;width:calc(var(--house) * 1.8);left:calc(var(--piece-margin) + (100% - 2 * var(--piece-margin) - var(--shield-w) - .2cqw - var(--house) * 1.8) / 2)}
+#game-board .edge-south>.piece-buildings[data-count="4"]>.piece-house,#game-board .edge-north>.piece-buildings[data-count="4"]>.piece-house{margin-left:0}
+#game-board .piece-buildings[data-count="4"]>.piece-house:nth-child(even){margin-left:calc(var(--house) * -.28)!important}
+#game-board .edge-south>.piece-buildings[data-count="4"]>.piece-house:nth-child(n+3),#game-board .edge-north>.piece-buildings[data-count="4"]>.piece-house:nth-child(n+3){margin-top:calc(var(--house) * -.5)}
+#game-board .edge-west>.piece-buildings[data-count="4"]>.piece-house:nth-child(even),#game-board .edge-east>.piece-buildings[data-count="4"]>.piece-house:nth-child(even){margin-left:0!important}
 .piece-house .house-front{fill:color-mix(in oklch,var(--piece-color) 88%,white)}
 .piece-house .house-side{fill:color-mix(in oklch,var(--piece-color) 58%,black)}
 .piece-house .house-roof{fill:color-mix(in oklch,var(--piece-color) 66%,white)}
@@ -243,14 +252,15 @@
 .piece-house .house-front,.piece-house .house-side,.piece-house .house-roof{stroke:#00000052;stroke-width:.5}
 .piece-house .piece-contact{left:0;right:-22%;bottom:-6%;height:26%}
 
-/* Tower: a substantial architectural model; only its plinth carries the owner's colour. */
-.piece-tower{position:absolute;width:4.8cqw;height:10.3cqw;filter:var(--shadow)}
+/* Tower: replaces the houses in the band and building zone, inside the card. Only its plinth carries the owner's colour. */
+.piece-tower{position:absolute;filter:var(--shadow)}
 .piece-tower .tower-contact{left:-10%;right:-40%;bottom:-3%;height:16%}
-#game-board .edge-south>.piece-tower{left:calc(50% - 2.4cqw);bottom:calc(100% - var(--band) * .78)}
-/* North row: the tower stands on the felt in front of its card, covering the band and price but not the name. */
-#game-board .edge-north>.piece-tower{left:calc(50% - 2.4cqw);top:calc(100% - 5.7cqw)}
-#game-board .edge-west>.piece-tower{right:calc(var(--band) / 2 - 2.4cqw);bottom:.3cqw}
-#game-board .edge-east>.piece-tower{left:calc(var(--band) / 2 - 2.4cqw);bottom:.3cqw}
+#game-board .edge-south>.piece-tower,#game-board .edge-north>.piece-tower{height:calc(var(--band) + var(--zone) - .25cqw);width:calc((var(--band) + var(--zone) - .25cqw) * .4667);left:calc(50% - (var(--band) + var(--zone) - .25cqw) * .2333 - (var(--shield-w) + .2cqw) / 2)}
+#game-board .edge-south>.piece-tower{top:.1cqw}
+#game-board .edge-north>.piece-tower{bottom:.15cqw}
+#game-board .edge-west>.piece-tower,#game-board .edge-east>.piece-tower{top:calc(var(--piece-margin) + var(--shield-h) + .2cqw);bottom:var(--piece-margin);width:var(--side-zone)}
+#game-board .edge-west>.piece-tower{right:0}
+#game-board .edge-east>.piece-tower{left:0}
 
 /* ── Pawns (positioned by game-ui from each player's space) ── */
 #game-board .token-layer{inset:0;z-index:3;pointer-events:none}

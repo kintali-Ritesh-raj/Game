@@ -137,6 +137,8 @@ async (page) => {
   await guest.reload();await guest.locator('#game-screen').waitFor({state:'visible'});
   assert(await guest.locator('#turn-label').textContent()===before,'Refresh restores the same turn');
   assert(await guest.locator('#cash-1').textContent()==='$1,470','Refresh retains money and room identity');
+  // Go offline only once the reloaded page has attached its connection listeners.
+  await guest.locator('.network-status.is-connected').waitFor();
   await guestContext.setOffline(true);
   await guest.waitForFunction(()=>document.querySelector('#board-center [data-action=end]').disabled);
   assert(await guest.locator('#board-center [data-action=end]').isDisabled(),'Offline player cannot submit moves');
@@ -155,6 +157,21 @@ async (page) => {
   await page.locator('.player-property[data-id="4"] [data-buildings="2"]').waitFor();
   assert(await page.locator('[data-pieces="4"] .piece-house').count()===2&&await page.locator('[data-pieces="4"] .piece-tower').count()===0,'Board shows two owner-coloured miniature houses on the developed property');
   assert(await page.locator('[data-pieces="4"] .piece-badge').getAttribute('data-owner')==='0','Ownership shield uses the owner (Host) while the colour band keeps the property group');
+  for(const width of [390,1366,1920]){
+    await page.setViewportSize({width,height:900});await page.waitForTimeout(300);
+    const stray=await page.locator('#game-board').evaluate(board=>{
+      const tol=1.5,bad=[],inside=(r,t)=>r.left>=t.left-tol&&r.right<=t.right+tol&&r.top>=t.top-tol&&r.bottom<=t.bottom+tol;
+      const hit=(a,b)=>a.left<b.right-tol&&b.left<a.right-tol&&a.top<b.bottom-tol&&b.top<a.bottom-tol;
+      board.querySelectorAll('.tile-pieces').forEach(anchor=>{
+        const tile=board.querySelector('.board-tile[data-id="'+anchor.dataset.pieces+'"]'),t=tile.getBoundingClientRect();
+        const text=[...tile.querySelectorAll('.tile-name,.tile-price')].map(el=>el.getBoundingClientRect());
+        anchor.querySelectorAll('.piece-badge svg,.piece-house svg,.piece-tower svg').forEach(el=>{const r=el.getBoundingClientRect();if(!inside(r,t)||text.some(x=>hit(r,x)))bad.push(anchor.dataset.pieces);});
+      });
+      board.querySelectorAll('.player-token:not([hidden]) .pawn-art').forEach(art=>{const token=art.closest('.player-token');if(!inside(art.getBoundingClientRect(),board.querySelector('.board-tile[data-id="'+token.dataset.space+'"]').getBoundingClientRect()))bad.push('pawn@'+token.dataset.space);});
+      return bad;
+    });
+    assert(stray.length===0,width+'px every shield, house, tower and pawn stays inside its own card and clear of the property text ('+stray.join(',')+')');
+  }
   for(const width of [320,768,1024,1440]){
     await page.setViewportSize({width,height:900});
     await page.waitForTimeout(250); // Let token positions settle after responsive layout changes.
