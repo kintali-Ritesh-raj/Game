@@ -213,6 +213,14 @@ test('Competitors must land again after buying; Monopolists build on any owned p
   // The colour rule still applies.
   const single = create(); own(single, 1); assert.throws(() => single.buildStructure(1), /at least 2/);
 });
+test('Competitors pay 50% more for bank land; Monopolists pay the listed price', () => {
+  const game = create(); land(game, 4); game.purchaseProperty(); assert.equal(game.player(0).cash, 1500 - 140);
+  game.state.currentPlayer = 1; land(game, 6); game.purchaseProperty(); assert.equal(game.player(1).cash, 1500 - 210);
+  assert.equal(game.asset(6).owner, 1); assert.equal(BOARD[6].mortgageValue, 70);
+  for (const space of BOARD.filter(item => item.price)) assert.equal(game.purchasePrice(game.player(1), space), Math.round(space.price * 1.5));
+  const poor = create(); poor.state.currentPlayer = 1; poor.player(1).cash = 150; land(poor, 6);
+  assert.throws(() => poor.purchaseProperty(), /enough cash/);
+});
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
   game.forfeit(0);

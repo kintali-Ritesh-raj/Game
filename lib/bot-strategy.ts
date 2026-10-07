@@ -14,7 +14,7 @@ export function chooseBotAction(state: GameState): Command | null {
     case 'offer': {
       const property = MarketWars.BOARD[state.offer!];
       const completes = game.groupSpaces(property.group).every(space => space.id === property.id || game.asset(space.id).owner === player.id);
-      return {action: player.cash >= property.price + (completes ? 75 : 150) ? 'buy' : 'skip'};
+      return {action: player.cash >= game.purchasePrice(player, property) + (completes ? 75 : 150) ? 'buy' : 'skip'};
     }
     case 'auction': {
       const auction = state.auction!, property = MarketWars.BOARD[auction.property];
