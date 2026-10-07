@@ -213,7 +213,16 @@ export function useMultiplayer(initialCode?: string) {
   const runPending = async (retry: Pending) => {
     setBusy(true); setError('');
     try {
-      const snapshot = await request<Snapshot>('/api/rooms/' + retry.code, 'POST', retry.body);
+      // Resending the same request ID is safe: the server applies it at most once.
+      // Retry slow or dropped responses quietly before asking the player.
+      let snapshot: Snapshot | null = null;
+      for (let attempt = 0; !snapshot; attempt++) {
+        try { snapshot = await request<Snapshot>('/api/rooms/' + retry.code, 'POST', retry.body); }
+        catch (caught) {
+          if (caught instanceof RequestError || attempt >= 2) throw caught;
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      }
       accept(snapshot); setPending(null); safeStorage.remove(PENDING);
     } catch (caught) {
       // Retain the exact request ID after an uncertain response. A retry cannot

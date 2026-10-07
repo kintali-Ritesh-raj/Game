@@ -33,12 +33,19 @@ export async function request<T>(path: string, method = 'GET', body?: unknown): 
   const supabase = getBrowserClient();
   const { data } = await supabase.auth.getSession();
   if (!data.session) throw new Error('Your player session expired. Reload to reconnect.');
-  const response = await fetch(path, {
-    method, cache: 'no-store',
-    headers: { Authorization: 'Bearer ' + data.session.access_token, 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(20000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method, cache: 'no-store',
+      headers: { Authorization: 'Bearer ' + data.session.access_token, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(25000),
+    });
+  } catch (caught) {
+    if (caught instanceof DOMException && (caught.name === 'TimeoutError' || caught.name === 'AbortError')) throw new Error('The game server took too long to answer. Your game is saved; try again.');
+    if (caught instanceof TypeError) throw new Error('Could not reach the game server. Check your connection; your game is saved.');
+    throw caught;
+  }
   const payload = await response.json();
   if (!response.ok) throw new RequestError(response.status, payload.error || 'The request could not be completed.');
   return payload as T;
