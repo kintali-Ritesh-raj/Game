@@ -191,8 +191,8 @@ test('three failed detention rolls require payment; cash recovery resumes the la
   game.mortgageProperty(1); game.settleDebt(); await drain(game);
   assert.equal(game.active.penalty, null); assert.equal(game.active.position, 13); assert.equal(game.state.phase, 'offer');
 });
-test('building is allowed only while standing on the property after landing there', () => {
-  const game = create(); own(game, 1); own(game, 2);
+test('Competitors build only while standing on the property after landing there', () => {
+  const game = create(); game.state.currentPlayer = 1; own(game, 1, 1); own(game, 2, 1);
   game.active.position = 5; game.state.hasRolled = true;
   assert.throws(() => game.buildStructure(1), /Land on Beacon Wharf/);
   game.active.position = 1; game.state.hasRolled = false;
@@ -200,13 +200,18 @@ test('building is allowed only while standing on the property after landing ther
   game.state.hasRolled = true; game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
   assert.throws(() => game.buildStructure(2), /Land on/);
 });
-test('building unlocks only after the owner lands on the property again', () => {
-  const game = create(); own(game, 6); land(game, 4); game.purchaseProperty();
-  assert.throws(() => game.buildStructure(4), /again/);
-  game.state.phase = 'ready'; land(game, 4); assert.equal(game.asset(4).ready, true);
-  (stand(game, 4), game.buildStructure(4)); (stand(game, 4), game.buildStructure(4)); assert.equal(game.asset(4).buildings, 2);
+test('Competitors must land again after buying; Monopolists build on any owned property', () => {
   const rival = create(); rival.state.currentPlayer = 1; land(rival, 9); rival.purchaseProperty();
   assert.throws(() => rival.buildStructure(9), /again/);
+  rival.state.phase = 'ready'; land(rival, 9); assert.equal(rival.asset(9).ready, true);
+  (stand(rival, 9), rival.buildStructure(9)); assert.equal(rival.asset(9).buildings, 1);
+  // Monopolist: straight after buying, before rolling, and while standing elsewhere.
+  const game = create(); own(game, 6); land(game, 4); game.purchaseProperty();
+  game.buildStructure(4); assert.equal(game.asset(4).buildings, 1);
+  game.state.phase = 'ready'; game.state.hasRolled = false; game.active.position = 20;
+  game.buildStructure(6); game.buildStructure(4); assert.equal(game.asset(6).buildings, 1); assert.equal(game.asset(4).buildings, 2);
+  // The colour rule still applies.
+  const single = create(); own(single, 1); assert.throws(() => single.buildStructure(1), /at least 2/);
 });
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
