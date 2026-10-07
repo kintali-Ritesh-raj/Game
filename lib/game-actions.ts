@@ -25,7 +25,7 @@ export function startGame(room: Room, actor: string) {
   return JSON.parse(game.serialize()) as GameState;
 }
 
-export async function applyGameAction(room: Room, actor: string, command: Command) {
+export async function applyGameAction(room: Room, actor: string, command: Command | { action: 'timeout' }) {
   const seat = memberIndex(room, actor);
   if (room.status !== 'playing' || !room.state) throw new ApiError(409, 'This game is not accepting turns.');
   const state = room.state;
@@ -52,6 +52,7 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
     switch (command.action) {
       case 'roll': await game.rollDice(); break;
       case 'end': game.nextTurn(); break;
+      case 'timeout': game.timeoutTurn(); break;
       case 'buy': game.purchaseProperty(); break;
       case 'skip': game.declineProperty(); break;
       case 'auction': game.startAuction(command.id); break;

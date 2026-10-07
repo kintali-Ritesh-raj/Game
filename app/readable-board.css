@@ -108,3 +108,7 @@
 .toast-item.hide{opacity:0;transform:translateY(-8px)}
 @keyframes toast-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.toast-item{animation:none;transition:none}}
+
+/* Turn timer */
+.turn-timer{margin:10px 0 0;font-family:ui-monospace,monospace;font-size:14px;text-align:center}
+.turn-timer.urgent{color:var(--red,#c0392b);font-weight:700}

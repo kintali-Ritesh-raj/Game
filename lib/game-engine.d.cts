@@ -17,7 +17,7 @@ declare class Game {
   liquidatable(player:GameState['players'][number]):number;
   static restore(save:string,options?:EngineOptions):Game;
   serialize():string;
-  rollDice():Promise<void>; applyCard():Promise<void>; nextTurn():void;
+  rollDice():Promise<void>; applyCard():Promise<void>; nextTurn():void; timeoutTurn():void;
   purchaseProperty():void; declineProperty():void; startAuction(id?:number):void; auctionBid(increment?:number):void; auctionPass():void;
   payPenalty():void; buildStructure(id?:number):void; sellBuilding(id?:number):void; mortgageProperty(id?:number):void; unmortgageProperty(id?:number):void;
   settleDebt():void; declareBankruptcy():void; resolveSpace():void;

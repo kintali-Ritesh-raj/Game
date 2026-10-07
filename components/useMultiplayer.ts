@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ensureIdentity, getBrowserClient, request, RequestError } from '@/lib/supabase-browser';
 import type { Command, Connection, Profile, Role, Room } from '@/lib/types';
-import { botReadyAt, botSeat } from '@/lib/bot-timing';
+import { botReadyAt, botSeat, idleSeat, turnDeadline } from '@/lib/bot-timing';
 
 type Screen = 'home' | 'create' | 'join' | 'room';
 type Snapshot = { room: Room; connections?: Connection[] };
@@ -170,6 +170,24 @@ export function useMultiplayer(initialCode?: string) {
     timer = setTimeout(advance,delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [activeBot,botRevision,code,connection,screen,accept,load]);
+
+  const idle = room ? idleSeat(room) : null;
+  const idleRevision = room?.revision;
+  useEffect(() => {
+    if (screen !== 'room' || idle === null || connection !== 'connected') return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const expire = async () => {
+      const current = roomRef.current;
+      if (cancelled || !current || current.code !== code || current.revision !== idleRevision || idleSeat(current) === null) return;
+      try { accept(await request<Snapshot>('/api/rooms/' + code,'POST',{operation:'timeout',revision:current.revision})); }
+      catch (caught) { if (!cancelled && caught instanceof RequestError && caught.status === 409) await load(code).catch(() => {}); }
+      // Clocks can differ slightly; keep checking until the server accepts the timeout.
+      if (!cancelled && roomRef.current?.revision === idleRevision) timer = setTimeout(expire,3000);
+    };
+    timer = setTimeout(expire,Math.max(1000,turnDeadline(roomRef.current!) - Date.now() + 500));
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [idle,idleRevision,code,connection,screen,accept,load]);
 
   const enter = useCallback((snapshot: Snapshot) => {
     accept(snapshot); setCode(snapshot.room.code); setScreen('room'); setLoading(false); setError('');

@@ -1,6 +1,6 @@
 ﻿# MARKET WARS — Online Multiplayer
 
-An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers, with a readable responsive board, an optional animated 3D tabletop, shared dice and card reveals, and the supplied dice and property-visit sounds.
+An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers, with a readable responsive board, shared dice and card reveals, and the supplied dice and property-visit sounds.
 
 The application uses **Next.js 16, TypeScript, Supabase Auth/Postgres/Realtime, and Vercel**. Every game command runs on the server and is committed to Supabase. There is no offline game-state fallback.
 
@@ -68,14 +68,15 @@ The GitHub Actions workflow runs the rule, authorization, database-policy tests,
 - Each browser can act only for its own player. Auctions authorize the current bidder; an event debt authorizes its debtor even outside their normal turn.
 - Refresh or reopen the room link **in the same browser profile** to recover your seat. Supabase retains the game; the browser retains your anonymous identity.
 - Connection status uses a separate heartbeat for every tab. An abrupt disconnect is marked offline after approximately 45 seconds. A clean tab departure is reported immediately where the browser permits it.
-- Disconnection does not cause bankruptcy, remove assets, or skip a turn. The table waits for the acting player to reconnect. The Host does not need to stay online after the game starts.
+- Each player has 90 seconds to act. When time runs out, any connected player's browser asks the server to pass the turn: an open offer is skipped, an event is applied, an auction bid is passed, and a pending payment is settled (or the player goes bankrupt if their assets cannot cover it).
+- Rolling doubles makes that landing a waypoint with no action; the player must roll again, and only the final landing is resolved. The Host does not need to stay online after the game starts.
 - Leaving a lobby transfers hosting to the next remaining player. Simply refreshing or briefly disconnecting does not transfer hosting.
 - An uncertain command response keeps the original request ID for safe retry, including after refresh. Known invalid/stale actions refresh the room before another attempt.
 - Clearing browser site data or switching browser profiles loses an anonymous identity. A room code identifies the room, not an existing player's identity. New devices can join as new players before the game starts; account-based identity recovery is outside this version.
 
-The default **Board** view uses the original square board: all 40 spaces around the edges, moving player tokens, property ownership and buildings, and dice in the center. Player details and actions sit beside the board on desktop; phones show the board first. Tap any space to read its full deed. **Your token** focuses your current space, and keyboard users can open a focused deed with Enter or Space. Choose **List** for larger upright labels and full property information in numbered travel order.
+The default **Board** view uses the original square board: all 40 spaces around the edges, moving player tokens, property ownership and buildings, and dice in the center. Player details and actions sit beside the board on desktop; phones show the board first. Tap any space to read its full deed. **Your token** focuses your current space, and keyboard users can open a focused deed with Enter or Space.
 
-Choose **3D** for the animated tabletop. Drag to rotate, pinch or scroll to zoom, and use the camera buttons to reset or look straight down. The square board remains playable when WebGL is unavailable. Mobile controls remain accessible at the bottom. Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
+Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
 
 Buying a property shows the owner's token on the board and a purchase popup for everyone. Player cards and deeds show individual house icons and counts; the board also displays the buildings. A tower represents the fifth development level.
 
@@ -89,7 +90,7 @@ Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with 
 | Room creation and commands | Authenticated route handlers under `app/api/rooms/` |
 | Authoritative rules | `lib/game-engine.cjs`, shared server-validated rules model |
 | Identity/turn checks | `lib/game-actions.ts`, `lib/validation.ts` |
-| Board renderer | `lib/board-readable.ts`, optional `lib/board-3d.ts` (Three.js), `lib/game-ui.js`, and `app/readable-board.css` |
+| Board renderer | `lib/game-ui.js`, `app/readable-board.css`, and `app/classic-board.css` |
 | Online UI and recovery | `components/useMultiplayer.ts`, `GameClient`, `Lobby`, `PlayerForm` |
 | Public room state | `mw_rooms`, read-only to authenticated room members |
 | Private state/deck order | `mw_game_secrets`, server access only |

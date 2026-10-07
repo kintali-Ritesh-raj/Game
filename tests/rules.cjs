@@ -46,6 +46,7 @@ test('dice stay within 1–6, illegal rolls are rejected, turns switch correctly
     if (game.state.phase === 'event') { await game.applyCard(); if (game.state.phase === 'offer') game.purchaseProperty(); }
     if (game.state.phase === 'auction') { while (game.state.auction) game.auctionPass(); }
     assert.equal(game.state.phase, 'end');
+    if (game.state.extraRoll) { assert.throws(() => game.nextTurn(), /Roll again/); game.state.extraRoll = false; }
     game.nextTurn(); assert.equal(game.active.id, 1); assert.equal(game.state.turn, 2);
     game.state.phase = 'offer'; await assert.rejects(game.rollDice(), /./);
   }
@@ -189,6 +190,22 @@ test('three failed detention rolls require payment; cash recovery resumes the la
   game.mortgageProperty(1); game.settleDebt(); await drain(game);
   assert.equal(game.active.penalty, null); assert.equal(game.active.position, 13); assert.equal(game.state.phase, 'offer');
 });
+test('a doubles landing is only a waypoint and the extra roll is mandatory', async () => {
+  const rolls = [.4, .4, 0, .2]; const game = create(); game.random = () => rolls.shift();
+  await game.rollDice(); await drain(game);
+  assert.equal(game.active.position, 6); assert.equal(game.state.phase, 'end'); assert.equal(game.state.offer, null);
+  assert.equal(game.state.extraRoll, true); assert.equal(game.asset(6).owner, null);
+  assert.throws(() => game.nextTurn(), /Roll again/);
+  await game.rollDice(); await drain(game);
+  assert.equal(game.active.position, 9); assert.equal(game.state.phase, 'offer'); assert.equal(game.state.offer, 9);
+});
+test('a timed-out turn drops the open offer and passes to the next player', async () => {
+  const rolls = [.4, .4, 0, .2]; const game = create(); game.random = () => rolls.shift();
+  await game.rollDice(); await drain(game); await game.rollDice(); await drain(game);
+  game.timeoutTurn();
+  assert.equal(game.state.currentPlayer, 1); assert.equal(game.state.phase, 'ready'); assert.equal(game.asset(9).owner, null);
+  const idle = create(); idle.timeoutTurn(); assert.equal(idle.state.currentPlayer, 1);
+});
 test('three consecutive doubles send a player directly to role detention', async () => {
   const game = create(2, () => 0);
   for (let i = 0; i < 2; i++) { await game.rollDice(); if (game.state.phase === 'offer') game.purchaseProperty(); if (game.state.phase === 'event') await game.applyCard(); }
@@ -278,6 +295,7 @@ async function simulate(count, seed) {
         const available = game.owned(game.active).filter(space => !game.buildReason(game.active, space.id));
         const cheapest = available.sort((a, b) => game.asset(a.id).buildings - game.asset(b.id).buildings)[0];
         if (cheapest && game.active.cash > game.buildingCost(game.active, cheapest) + 200) game.buildStructure(cheapest.id);
+        else if (game.state.extraRoll) await game.rollDice();
         else game.nextTurn();
         break;
       }
