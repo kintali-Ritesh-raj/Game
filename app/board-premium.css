@@ -1,0 +1,186 @@
+/* Premium tabletop board: walnut frame, card tiles, felt centre and miniature pieces.
+   Sizes use cqw (the board view is a size container), so every piece scales with the board.
+   Stacking, bottom to top: frame → tiles → centre (1) → shields/houses/towers (2) → pawns (3). */
+
+.classic-board-view{
+  --band:1.25cqw;
+  --wood-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.34' numOctaves='4' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .08 0 0 0 0 .03 0 0 0 .62 0'/%3E%3C/filter%3E%3Crect width='360' height='360' filter='url(%23w)'/%3E%3C/svg%3E");
+  --felt-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 .05 0 0 0 0 .05 0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23f)'/%3E%3C/svg%3E");
+  --stud:radial-gradient(circle at 38% 34%,#fff3c8 0 9%,#e2bd6a 26%,#9a7230 52%,#4d3412 68%,transparent 72%);
+  padding:3.2%;
+  border-radius:10px;
+  background:
+    var(--stud) 1.1% 1.1%/2.4% 2.4% no-repeat,
+    var(--stud) 98.9% 1.1%/2.4% 2.4% no-repeat,
+    var(--stud) 1.1% 98.9%/2.4% 2.4% no-repeat,
+    var(--stud) 98.9% 98.9%/2.4% 2.4% no-repeat,
+    var(--wood-grain),
+    linear-gradient(160deg,#6a4126 0%,#4b2d19 45%,#3a2214 100%);
+  box-shadow:
+    inset 0 2px 1px #ffe7c040, inset 2px 0 2px #ffe7c01f,
+    inset 0 -4px 6px #00000073, inset -3px 0 4px #00000052,
+    0 30px 55px -22px #140a04c0, 0 8px 16px -8px #140a0499;
+}
+
+/* Board surface: thin brass trim, dark wood showing between the cards. */
+.classic-board-view .board{
+  gap:.24cqw;padding:0;border-radius:3px;overflow:visible;
+  background:#24160c;
+  border:.36cqw solid #b08a3e;
+  border-image:linear-gradient(135deg,#f6e2a4,#a37a32 28%,#f0d48a 52%,#8a6526 78%,#e6c879) 1;
+  box-shadow:0 0 0 1px #00000080,0 2px 6px #0000004d;
+}
+
+/* ── Property cards ── */
+.classic-board-view .board-tile,
+.classic-board-view .board-tile.special,
+.classic-board-view .board-tile.corner{
+  border-radius:.3cqw;color:#1f2522;padding:0;overflow:hidden;
+  background-color:#f3ead2;
+  background-image:var(--paper-grain),linear-gradient(165deg,#fcf6e4 0%,#f1e7cc 60%,#e6d9b8 100%);
+  box-shadow:inset 0 0 0 1px #a8843ea6,inset 0 1px 0 #ffffffb3,inset 0 -2px 3px #50371414,0 .14cqw .22cqw #00000099;
+  transition:filter .2s,box-shadow .2s;
+}
+.classic-board-view .board-tile.corner{background-image:var(--paper-grain),radial-gradient(circle at 50% 42%,#fbf4df 0%,#eadfc1 100%)}
+.classic-board-view .board-tile:hover{filter:brightness(1.04)}
+.classic-board-view .board-tile.selected{outline:none;box-shadow:inset 0 0 0 2px #c9a24a,inset 0 0 0 4px #c9a24a33,inset 0 1px 0 #ffffffb3}
+.classic-board-view .board-tile.mortgaged{background-image:repeating-linear-gradient(135deg,#5a462814 0 .6cqw,transparent .6cqw 1.2cqw),var(--paper-grain),linear-gradient(165deg,#ece6d6,#ddd5c0);filter:saturate(.55)}
+
+/* Card layout. #game-board outranks the legacy owner-text padding rules in style.css.
+   Each card keeps its colour band on the inner edge and a clear strip on the outer edge
+   where pawns stand, so a pawn never sits on the property name. */
+#game-board .board-tile{padding:0}
+#game-board .tile-face{position:relative;left:auto;top:auto;transform:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25cqw;width:100%;height:100%;padding:.5cqw}
+#game-board .edge-south .tile-face{padding:calc(var(--band) + .4cqw) .4cqw 4.3cqw}
+#game-board .edge-north .tile-face{padding:3.4cqw .4cqw calc(var(--band) + .4cqw)}
+#game-board .edge-west .tile-face{padding:.4cqw calc(var(--band) + .4cqw) .4cqw 3.7cqw}
+#game-board .edge-east .tile-face{padding:.4cqw 3.7cqw .4cqw calc(var(--band) + .4cqw)}
+#game-board .edge-north.has-tower .tile-face{padding-right:3.6cqw}
+#game-board .edge-west.has-tower .tile-face{padding-right:calc(var(--band) + 1.4cqw)}
+#game-board .edge-east.has-tower .tile-face{padding-left:calc(var(--band) + 1.4cqw)}
+
+.classic-board-view .tile-name{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.02em;line-height:1.02;color:#20251f;text-wrap:balance}
+.classic-board-view .board-tile.corner .tile-name{font-weight:700;letter-spacing:.05em;font-size:clamp(7px,1.55cqw,14px)}
+.classic-board-view .tile-price{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:500;color:#5a4f38;margin-top:0}
+.classic-board-view .tile-kind{color:#6d6450}
+/* Replaced by the shield and miniatures below. */
+.classic-board-view .tile-owner,.classic-board-view .tile-buildings,.classic-board-view .owner-mark{display:none}
+
+/* Printed colour band on the inner edge, with a light varnish. */
+.classic-board-view .tile-strip{border:0;z-index:1;box-shadow:inset 0 0 0 1px #00000026;background:linear-gradient(180deg,#ffffff52,#ffffff00 50%,#0000001f),var(--group-color)}
+.classic-board-view .edge-south .tile-strip{top:0;bottom:auto;left:0;right:0;height:var(--band);width:auto}
+.classic-board-view .edge-north .tile-strip{top:auto;bottom:0;left:0;right:0;height:var(--band);width:auto}
+.classic-board-view .edge-west .tile-strip{top:0;bottom:0;left:auto;right:0;width:var(--band);height:auto;background:linear-gradient(90deg,#ffffff52,#ffffff00 50%,#0000001f),var(--group-color)}
+.classic-board-view .edge-east .tile-strip{top:0;bottom:0;left:0;right:auto;width:var(--band);height:auto;background:linear-gradient(90deg,#ffffff52,#ffffff00 50%,#0000001f),var(--group-color)}
+
+/* Engraved space icons. */
+.classic-board-view .tile-symbol{display:block;line-height:0;opacity:1}
+.classic-board-view .space-icon{width:2.4cqw;height:2.4cqw;fill:none;stroke:#2b373b;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.classic-board-view .corner .space-icon{width:4cqw;height:4cqw}
+.classic-board-view .space-icon .icon-gold{fill:#c9a24a;stroke:#7d5d22;stroke-width:.8}
+.classic-board-view .space-icon .icon-gold-fill{fill:#e9c870;stroke:none}
+
+/* ── Centre: dark teal felt, a brass inset line and a faint gold skyline ── */
+.classic-board-view .board-center{
+  position:relative;z-index:1;isolation:isolate;border-radius:2px;color:#f3ead2;
+  background-color:#1d4547;
+  background-image:var(--felt-grain),radial-gradient(ellipse at 50% 36%,#2c6563 0%,#1d4547 52%,#112b2d 100%);
+  box-shadow:inset 0 0 0 1px #00000066,inset 0 0 3cqw #0000008c;
+}
+.classic-board-view .board-center::before{content:'';position:absolute;inset:1.6cqw;border:1px solid #c9a24a73;box-shadow:0 0 0 .35cqw #c9a24a12;pointer-events:none;z-index:0}
+.classic-board-view .board-center::after{
+  content:'';position:absolute;left:14%;right:14%;bottom:3.5%;height:15%;pointer-events:none;z-index:0;opacity:.24;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 70' preserveAspectRatio='xMidYMax meet'%3E%3Cg fill='none' stroke='%23d9b862' stroke-width='.8'%3E%3Cpath d='M2 60H238'/%3E%3Cpath d='M20 60V44H30V60M34 60V36H44V60M48 60V48H56V60M60 60V28H66V22H72V28H78V60M82 60V40H92V60M96 60V18H104V10H108V18H116V60M120 60V32H128V26H134V60M138 60V12H142V4H146V12H150V60M154 60V38H164V60M168 60V24H176V60M180 60V44H190V60M194 60V30H200V60M204 60V46H214V60'/%3E%3Cpath d='M100 24H112M100 30H112M100 36H112M100 42H112M140 18H148M140 26H148M140 34H148M140 42H148M62 34H76M62 42H76' stroke-opacity='.6'/%3E%3C/g%3E%3Cg stroke='%23d9b862' stroke-width='.5' stroke-opacity='.35'%3E%3Cpath d='M30 64H210M60 67H180'/%3E%3C/g%3E%3C/svg%3E") center bottom/contain no-repeat;
+}
+.classic-board-view .board-center>*{position:relative;z-index:1}
+.classic-board-view .board-center .board-wordmark{
+  background:none;color:#f0d58c;border:2px solid #c9a24a;transform:rotate(-6deg);
+  box-shadow:inset 0 0 0 4px #1d4547,inset 0 0 0 5px #c9a24a8c,0 6px 14px -6px #000c;
+  font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:700;letter-spacing:.08em;
+  font-size:clamp(18px,4.6cqw,42px);padding:.7cqw 2cqw;margin:0 0 3.2cqw;
+  text-shadow:0 1px 0 #00000099,0 -1px 0 #ffffff33;
+}
+.classic-board-view .board-center .board-wordmark span{color:#c9a24a;margin-left:.35em}
+.classic-board-view .board-center .eyebrow{color:#e7dfc8a6}
+.classic-board-view .center-role{color:#f0d58c!important;opacity:.95}
+.classic-board-view .center-player,.classic-board-view .center-player *{color:#fbf5e3!important}
+.classic-board-view .center-player>span{opacity:.75}
+.classic-board-view .center-status{color:#e7dfc8}
+.classic-board-view .dice-total{color:#e7dfc8}
+.classic-board-view .die{background:linear-gradient(145deg,#ffffff,#ece6d6);border:1px solid #00000026;border-radius:18%;box-shadow:0 6px 10px -4px #000a,inset 0 -2px 3px #0000001f}
+.classic-board-view .pip{background:#1d1d1b}
+
+/* ── Miniatures anchored to each property card ── */
+.classic-board-view .tile-pieces{position:relative;z-index:2;pointer-events:none;min-width:0;min-height:0}
+.classic-board-view .tile-pieces svg{display:block;width:100%;height:100%;overflow:visible}
+
+/* Owner shield on the outer edge, overhanging the frame. */
+.piece-badge{position:absolute;width:3.1cqw;height:3.6cqw;filter:drop-shadow(0 .18cqw .16cqw #00000073)}
+.edge-south>.piece-badge{right:.3cqw;bottom:-1.5cqw}
+.edge-north>.piece-badge{right:.3cqw;top:-1.5cqw}
+.edge-west>.piece-badge{left:-1.5cqw;top:.3cqw}
+.edge-east>.piece-badge{right:-1.5cqw;top:.3cqw}
+.tile-pieces.is-mortgaged>.piece-badge{filter:grayscale(.85) brightness(.85) drop-shadow(0 .18cqw .16cqw #00000073);opacity:.8}
+
+/* Houses stand on the colour band. */
+.piece-buildings{position:absolute;display:flex;justify-content:center;align-items:flex-end}
+.edge-south>.piece-buildings{top:0;left:.3cqw;right:.3cqw;height:var(--band)}
+.edge-north>.piece-buildings{bottom:0;left:.3cqw;right:.3cqw;height:var(--band)}
+.edge-west>.piece-buildings,.edge-east>.piece-buildings{top:.25cqw;bottom:.25cqw;width:var(--band);flex-direction:column;align-items:center;gap:0}
+.edge-west>.piece-buildings{right:0}
+.edge-east>.piece-buildings{left:0}
+/* Houses sit shoulder to shoulder, slightly overlapping, so four fit on one card. */
+.piece-house{flex:none;width:2.3cqw;height:2.3cqw;filter:drop-shadow(0 .16cqw .12cqw #00000080)}
+.piece-house+.piece-house{margin-left:-.42cqw}
+.edge-west .piece-house,.edge-east .piece-house{width:2.05cqw;height:2.05cqw}
+.edge-west .piece-house+.piece-house,.edge-east .piece-house+.piece-house{margin-left:0;margin-top:-.25cqw}
+.piece-house .house-front{fill:var(--piece-color)}
+.piece-house .house-side{fill:color-mix(in srgb,var(--piece-color) 58%,black)}
+.piece-house .house-roof{fill:color-mix(in srgb,var(--piece-color) 70%,white)}
+.piece-house .house-door{fill:color-mix(in srgb,var(--piece-color) 40%,black)}
+.piece-house path{stroke:#00000040;stroke-width:.35;stroke-linejoin:round}
+
+/* The tower replaces the houses: neutral steel and glass on an owner-coloured plinth. */
+.piece-tower{position:absolute;width:3cqw;height:6.3cqw;filter:drop-shadow(.12cqw .2cqw .16cqw #00000080)}
+.edge-south>.piece-tower{left:calc(50% - 1.5cqw);top:calc(var(--band) - 6.3cqw)}
+.edge-north>.piece-tower{right:.4cqw;bottom:0}
+.edge-west>.piece-tower{right:calc(var(--band) / 2 - 1.5cqw);bottom:.3cqw}
+.edge-east>.piece-tower{left:calc(var(--band) / 2 - 1.5cqw);bottom:.3cqw}
+.piece-tower .tower-plinth{fill:var(--piece-color);stroke:#00000059;stroke-width:.5}
+.tower-shadow{position:absolute;left:-30%;right:-30%;bottom:-.25cqw;height:1cqw;border-radius:50%;background:radial-gradient(closest-side,#00000073,#0000);transform-origin:50% 50%}
+
+/* ── Pawns ── */
+.classic-board-view .token-layer{inset:0;z-index:3;pointer-events:none}
+.classic-board-view .token-layer .player-token{
+  position:absolute;left:0;top:0;display:block;width:3.6cqw;height:5.04cqw;
+  background:none;border:0;border-radius:0;box-shadow:none;font-size:0;
+  transform-origin:50% 94%;
+  transition:transform var(--move-duration,150ms) cubic-bezier(.3,.7,.4,1);
+}
+.player-token .pawn-body{position:absolute;inset:0;transform-origin:50% 100%}
+.player-token .pawn-art{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(.1cqw .15cqw .12cqw #00000066)}
+.player-token .pawn-shadow{position:absolute;left:6%;right:6%;bottom:-3%;height:17%;border-radius:50%;background:radial-gradient(closest-side,#000000a6,#0000);transform-origin:50% 50%}
+/* Your own pawn stands on a brass ring; the acting pawn carries a soft halo. */
+.player-token.mine::before{content:'';position:absolute;left:2%;right:2%;bottom:-4%;height:21%;border-radius:50%;border:.32cqw solid #f1d58a;box-shadow:0 0 .5cqw #f1d58acc,inset 0 0 .3cqw #f1d58a80}
+.player-token.active .pawn-art{filter:drop-shadow(.1cqw .15cqw .12cqw #00000066) drop-shadow(0 0 .3cqw #ffe9aa99)}
+.player-token.hop .pawn-body{animation:pawn-hop var(--move-duration,150ms) cubic-bezier(.35,.1,.35,1)}
+.player-token.hop .pawn-shadow{animation:pawn-hop-shadow var(--move-duration,150ms) cubic-bezier(.35,.1,.35,1)}
+@keyframes pawn-hop{0%{transform:translateY(0) scale(1,1)}45%{transform:translateY(-24%) scale(.97,1.03)}85%{transform:translateY(0) scale(1.04,.96)}100%{transform:translateY(0) scale(1,1)}}
+@keyframes pawn-hop-shadow{0%,100%{transform:scale(1);opacity:1}45%{transform:scale(.62);opacity:.5}}
+
+/* ── Change animations: only on real state changes after the board is synced ── */
+.piece-badge.enter{animation:badge-in .46s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes badge-in{0%{transform:scale(.35) rotate(-14deg);opacity:0;filter:brightness(2.2) drop-shadow(0 0 0 #0000)}60%{transform:scale(1.12) rotate(3deg);opacity:1;filter:brightness(1.5) drop-shadow(0 .18cqw .16cqw #00000073)}100%{transform:none;filter:brightness(1) drop-shadow(0 .18cqw .16cqw #00000073)}}
+.piece-house.enter{animation:house-in .42s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes house-in{0%{transform:translateY(-.9cqw) scale(.5);opacity:0}100%{transform:none;opacity:1}}
+.piece-tower.rise{animation:tower-rise .56s cubic-bezier(.3,1.35,.55,1) .2s both;transform-origin:50% 100%}
+.piece-tower.rise .tower-shadow{animation:tower-shadow .56s ease-out .2s both}
+@keyframes tower-rise{0%{transform:translateY(18%) scaleY(.15);opacity:0}65%{transform:translateY(0) scaleY(1.05);opacity:1}100%{transform:none;opacity:1}}
+@keyframes tower-shadow{0%{transform:scaleX(.3);opacity:0}100%{transform:none;opacity:1}}
+.piece-house.leave,.piece-badge.leave,.piece-tower.leave{animation:piece-out .24s ease-in both}
+@keyframes piece-out{to{transform:translateY(.4cqw) scale(.3);opacity:0}}
+
+@media(prefers-reduced-motion:reduce){
+  .classic-board-view .token-layer .player-token{transition:none}
+  .piece-badge.enter,.piece-house.enter,.piece-tower.rise,.piece-tower.rise .tower-shadow,.player-token.hop .pawn-body,.player-token.hop .pawn-shadow,.piece-house.leave,.piece-badge.leave,.piece-tower.leave{animation:none}
+}

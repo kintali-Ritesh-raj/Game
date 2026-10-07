@@ -26,66 +26,7 @@
   .classic-layout .board-area{max-width:none}
 }
 
-/* ── The board ── */
-.classic-board-view .board{
-  gap:1px;padding:0;background:var(--print-ink);border-radius:6px;
-  border:clamp(7px,1.8cqw,18px) solid var(--walnut);
-  border-image:repeating-linear-gradient(118deg,#3a2517 0 7px,#4b311f 7px 10px,#352115 10px 17px,#55382a 17px 19px) 1;
-  box-shadow:0 1px 0 #ffffff26 inset,0 28px 48px -18px #1a0f0880,0 10px 18px -8px #1a0f0866;
-}
-.classic-board-view .board-tile,
-.classic-board-view .board-tile.special,
-.classic-board-view .board-tile.corner{
-  border-radius:0;color:var(--print-ink);
-  background-color:var(--card);
-  background-image:var(--paper-grain),linear-gradient(160deg,#fbf6e6 0%,var(--card) 55%,var(--card-shade) 100%);
-  box-shadow:inset 0 0 0 1px #ffffff55;
-}
-.classic-board-view .board-tile.corner{background-image:var(--paper-grain),radial-gradient(circle at 50% 45%,#f8f1dc 0%,#e8dcbb 100%)}
-.classic-board-view .board-tile:hover{background-color:#fffaf0;filter:brightness(1.03)}
-.classic-board-view .board-tile.selected{outline:2px solid var(--foil);outline-offset:-2px;box-shadow:inset 0 0 0 3px #c9a24a55}
-.classic-board-view .tile-name{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.02em;line-height:1.05}
-.classic-board-view .board-tile.corner .tile-name{font-weight:700;letter-spacing:.05em}
-.classic-board-view .tile-price{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:500;color:#4b4433}
-.classic-board-view .tile-kind{color:#6d6450}
-.classic-board-view .tile-symbol{color:#3a3a30;opacity:.85;font-weight:400}
-/* Printed colour bands with a light varnish sheen */
-.classic-board-view .tile-strip{
-  border-color:#1f252266!important;
-  background:linear-gradient(180deg,#ffffff4d,#ffffff00 45%,#00000024),var(--group-color);
-}
-.classic-board-view .edge-east .tile-strip,.classic-board-view .edge-west .tile-strip{
-  background:linear-gradient(90deg,#ffffff4d,#ffffff00 45%,#00000024),var(--group-color);
-}
-
-/* ── Centre: a deep printed field with a foil-stamped wordmark ── */
-.classic-board-view .board-center{
-  border-radius:0;color:var(--card);
-  background-color:var(--felt);
-  background-image:var(--paper-grain),radial-gradient(ellipse at 50% 38%,#2b6563 0%,var(--felt) 55%,var(--felt-deep) 100%);
-  box-shadow:inset 0 0 0 clamp(4px,.9cqw,8px) #ffffff0d,inset 0 0 40px #0006;
-}
-.classic-board-view .board-center .board-wordmark{
-  background:none;color:var(--foil-light);border:2px solid var(--foil);box-shadow:inset 0 0 0 4px var(--felt),inset 0 0 0 5px #c9a24a80;
-  font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:700;letter-spacing:.08em;
-  text-shadow:0 1px 0 #00000080,0 -1px 0 #ffffff26;transform:rotate(-8deg);
-}
-.classic-board-view .board-center .board-wordmark span{color:var(--foil)}
-.classic-board-view .center-role{color:var(--foil-light)!important;opacity:.95}
-.classic-board-view .board-center .eyebrow{color:#e7dfc8b3}
-.classic-board-view .center-player,.classic-board-view .center-player *{color:#fbf5e3!important}
-.classic-board-view .center-player>span{opacity:.75}
-.classic-board-view .center-status{color:#e7dfc8}
-.classic-board-view .dice-total{color:#e7dfc8}
-.classic-board-view .die{background:linear-gradient(145deg,#ffffff,#ece6d6);border:1px solid #00000026;border-radius:18%;box-shadow:0 6px 10px -4px #000a,inset 0 -2px 3px #0000001f}
-.classic-board-view .pip{background:#1d1d1b}
-
-/* ── Tokens: glossy enamel playing pieces ── */
-.classic-board-view .player-token{
-  background:radial-gradient(circle at 32% 28%,#ffffffcc 0 8%,transparent 30%),radial-gradient(circle at 50% 60%,var(--player-color),color-mix(in srgb,var(--player-color) 55%,#000));
-  border:2px solid #f6eccf;box-shadow:0 4px 7px -2px #000b,0 1px 0 #ffffff40 inset;
-}
-.classic-board-view .player-token.active{box-shadow:0 0 0 3px var(--foil),0 6px 10px -2px #000c}
+/* The board itself is styled in board-premium.css. */
 
 /* ── Notifications: foil-edged cards that match the board ── */
 .toast-stack{position:fixed;top:16px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:1000;width:min(440px,calc(100% - 24px));pointer-events:none}

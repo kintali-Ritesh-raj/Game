@@ -115,7 +115,8 @@ async (page) => {
   await page.locator('#modal [data-action=buy]').click();
   await guest.locator('#cash-0').filter({hasText:'$1,360'}).waitFor();
   assert(await guest.locator('#cash-0').textContent()==='$1,360','Purchase cash synchronized to guest');
-  assert(await page.locator('#turn-action-card [data-action=end]').isEnabled(),'After a non-doubles landing the turn can be ended');
+  await page.waitForFunction(()=>document.querySelector('#turn-action-card [data-action=end]')?.disabled===false,{},{timeout:10000});
+  assert(true,'After a non-doubles landing the turn can be ended');
   assert((await guest.locator('#game-board [data-id="4"]').getAttribute('aria-label')).includes('owned by Host'),'Property ownership synchronized');
   await guest.locator('#game-board [data-id="4"][aria-label*="owned by Host"]').waitFor();
   assert(await guest.locator('#classic-token-0').getAttribute('data-space')==='4','Host token moves to the purchased space on both boards');
@@ -152,14 +153,19 @@ async (page) => {
   assert(await guest.locator('#cash-1').textContent()==='$1,470','Manual room-code entry rejoins the same game');
   room.state=clone(fixture.extras.developed);room.revision++;room.transition={action:'build',player:0,dice:room.state.dice,path:[],sounds:['build']};broadcast('mw_rooms',room);
   await page.locator('.player-property[data-id="4"] [data-buildings="2"]').waitFor();
+  assert(await page.locator('[data-pieces="4"] .piece-house').count()===2&&await page.locator('[data-pieces="4"] .piece-tower').count()===0,'Board shows two owner-coloured miniature houses on the developed property');
+  assert(await page.locator('[data-pieces="4"] .piece-badge').getAttribute('data-owner')==='0','Ownership shield uses the owner (Host) while the colour band keeps the property group');
   for(const width of [320,768,1024,1440]){
     await page.setViewportSize({width,height:900});
     await page.waitForTimeout(250); // Let token positions settle after responsive layout changes.
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px square board fits without page overflow');
     assert(await page.locator('#game-board').evaluate(board=>[...board.querySelectorAll('.player-token:not([hidden])')].every(token=>{
-      const marker=token.getBoundingClientRect(),tile=board.querySelector('[data-id="'+token.dataset.space+'"]').getBoundingClientRect();
-      return marker.left>=tile.left-1&&marker.right<=tile.right+1&&marker.top>=tile.top-1&&marker.bottom<=tile.bottom+1;
-    })),width+'px tokens remain on their correct spaces after resize');
+      // Pawns stand upright and may overhang the card edge; their base must be on the space.
+      const marker=token.getBoundingClientRect(),tile=board.querySelector('.board-tile[data-id="'+token.dataset.space+'"]').getBoundingClientRect();
+      const baseX=marker.left+marker.width/2,baseY=marker.top+marker.height*.94;
+      return baseX>=tile.left-2&&baseX<=tile.right+2&&baseY>=tile.top-2&&baseY<=tile.bottom+2;
+    })),width+'px pawns remain on their correct spaces after resize');
+  assert(await page.locator('#game-board .player-token .pawn-art').count()===2,'Players are shown as shaded 3D pawns rather than flat markers');
     const geometry=await page.locator('#game-board').evaluate(board=>{
       const r=board.getBoundingClientRect();
       const corners=[0,10,20,30].map(id=>{const t=board.querySelector('[data-id="'+id+'"]').getBoundingClientRect();return {x:t.x-r.x,y:t.y-r.y};});
@@ -186,6 +192,8 @@ async (page) => {
   assert(await page.locator('#modal [data-action=bid]').isDisabled(),'Seller watches the live auction but cannot bid');
   await guest.locator('#bid-increment').fill('20');await guest.locator('#modal [data-action=bid]').click();
   await page.waitForFunction(()=>document.querySelector('#game-board [data-id="4"]').getAttribute('aria-label').includes('owned by Guest'));
+  await page.locator('[data-pieces="4"] .piece-badge[data-owner="1"]').waitFor();
+  assert(await page.locator('[data-pieces="4"] .piece-house').count()===2,'After the auction the shield and both houses switch to the new owner');
   assert(await guest.locator('.player-card').filter({hasText:'Guest'}).locator('.player-property[data-id="4"] [data-buildings="2"]').count()===1,'Auction transfers the property and both houses to the winner');
   assert(await page.locator('#cash-0').textContent()==='$'+fixture.extras.resold.players[0].cash.toLocaleString('en-US'),'Winning bid is credited to the seller');
   await page.waitForTimeout(700); // Let the ownership and house entrance animations finish for visual inspection.

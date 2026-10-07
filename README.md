@@ -98,7 +98,8 @@ Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with 
 | Identity/turn checks | `lib/game-actions.ts`, `lib/validation.ts` |
 | Turn timer and leaving | `lib/turn-timeout.ts`, `lib/bot-timing.ts` |
 | Rejoin codes | `lib/seat-keys.ts`, `mw_reclaim_seat` |
-| Board renderer | `lib/game-ui.js`, `app/classic-board.css`, `app/tabletop.css`, and `app/dark.css` |
+| Board renderer | `lib/game-ui.js` (grid, center controls, pawn placement), `app/classic-board.css`, `app/board-premium.css` (frame, cards, felt, piece layout and animation) |
+| Board miniatures | `lib/board-pieces.js`: SVG pawns, ownership shields, houses, the tower and space icons, all drawn from game state and `player.color` |
 | Online UI and recovery | `components/useMultiplayer.ts`, `GameClient`, `Lobby`, `PlayerForm` |
 | Public room state | `mw_rooms`, read-only to authenticated room members |
 | Private state/deck order | `mw_game_secrets`, server access only |
