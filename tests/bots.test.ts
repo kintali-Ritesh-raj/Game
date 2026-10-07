@@ -62,7 +62,7 @@ test('Bot buys within budget, skips expensive offers, and bids without overspend
   assert.equal((await step(room)).action,'bid');assert.equal(room.state!.properties[2].owner,1);assert.equal(room.state!.players[0].cash,1510);
 });
 test('Bot develops allowed assets, unmortgages, takes doubles, and pays detention when affordable',async()=>{
-  const room=playing();room.state!.currentPlayer=1;room.state!.phase='end';room.state!.properties[1].owner=1;
+  const room=playing();room.state!.currentPlayer=1;room.state!.phase='end';room.state!.properties[1].owner=1;room.state!.players[1].position=1;room.state!.hasRolled=true;
   assert.equal((await step(room)).action,'build');assert.equal(room.state!.properties[1].buildings,1);
   room.state!.extraRoll=true;assert.equal((await step(room)).action,'roll');
   room.state!.phase='end';room.state!.extraRoll=false;room.state!.properties[2].owner=1;room.state!.properties[2].mortgaged=true;

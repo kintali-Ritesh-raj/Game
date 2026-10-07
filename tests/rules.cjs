@@ -18,6 +18,7 @@ const test = (name, run) => testCases.push({ name, run });
 const create = (count = 2, random = () => .4) => new Game(players.slice(0, count), {}, { random, wait: async () => {} });
 const land = (game, position) => { game.active.position = position; game.state.phase = 'moving'; game.resolveSpace(); };
 const own = (game, id, owner = 0) => { game.asset(id).owner = owner; };
+const stand = (game, id) => { game.active.position = id; game.state.hasRolled = true; };
 const drain = async game => { for (let i = 0; i < 200 && game.busy; i++) await Promise.resolve(); assert.ok(!game.busy, 'movement completed'); };
 function randomSeed(seed) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
 
@@ -81,25 +82,25 @@ test('the supplied visitor sound triggers on another owner’s space, even when 
   assert.equal(played.filter(kind => kind === 'visitor').length, 2);
 });
 test('Monopolists need 2 unmortgaged properties of a color; Competitors build independently at 25% less', () => {
-  const canal = create(); own(canal, 4); assert.throws(() => canal.buildStructure(4), /at least 2/);
-  own(canal, 6); canal.buildStructure(4); assert.equal(canal.asset(4).buildings, 1);
-  const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 20); assert.throws(() => game.buildStructure(1), /at least 2/);
-  own(game, 2); assert.equal(game.calculateRent(1), 20); game.buildStructure(1);
+  const canal = create(); own(canal, 4); assert.throws(() => (stand(canal, 4), canal.buildStructure(4)), /at least 2/);
+  own(canal, 6); (stand(canal, 4), canal.buildStructure(4)); assert.equal(canal.asset(4).buildings, 1);
+  const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 20); assert.throws(() => (stand(game, 1), game.buildStructure(1)), /at least 2/);
+  own(game, 2); assert.equal(game.calculateRent(1), 20); (stand(game, 1), game.buildStructure(1));
   assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
-  game.state.currentPlayer = 1; own(game, 4, 1); game.buildStructure(4);
+  game.state.currentPlayer = 1; own(game, 4, 1); (stand(game, 4), game.buildStructure(4));
   assert.equal(game.active.cash, 1455); assert.equal(game.asset(4).buildings, 1); assert.equal(game.calculateRent(4), 36);
 });
 test('all five development levels, sale, cost and tower rent work', () => {
   const game = create(); own(game, 1); own(game, 2);
-  for (let i = 0; i < 5; i++) game.buildStructure(1);
+  for (let i = 0; i < 5; i++) (stand(game, 1), game.buildStructure(1));
   assert.equal(game.asset(1).buildings, 5); assert.equal(game.calculateRent(1), 400); assert.throws(() => game.buildStructure(1), /tower/);
   game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1275);
 });
 test('mortgaged groups prohibit building; selling clears Monopolist mortgage restriction', () => {
-  const game = create(); own(game, 1); own(game, 2); game.buildStructure(1);
+  const game = create(); own(game, 1); own(game, 2); (stand(game, 1), game.buildStructure(1));
   assert.throws(() => game.mortgageProperty(2), /district/);
-  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => game.buildStructure(1), /at least 2/);
-  game.unmortgageProperty(2); game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
+  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => (stand(game, 1), game.buildStructure(1)), /at least 2/);
+  game.unmortgageProperty(2); (stand(game, 1), game.buildStructure(1)); assert.equal(game.asset(1).buildings, 1);
 });
 test('mortgage disables rent and development; 10% fee restores rent', () => {
   const game = create(); own(game, 1); game.mortgageProperty(1);
@@ -190,11 +191,20 @@ test('three failed detention rolls require payment; cash recovery resumes the la
   game.mortgageProperty(1); game.settleDebt(); await drain(game);
   assert.equal(game.active.penalty, null); assert.equal(game.active.position, 13); assert.equal(game.state.phase, 'offer');
 });
+test('building is allowed only while standing on the property after landing there', () => {
+  const game = create(); own(game, 1); own(game, 2);
+  game.active.position = 5; game.state.hasRolled = true;
+  assert.throws(() => game.buildStructure(1), /Land on Beacon Wharf/);
+  game.active.position = 1; game.state.hasRolled = false;
+  assert.throws(() => game.buildStructure(1), /Land on/);
+  game.state.hasRolled = true; game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
+  assert.throws(() => game.buildStructure(2), /Land on/);
+});
 test('building unlocks only after the owner lands on the property again', () => {
   const game = create(); own(game, 6); land(game, 4); game.purchaseProperty();
   assert.throws(() => game.buildStructure(4), /again/);
   game.state.phase = 'ready'; land(game, 4); assert.equal(game.asset(4).ready, true);
-  game.buildStructure(4); game.buildStructure(4); assert.equal(game.asset(4).buildings, 2);
+  (stand(game, 4), game.buildStructure(4)); (stand(game, 4), game.buildStructure(4)); assert.equal(game.asset(4).buildings, 2);
   const rival = create(); rival.state.currentPlayer = 1; land(rival, 9); rival.purchaseProperty();
   assert.throws(() => rival.buildStructure(9), /again/);
 });

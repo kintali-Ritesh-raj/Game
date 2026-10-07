@@ -7,7 +7,7 @@ export type Player = Profile & { id: number; type?: 'human' | 'bot'; cash: numbe
 export type GameState = {
   version: number; players: Player[]; properties: Record<string, { owner: number | null; buildings: number; mortgaged: boolean; ready?: boolean }>;
   currentPlayer: number; turn: number; phase: 'ready' | 'end' | 'offer' | 'auction' | 'event' | 'debt' | 'victory' | 'rolling' | 'moving';
-  dice: number[]; offer: number | null; extraRoll: boolean; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
+  dice: number[]; offer: number | null; extraRoll: boolean; hasRolled: boolean; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
   auction: { bidder: number; property: number; seller?: number | null; returnPhase?: 'ready' | 'end'; bid: number; leader: number | null; order: number[]; passed: number[] } | null;
   settings: Record<string, boolean | number>; winner: number | null;
 };
