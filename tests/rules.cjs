@@ -86,15 +86,24 @@ test('Monopolists need 2 unmortgaged properties of a color; Competitors build in
   own(canal, 6); (stand(canal, 4), canal.buildStructure(4)); assert.equal(canal.asset(4).buildings, 1);
   const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 20); assert.throws(() => (stand(game, 1), game.buildStructure(1)), /at least 2/);
   own(game, 2); assert.equal(game.calculateRent(1), 20); (stand(game, 1), game.buildStructure(1));
-  assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
+  assert.equal(game.active.cash, 1432); assert.equal(game.calculateRent(1), 32);
   game.state.currentPlayer = 1; own(game, 4, 1); (stand(game, 4), game.buildStructure(4));
   assert.equal(game.active.cash, 1455); assert.equal(game.asset(4).buildings, 1); assert.equal(game.calculateRent(4), 36);
+});
+test('Monopolists pay 80% more than Competitors for every house and tower', () => {
+  const game = create(), monopolist = game.player(0), competitor = game.player(1);
+  for (const space of BOARD.filter(item => item.type === 'property')) {
+    const competitorCost = game.buildingCost(competitor, space);
+    assert.equal(competitorCost, Math.round(space.buildingCost * .75));
+    assert.equal(game.buildingCost(monopolist, space), Math.round(competitorCost * 1.8));
+  }
+  assert.equal(game.buildingCost(monopolist, BOARD[4]), 81); assert.equal(game.buildingCost(competitor, BOARD[4]), 45);
 });
 test('all five development levels, sale, cost and tower rent work', () => {
   const game = create(); own(game, 1); own(game, 2);
   for (let i = 0; i < 5; i++) (stand(game, 1), game.buildStructure(1));
   assert.equal(game.asset(1).buildings, 5); assert.equal(game.calculateRent(1), 400); assert.throws(() => game.buildStructure(1), /tower/);
-  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1275);
+  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1194);
 });
 test('mortgaged groups prohibit building; selling clears Monopolist mortgage restriction', () => {
   const game = create(); own(game, 1); own(game, 2); (stand(game, 1), game.buildStructure(1));

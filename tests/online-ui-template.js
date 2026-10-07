@@ -176,12 +176,14 @@ async (page) => {
     await page.setViewportSize({width,height:900});
     await page.waitForTimeout(250); // Let token positions settle after responsive layout changes.
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px square board fits without page overflow');
-    assert(await page.locator('#game-board').evaluate(board=>[...board.querySelectorAll('.player-token:not([hidden])')].every(token=>{
-      // Pawns stand upright and may overhang the card edge; their base must be on the space.
+    const offSpace=await page.locator('#game-board').evaluate(board=>[...board.querySelectorAll('.player-token:not([hidden])')].map(token=>{
+      // A pawn's base must be on its space.
       const marker=token.getBoundingClientRect(),tile=board.querySelector('.board-tile[data-id="'+token.dataset.space+'"]').getBoundingClientRect();
       const baseX=marker.left+marker.width/2,baseY=marker.top+marker.height*.94;
-      return baseX>=tile.left-2&&baseX<=tile.right+2&&baseY>=tile.top-2&&baseY<=tile.bottom+2;
-    })),width+'px pawns remain on their correct spaces after resize');
+      const miss=Math.max(tile.left-baseX,baseX-tile.right,tile.top-baseY,baseY-tile.bottom,0);
+      return miss>2?token.id+'@'+token.dataset.space+' off by '+Math.round(miss)+'px (base '+Math.round(baseX)+','+Math.round(baseY)+' tile '+[tile.left,tile.top,tile.right,tile.bottom].map(Math.round)+' transition '+token.style.transition+')':'';
+    }).filter(Boolean));
+    assert(offSpace.length===0,width+'px pawns remain on their correct spaces after resize '+offSpace.join('; '));
   assert(await page.locator('#game-board .player-token .pawn-art').count()===2,'Players are shown as shaded 3D pawns rather than flat markers');
     const geometry=await page.locator('#game-board').evaluate(board=>{
       const r=board.getBoundingClientRect();
