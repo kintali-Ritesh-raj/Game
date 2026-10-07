@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import MarketWars from './game-engine.cjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyGameAction, memberIndex, requireRevision } from './game-actions';
 import { idleSeat, turnDeadline } from './bot-timing';
@@ -38,5 +39,23 @@ export async function expireTurn(db: SupabaseClient, room: Room, requester: stri
   return roomRpc(db, 'mw_commit_game', {
     p_code: room.code, p_actor: actor, p_expected: expected, p_state: current.state, p_transition: transition,
     p_request_id: id, p_fingerprint: 'timeout:' + expected, p_start: false,
+  });
+}
+
+// A player quits a running game. Their seat is forfeited; the commit is signed
+// by whoever the table is waiting for, because the database checks that seat.
+export async function forfeitGame(db: SupabaseClient, room: Room, requester: string, expected: number) {
+  const seat = memberIndex(room, requester);
+  if (room.status !== 'playing' || !room.state || room.state.players[seat]?.bankrupt) return room;
+  requireRevision(room, expected);
+  const current = await readGameRoom(db, room.code, expected);
+  const state = current.state!;
+  const acting = state.pending?.payer ?? state.auction?.bidder ?? state.currentPlayer;
+  const game = MarketWars.Game.restore(JSON.stringify(state), { wait: async () => {} });
+  try { game.forfeit(seat); } catch (error) { throw new ApiError(409, error instanceof Error ? error.message : 'You cannot leave right now.'); }
+  const transition: Transition = { action: 'forfeit', player: state.currentPlayer, dice: [...game.state.dice], path: [], sounds: [] };
+  return roomRpc(db, 'mw_commit_game', {
+    p_code: room.code, p_actor: current.members[acting].user_id, p_expected: expected, p_state: JSON.parse(game.serialize()),
+    p_transition: transition, p_request_id: crypto.randomUUID(), p_fingerprint: 'forfeit:' + requester + ':' + expected, p_start: false,
   });
 }

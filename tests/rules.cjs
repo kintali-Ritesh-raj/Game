@@ -190,6 +190,21 @@ test('three failed detention rolls require payment; cash recovery resumes the la
   game.mortgageProperty(1); game.settleDebt(); await drain(game);
   assert.equal(game.active.penalty, null); assert.equal(game.active.position, 13); assert.equal(game.state.phase, 'offer');
 });
+test('building unlocks only after the owner lands on the property again', () => {
+  const game = create(); own(game, 6); land(game, 4); game.purchaseProperty();
+  assert.throws(() => game.buildStructure(4), /again/);
+  game.state.phase = 'ready'; land(game, 4); assert.equal(game.asset(4).ready, true);
+  game.buildStructure(4); game.buildStructure(4); assert.equal(game.asset(4).buildings, 2);
+  const rival = create(); rival.state.currentPlayer = 1; land(rival, 9); rival.purchaseProperty();
+  assert.throws(() => rival.buildStructure(9), /again/);
+});
+test('a player who leaves forfeits assets and the turn passes on', () => {
+  const game = create(3); own(game, 1); game.asset(1).buildings = 2;
+  game.forfeit(0);
+  assert.equal(game.player(0).bankrupt, true); assert.equal(game.asset(1).owner, null); assert.equal(game.asset(1).buildings, 0);
+  assert.equal(game.state.currentPlayer, 1); assert.equal(game.state.phase, 'ready');
+  game.forfeit(2); assert.equal(game.state.phase, 'victory'); assert.equal(game.state.winner, 1);
+});
 test('a doubles landing is only a waypoint and the extra roll is mandatory', async () => {
   const rolls = [.4, .4, 0, .2]; const game = create(); game.random = () => rolls.shift();
   await game.rollDice(); await drain(game);

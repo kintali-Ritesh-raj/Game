@@ -1,0 +1,47 @@
+/* Dark mode: the room goes dark, the board stays a printed card on a dark table. */
+:root[data-theme=dark]{
+  color-scheme:dark;
+  --bg:#121a1c;--panel:#1a2427;--panel-raised:#22302f;--line:#34464a;--text:#ece6d6;--muted:#a9b3ad;
+  --gold:#d9b35e;--cyan:#7cc2b9;--red:#e98b7d;--accent:#d9604f;--ink:#ece6d6;--sky:#1c4446;
+}
+:root[data-theme=dark] body{background:radial-gradient(ellipse at 50% 0%,#1c2a2c 0%,var(--bg) 60%) fixed,var(--bg);color:var(--text)}
+
+/* Header, panels and cards */
+:root[data-theme=dark] .site-header{background:#121a1ccc;border-color:var(--line);color:var(--text)}
+:root[data-theme=dark] .brand,:root[data-theme=dark] .brand-light{color:var(--text)}
+:root[data-theme=dark] :is(.player-card,.turn-action-card,.property-preview,.activity-panel,.financial-summary,.setup-player,.online-entry,.lobby-card,.lobby-player,.asset-card,.manager-group,.event-card,.room-share,.lobby-panel){background:var(--panel);border-color:var(--line);color:var(--text)}
+:root[data-theme=dark] .player-card.active{background:#1f2f30;border-color:var(--gold)}
+:root[data-theme=dark] :is(h1,h2,h3,b,strong,.player-name,.cash-amount,.asset-name){color:var(--text)}
+:root[data-theme=dark] :is(p,.note,.player-metrics,.log-row,.section-label,.eyebrow,small){color:var(--muted)}
+:root[data-theme=dark] .log-row{border-color:#2a3a3d}
+:root[data-theme=dark] .log-row.money{color:var(--gold)}
+:root[data-theme=dark] .log-row.important{color:var(--text)}
+:root[data-theme=dark] .game-topline,:root[data-theme=dark] .game-top-actions,:root[data-theme=dark] #save-status{color:var(--muted)}
+
+/* Controls */
+:root[data-theme=dark] button.secondary,:root[data-theme=dark] .icon-button,:root[data-theme=dark] .text-button,:root[data-theme=dark] .board-tools button{background:var(--panel-raised);color:var(--text);border-color:var(--line)}
+:root[data-theme=dark] .text-button{background:transparent;border-color:transparent}
+:root[data-theme=dark] button.primary{background:var(--accent);color:#fff8ee;border-color:#00000040}
+:root[data-theme=dark] button.danger{background:#5a2620;color:#ffd9d2;border-color:#8a3a30}
+:root[data-theme=dark] :is(input,select){background:#0f1618;color:var(--text);border-color:var(--line)}
+:root[data-theme=dark] .role-badge,:root[data-theme=dark] .turn-badge{background:transparent}
+
+/* Dialogs */
+:root[data-theme=dark] dialog{background:var(--panel);color:var(--text);border-color:var(--line);box-shadow:0 30px 80px #000c}
+:root[data-theme=dark] dialog::backdrop{background:#000a}
+:root[data-theme=dark] .detail-grid>div,:root[data-theme=dark] .manager-summary span{background:var(--panel-raised);border-color:var(--line);color:var(--muted)}
+:root[data-theme=dark] .rent-table th,:root[data-theme=dark] .rent-table td{border-color:var(--line);color:var(--text)}
+:root[data-theme=dark] .rent-table tr.current td{background:#2a3d3c}
+:root[data-theme=dark] .note,:root[data-theme=dark] .asset-reason{background:#1e2c2d;border-color:#2f4a49}
+
+/* The board keeps its printed look, set on a dark table */
+:root[data-theme=dark] .classic-board-view .board{box-shadow:0 30px 60px -18px #000,0 0 0 1px #00000080}
+:root[data-theme=dark] .board-caption,:root[data-theme=dark] .board-tools>span{color:var(--muted)}
+
+/* Home and lobby */
+:root[data-theme=dark] .home-screen,:root[data-theme=dark] .hero-copy h1{color:var(--text)}
+:root[data-theme=dark] .hero-board-wrap,:root[data-theme=dark] .home-bottom{background:transparent;border-color:var(--line);color:var(--muted)}
+:root[data-theme=dark] .mobile-controls{background:#121a1cf2;border-color:var(--line)}
+
+.theme-toggle{font-size:18px;line-height:1}
+.exit-game{color:var(--red)!important}

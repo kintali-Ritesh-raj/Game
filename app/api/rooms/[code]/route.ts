@@ -5,7 +5,7 @@ import { readGameRoom, readRoom, roomRpc } from '@/lib/room-store';
 import { applyGameAction, requireRevision, startGame } from '@/lib/game-actions';
 import { addBotMembers, membersAfterLeaving, removeBotMembers, saveLobbyMembers } from '@/lib/lobby-bots';
 import { advanceBot } from '@/lib/bot-runner';
-import { expireTurn } from '@/lib/turn-timeout';
+import { expireTurn, forfeitGame } from '@/lib/turn-timeout';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ code: string }> };
@@ -29,6 +29,7 @@ export async function POST(request: Request, context: Context) {
       const members = body.operation === 'add-bot' ? addBotMembers(room,actor,expected,body.role) : removeBotMembers(room,actor,expected,body.bot_id);
       return Response.json({room:await saveLobbyMembers(db,room,members)});
     }
+    if (body.operation === 'forfeit') return Response.json({room:await forfeitGame(db,room,actor,revision(body.revision))});
     if (body.operation === 'timeout') return Response.json({room:await expireTurn(db,room,actor,revision(body.revision))});
     if (body.operation === 'bot-step') return Response.json({room:await advanceBot(db,room,actor,revision(body.revision))});
     if (body.operation === 'heartbeat') {

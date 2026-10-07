@@ -269,6 +269,20 @@ export function useMultiplayer(initialCode?: string) {
     } finally { setBusy(false); }
   };
 
+  // Quit a running game: forfeit the seat on the server, then leave the room.
+  const exitGame = async () => {
+    const current = roomRef.current;
+    if (!current || busy) return;
+    try {
+      if (current.status === 'playing') accept(await request<Snapshot>('/api/rooms/' + code, 'POST', { operation: 'forfeit', revision: current.revision }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'You cannot leave right now.');
+      if (caught instanceof RequestError && caught.status === 409) await load(code).catch(() => {});
+      return;
+    }
+    await leave();
+  };
+
   const navigate = (action: string) => {
     setError('');
     if (action === 'load') {
@@ -280,7 +294,7 @@ export function useMultiplayer(initialCode?: string) {
   };
 
   return { screen, code, room, connections, userId, connection, busy, loading, error, setError,
-    pending, navigate, joinOrCreate, updateProfile, leave,
+    pending, navigate, joinOrCreate, updateProfile, leave, exitGame,
     addBot: (role:Role) => manageBot('add-bot',{role}), removeBot: (id:string) => manageBot('remove-bot',{bot_id:id}),
     start: () => send('start'), command: (action: Command) => send('action', action),
     retry: () => pending ? runPending(pending) : Promise.resolve(),

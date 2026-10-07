@@ -20,6 +20,7 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
       userId: () => current.current.userId,
       connected: () => current.current.connection === 'connected' && !current.current.pending,
       command: (command: Parameters<typeof multiplayer.command>[0]) => current.current.command(command),
+      exitGame: () => current.current.exitGame(),
     });
     setReady(true);
     return () => { ui.current?.destroy(); ui.current = null; };
