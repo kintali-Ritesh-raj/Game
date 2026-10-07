@@ -1,0 +1,119 @@
+/* Tabletop finish: a printed card board in a walnut frame, sized to the screen. */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap');
+
+:root{
+  --walnut:#3b2618;--walnut-light:#5a3a24;--card:#f2ead4;--card-shade:#e4d9bc;
+  --felt:#1c4446;--felt-deep:#102a2c;--foil:#c9a24a;--foil-light:#ecd593;--print-ink:#1f2522;
+  --paper-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Layout: activity left, board centre, players and actions right ── */
+@media(min-width:1101px){
+  .game-screen{max-width:none;padding-inline:24px}
+  .classic-layout{grid-template-columns:260px minmax(0,1fr) 290px;gap:24px}
+  .classic-layout .activity-panel{grid-column:1;grid-row:1/3;position:sticky;top:16px;max-height:calc(100dvh - 140px);display:flex;flex-direction:column;min-height:0}
+  .classic-layout .activity-panel .game-log{flex:1;min-height:0;max-height:none;overflow:auto}
+  .classic-layout .board-area{grid-column:2;grid-row:1/3;max-width:min(100%,calc(100dvh - 236px))}
+  .classic-layout .players-panel{grid-column:3;grid-row:1}
+  .classic-layout .actions-panel{grid-column:3;grid-row:2}
+}
+@media(min-width:761px) and (max-width:1100px){
+  .game-screen{padding-inline:16px}
+  .classic-layout .board-area{max-width:min(100%,calc(100dvh - 200px))}
+}
+@media(max-width:760px){
+  .game-screen{padding-inline:8px}
+  .classic-layout .board-area{max-width:none}
+}
+
+/* ── The board ── */
+.classic-board-view .board{
+  gap:1px;padding:0;background:var(--print-ink);border-radius:6px;
+  border:clamp(7px,1.8cqw,18px) solid var(--walnut);
+  border-image:repeating-linear-gradient(118deg,#3a2517 0 7px,#4b311f 7px 10px,#352115 10px 17px,#55382a 17px 19px) 1;
+  box-shadow:0 1px 0 #ffffff26 inset,0 28px 48px -18px #1a0f0880,0 10px 18px -8px #1a0f0866;
+}
+.classic-board-view .board-tile,
+.classic-board-view .board-tile.special,
+.classic-board-view .board-tile.corner{
+  border-radius:0;color:var(--print-ink);
+  background-color:var(--card);
+  background-image:var(--paper-grain),linear-gradient(160deg,#fbf6e6 0%,var(--card) 55%,var(--card-shade) 100%);
+  box-shadow:inset 0 0 0 1px #ffffff55;
+}
+.classic-board-view .board-tile.corner{background-image:var(--paper-grain),radial-gradient(circle at 50% 45%,#f8f1dc 0%,#e8dcbb 100%)}
+.classic-board-view .board-tile:hover{background-color:#fffaf0;filter:brightness(1.03)}
+.classic-board-view .board-tile.selected{outline:2px solid var(--foil);outline-offset:-2px;box-shadow:inset 0 0 0 3px #c9a24a55}
+.classic-board-view .tile-name{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.02em;line-height:1.05}
+.classic-board-view .board-tile.corner .tile-name{font-weight:700;letter-spacing:.05em}
+.classic-board-view .tile-price{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:500;color:#4b4433}
+.classic-board-view .tile-kind{color:#6d6450}
+.classic-board-view .tile-symbol{color:#3a3a30;opacity:.85;font-weight:400}
+/* Printed colour bands with a light varnish sheen */
+.classic-board-view .tile-strip{
+  border-color:#1f252266!important;
+  background:linear-gradient(180deg,#ffffff4d,#ffffff00 45%,#00000024),var(--group-color);
+}
+.classic-board-view .edge-east .tile-strip,.classic-board-view .edge-west .tile-strip{
+  background:linear-gradient(90deg,#ffffff4d,#ffffff00 45%,#00000024),var(--group-color);
+}
+
+/* ── Centre: a deep printed field with a foil-stamped wordmark ── */
+.classic-board-view .board-center{
+  border-radius:0;color:var(--card);
+  background-color:var(--felt);
+  background-image:var(--paper-grain),radial-gradient(ellipse at 50% 38%,#2b6563 0%,var(--felt) 55%,var(--felt-deep) 100%);
+  box-shadow:inset 0 0 0 clamp(4px,.9cqw,8px) #ffffff0d,inset 0 0 40px #0006;
+}
+.classic-board-view .board-center .board-wordmark{
+  background:none;color:var(--foil-light);border:2px solid var(--foil);box-shadow:inset 0 0 0 4px var(--felt),inset 0 0 0 5px #c9a24a80;
+  font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:700;letter-spacing:.08em;
+  text-shadow:0 1px 0 #00000080,0 -1px 0 #ffffff26;transform:rotate(-8deg);
+}
+.classic-board-view .board-center .board-wordmark span{color:var(--foil)}
+.classic-board-view .center-role{color:var(--foil-light)!important;opacity:.95}
+.classic-board-view .board-center .eyebrow{color:#e7dfc8b3}
+.classic-board-view .center-player,.classic-board-view .center-player *{color:#fbf5e3!important}
+.classic-board-view .center-player>span{opacity:.75}
+.classic-board-view .center-status{color:#e7dfc8}
+.classic-board-view .dice-total{color:#e7dfc8}
+.classic-board-view .die{background:linear-gradient(145deg,#ffffff,#ece6d6);border:1px solid #00000026;border-radius:18%;box-shadow:0 6px 10px -4px #000a,inset 0 -2px 3px #0000001f}
+.classic-board-view .pip{background:#1d1d1b}
+
+/* ── Tokens: glossy enamel playing pieces ── */
+.classic-board-view .player-token{
+  background:radial-gradient(circle at 32% 28%,#ffffffcc 0 8%,transparent 30%),radial-gradient(circle at 50% 60%,var(--player-color),color-mix(in srgb,var(--player-color) 55%,#000));
+  border:2px solid #f6eccf;box-shadow:0 4px 7px -2px #000b,0 1px 0 #ffffff40 inset;
+}
+.classic-board-view .player-token.active{box-shadow:0 0 0 3px var(--foil),0 6px 10px -2px #000c}
+
+/* ── Notifications: foil-edged cards that match the board ── */
+.toast-stack{position:fixed;top:16px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:1000;width:min(440px,calc(100% - 24px));pointer-events:none}
+.toast-item{
+  --accent:#7cc2b9;display:flex;align-items:center;gap:12px;padding:12px 16px 12px 12px;
+  color:#fbf5e3;font-size:14px;line-height:1.35;border-radius:10px;
+  background-image:var(--paper-grain),linear-gradient(135deg,#21504f,#14302f);
+  border:1px solid #c9a24a8c;border-left:4px solid var(--accent);
+  box-shadow:0 14px 30px -12px #000c,inset 0 1px 0 #ffffff1f;
+  animation:toast-in .3s cubic-bezier(.2,.8,.2,1);transition:opacity .4s,transform .4s;
+}
+.toast-item.money{--accent:var(--foil)}
+.toast-item.important{--accent:#e0735a}
+.toast-mark{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#14302f;background:radial-gradient(circle at 35% 30%,#fff8,transparent 45%),var(--accent)}
+.toast-item.hide{opacity:0;transform:translateY(-10px)}
+@keyframes toast-in{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.toast-item{animation:none;transition:none}}
+
+/* Compact board header so the full board fits on screen */
+.classic-layout .board-tools{min-height:0;margin-bottom:8px}
+.classic-layout .board-tools [data-action=locate-token]{font-size:12px;padding:6px 12px}
+.classic-layout .board-caption{margin-top:8px}
+
+/* Portrait tablets: the board takes the full width, panels sit below it */
+@media(min-width:761px) and (max-width:1100px) and (orientation:portrait){
+  .classic-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .classic-layout .board-area{grid-column:1/-1;grid-row:1;max-width:min(100%,calc(100dvh - 200px))}
+  .classic-layout .players-panel{grid-column:1;grid-row:2}
+  .classic-layout .actions-panel{grid-column:2;grid-row:2}
+  .classic-layout .activity-panel{grid-column:1/-1;grid-row:3}
+}
