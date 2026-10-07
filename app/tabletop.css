@@ -117,3 +117,7 @@
   .classic-layout .actions-panel{grid-column:2;grid-row:2}
   .classic-layout .activity-panel{grid-column:1/-1;grid-row:3}
 }
+
+/* Detained turn: both ways out side by side */
+.release-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.release-choices button{width:100%;padding-inline:8px}
