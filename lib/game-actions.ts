@@ -12,7 +12,9 @@ export function requireRevision(room: Room, expected: number) {
   if (room.revision !== expected) throw new ApiError(409, 'The room changed. It has been synchronized; try your action again.');
 }
 const random = () => randomInt(0x100000000) / 0x100000000;
-const options = { random, wait: async () => {} };
+// Each die is an independent, exactly uniform draw from Node's cryptographic generator.
+const rollDie = () => randomInt(1, 7);
+const options = { random, rollDie, wait: async () => {} };
 
 export function startGame(room: Room, actor: string) {
   memberIndex(room, actor);
