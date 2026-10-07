@@ -90,7 +90,8 @@ async (page) => {
   await guest.screenshot({path:'output/playwright/online-lobby-mobile.png',fullPage:true});
   await page.getByRole('button',{name:'Start Game'}).click();await page.locator('#game-screen').waitFor({state:'visible'});await guest.locator('#game-screen').waitFor({state:'visible'});
   await page.locator('#turn-action-card [data-action=roll]').waitFor();
-  assert(await page.locator('#readable-board .readable-space').count()===40,'Clear board is the default and displays all 40 spaces');
+  assert(await page.locator('#classic-board-view').isVisible() && await page.locator('#game-board .board-tile').count()===40,'Original square board is the default and displays all 40 spaces');
+  assert(await page.locator('#token-layer .player-token').count()===2,'Both players have visible tokens on the square board');
   assert(await page.locator('#board-3d-container canvas').count()===0,'Default board does not require WebGL or zoom');
   assert(await guest.locator('#board-center [data-action=roll]').isDisabled(),'Guest cannot roll during host turn');
   await page.locator('#turn-action-card [data-action=roll]').click();
@@ -104,7 +105,8 @@ async (page) => {
   assert(await guest.locator('#cash-0').textContent()==='$1,360','Purchase cash synchronized to guest');
   assert(await page.locator('#turn-action-card [data-action=roll]').count()===1,'Desktop doubles offer a visible Roll again button');
   assert((await guest.locator('#game-board [data-id="4"]').getAttribute('aria-label')).includes('owned by Host'),'Property ownership synchronized');
-  await guest.locator('#readable-space-4 .readable-owner-icon').waitFor();
+  await guest.locator('#game-board [data-id="4"][aria-label*="owned by Host"]').waitFor();
+  assert(await guest.locator('#classic-token-0').getAttribute('data-space')==='4','Host token moves to the purchased space on both boards');
   assert((await guest.locator('#readable-space-4 .space-ownership').textContent()).includes('Owned by Host'),'Persistent board marker identifies the owner by full name');
   assert((await guest.locator('#ownership-notice').textContent()).includes('Now belongs to Host'),'Purchase popup is synchronized to the other player');
   await page.locator('#turn-action-card [data-action=end]').click();
@@ -138,6 +140,33 @@ async (page) => {
   assert(await guest.locator('#cash-1').textContent()==='$1,488','Manual room-code entry rejoins the same game');
   room.state=clone(fixture.extras.developed);room.revision++;room.transition={action:'build',player:0,dice:room.state.dice,path:[],sounds:['build']};broadcast('mw_rooms',room);
   await page.locator('.player-property[data-id="4"] [data-buildings="2"]').waitFor();
+  for(const width of [320,768,1024,1440]){
+    await page.setViewportSize({width,height:900});
+    await page.waitForTimeout(250); // Let token positions settle after responsive layout changes.
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px square board fits without page overflow');
+    assert(await page.locator('#game-board').evaluate(board=>[...board.querySelectorAll('.player-token:not([hidden])')].every(token=>{
+      const marker=token.getBoundingClientRect(),tile=board.querySelector('[data-id="'+token.dataset.space+'"]').getBoundingClientRect();
+      return marker.left>=tile.left-1&&marker.right<=tile.right+1&&marker.top>=tile.top-1&&marker.bottom<=tile.bottom+1;
+    })),width+'px tokens remain on their correct spaces after resize');
+    const geometry=await page.locator('#game-board').evaluate(board=>{
+      const r=board.getBoundingClientRect();
+      const corners=[0,10,20,30].map(id=>{const t=board.querySelector('[data-id="'+id+'"]').getBoundingClientRect();return {x:t.x-r.x,y:t.y-r.y};});
+      return {square:Math.abs(r.width-r.height)<2,visible:r.width>250,corners};
+    });
+    assert(geometry.square&&geometry.visible&&geometry.corners[0].x>geometry.corners[1].x&&geometry.corners[0].y>geometry.corners[2].y,width+'px board keeps its square perimeter and four corners');
+  }
+  await page.locator('[data-action=locate-token]').click();
+  assert(await page.locator('#game-board [data-id="4"]').evaluate(el=>el===document.activeElement),'Your token focuses the correct square-board space');
+  await page.keyboard.press('Enter');
+  assert(await page.locator('#modal [data-buildings="2"] .house-icon').count()===2,'Square-board deed opens from the keyboard with the correct buildings');
+  await page.locator('#modal [data-action=close]').last().click();
+  await page.locator('#ownership-notice').waitFor({state:'hidden'});
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await guest.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:'output/playwright/classic-board-desktop.png'});
+  await guest.screenshot({path:'output/playwright/classic-board-mobile.png'});
+  await page.locator('[data-action=board-clear]').click();
+  await guest.locator('[data-action=board-clear]').click();
   await guest.locator('#readable-space-4 .space-buildings').filter({hasText:'2 houses'}).waitFor();
   assert(await page.locator('.player-property[data-id="4"] .house-icon').count()===2,'Player card lists two visible houses for this property');
   await guest.locator('#readable-space-4').click();
@@ -182,9 +211,10 @@ async (page) => {
   await guest.locator('#readable-space-4').evaluate(el=>el.scrollIntoView({block:'center'}));
   await guest.screenshot({path:'output/playwright/clear-board-mobile-houses.png'});
   await guestContext.addInitScript(()=>{const getContext=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return type.startsWith('webgl')?null:getContext.call(this,type,...args);};});
-  await guest.reload();await guest.locator('#clear-board-view').waitFor();
+  await guest.reload();await guest.locator('#classic-board-view').waitFor();
   await guest.locator('[data-action=board-tabletop]').click();
-  assert(await guest.locator('#clear-board-view').isVisible(),'Device without WebGL keeps the full readable board');
+  assert(await guest.locator('#classic-board-view').isVisible(),'Device without WebGL falls back to the playable square board');
+  assert(await guest.locator('#game-board').evaluate(el=>!el.inert),'Fallback board remains keyboard interactive');
   room.state=clone(fixture.extras.event);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#modal .event-card').waitFor();await guest.locator('#modal .event-card').waitFor();
   assert(await guest.locator('#modal [data-action=apply-event]').isDisabled(),'Both players see the event card and only its player can resolve it');
@@ -203,7 +233,7 @@ async (page) => {
   await page.locator('.mobile-controls [data-action=roll]').click();
   await page.locator('#modal [data-action=buy]').click();
   await page.locator('.mobile-controls [data-action=end]').click();
-  await page.locator('#readable-dice[data-dice-state=rolling]').waitFor();
+  await page.locator('#board-center .dice.rolling').waitFor();
   assert(await page.locator('.mobile-controls [data-action=roll]').isDisabled(),'Human controls lock while the bot rolls');
   await page.reload();await page.locator('#game-screen').waitFor({state:'visible'});
   await page.waitForFunction(()=>document.querySelector('#readable-space-6 .space-buildings')?.textContent.includes('1 house'),{},{timeout:20000});
@@ -211,7 +241,8 @@ async (page) => {
   assert(botRequests===4,'Bot automatically rolls, buys, builds and ends once across a browser refresh');
   assert((await page.locator('#readable-space-6 .space-ownership').textContent()).includes('Bot Ada'),'Bot ownership appears on the shared board');
   assert(await page.locator('.bot-badge').count()===1,'Bot player is clearly marked during play');
-  await page.locator('#readable-space-6').evaluate(el=>el.scrollIntoView({block:'center'}));
+  assert(await page.locator('#classic-token-1').getAttribute('data-space')==='6','Bot token moves around the square board');
+  await page.locator('#classic-board-view').evaluate(el=>el.scrollIntoView({block:'center'}));
   await page.screenshot({path:'output/playwright/bot-game-mobile.png'});
   assert(errors.length===0,'No browser runtime errors: '+errors.join('; '));
   return {transport:'Mocked Supabase Auth, HTTP and Realtime; real browser client and rules fixtures',checks};

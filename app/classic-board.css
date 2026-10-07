@@ -1,0 +1,96 @@
+/* The original perimeter board is the primary playing surface. */
+.classic-layout{grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}
+.classic-layout .board-area{grid-column:1;grid-row:1/3;width:100%;max-width:860px;margin:0 auto;min-width:0}
+.classic-layout .players-panel{grid-column:2;grid-row:1;min-width:0}
+.classic-layout .actions-panel{grid-column:2;grid-row:2;min-width:0}
+.classic-layout .activity-panel{grid-column:1/-1;grid-row:3}
+.classic-layout .role-tip,.classic-layout .financial-summary{display:none}
+.classic-layout .player-cards{flex-direction:column;gap:8px;max-height:400px;overflow:auto;padding:3px}
+.classic-layout .player-card{min-width:0;padding:12px}
+.classic-layout .player-card-top{gap:8px}
+.classic-layout .player-name{font-size:13px}
+.classic-layout .avatar{width:28px;height:28px;font-size:18px}
+.classic-layout .cash-row{margin-top:8px}
+.classic-layout .cash-amount{font-size:24px}
+.classic-layout .player-metrics{margin-top:8px;padding-top:8px}
+.classic-layout .player-position{display:none}
+.classic-layout .player-properties{max-height:72px;margin-top:8px}
+.classic-layout .board-tools{flex-wrap:wrap;gap:8px}
+.classic-layout .readable-view-switch{gap:4px}
+.classic-layout .readable-view-switch button{font-size:12px;padding:8px 12px}
+.classic-layout .turn-action-card{padding:16px}
+.classic-layout .turn-action-card h2{font-size:20px}
+.classic-layout .property-preview{padding:16px}
+.classic-layout .property-preview h3{font-size:22px}
+.classic-layout .property-price{margin:12px 0}
+.classic-layout .board-caption{font-size:11px;line-height:1.5}
+.classic-board-view{container-type:inline-size;width:100%}
+.classic-board-view .board{min-width:0;width:100%;aspect-ratio:1;--tile-font:clamp(6px,1.35cqw,12px);border-width:4px;grid-template-columns:1.6fr repeat(9,minmax(0,1fr)) 1.6fr;grid-template-rows:1.6fr repeat(9,minmax(0,1fr)) 1.6fr}
+.classic-board-view .board-tile{min-width:0;min-height:0;text-align:center}
+.classic-board-view .board-tile:focus-visible{outline:3px solid var(--red);outline-offset:-3px;z-index:3}
+.classic-board-view .board-tile.corner .tile-name{font-size:clamp(7px,1.5cqw,13px)}
+.classic-board-view .tile-price{font-size:clamp(5px,1.15cqw,10px);margin-top:4px}
+.classic-board-view .tile-kind{font-size:clamp(5px,.9cqw,8px)}
+.classic-board-view .tile-symbol{font-size:clamp(12px,3cqw,26px)!important}
+.classic-board-view .board-center{padding:clamp(12px,3cqw,28px);justify-content:center;gap:0}
+.classic-board-view .board-center .board-wordmark{font-size:clamp(22px,5.6cqw,48px);padding:8px 14px;margin:12px 0 32px;transform:rotate(-12deg)}
+.classic-board-view .center-role{font-size:clamp(7px,1.25cqw,11px);margin:0 0 8px}
+.classic-board-view .center-player{font-size:clamp(16px,3.4cqw,30px);line-height:1.2;max-width:92%;overflow-wrap:anywhere}
+.classic-board-view .center-player>span{display:inline;font-size:.8em}
+.classic-board-view .center-status{font-size:clamp(9px,1.65cqw,14px);line-height:1.5;max-width:84%;margin:12px 0 0}
+.classic-board-view .dice{gap:clamp(8px,2cqw,16px);margin:20px 0 0}
+.classic-board-view .die{width:clamp(32px,7cqw,60px);height:clamp(32px,7cqw,60px);padding:clamp(5px,1.2cqw,10px);gap:2px}
+.classic-board-view .pip{width:clamp(5px,1cqw,8px);height:clamp(5px,1cqw,8px)}
+.classic-board-view .dice-total{font-size:clamp(6px,1.2cqw,10px);margin-top:12px}
+.classic-board-view .center-controls{margin-top:20px;gap:8px}
+.classic-board-view .center-controls button{font-size:12px;padding:10px 16px;min-height:44px}
+.classic-board-view .token-layer{inset:0}
+.classic-board-view .player-token{width:clamp(14px,3cqw,26px);height:clamp(14px,3cqw,26px);font-size:clamp(9px,1.9cqw,16px)}
+.classic-layout .ownership-notice{position:fixed;top:auto;bottom:24px;left:24px;right:auto;max-width:min(460px,calc(100vw - 48px));z-index:7}
+@media(min-width:1101px){
+  .classic-layout .board-area{max-width:min(860px,100%,calc(100dvh - 240px))}
+}
+@media(max-width:1100px){
+  .classic-layout{grid-template-columns:minmax(0,1fr) 240px;gap:16px}
+  .classic-layout .readable-view-switch{width:100%;margin:0}
+  .classic-layout .readable-view-switch button{flex:1;padding:8px}
+  .classic-layout .board-tools>span{display:none}
+  .classic-layout .actions-panel{display:block}
+  .classic-layout .actions-panel .turn-action-card{display:block}
+  .classic-layout .player-cards{flex-direction:column}
+}
+@media(max-width:760px){
+  .classic-layout{grid-template-columns:minmax(0,1fr);gap:16px}
+  .classic-layout .board-area{grid-column:1;grid-row:1;max-width:640px}
+  .classic-layout .players-panel{grid-column:1;grid-row:2}
+  .classic-layout .actions-panel{grid-column:1;grid-row:3;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .classic-layout .activity-panel{grid-column:1;grid-row:4}
+  .classic-layout .player-cards{flex-direction:row;max-height:none;gap:8px}
+  .classic-layout .player-card{flex:1 0 168px;max-width:260px}
+  .classic-layout .section-label{margin-bottom:8px}
+  .classic-layout .actions-panel>.section-label{display:none}
+  .classic-layout .turn-action-card{margin:0}
+  .classic-layout .property-preview{display:block;margin:0}
+  .classic-layout .property-preview .property-price{text-align:left}
+  .classic-layout .property-preview .preview-facts{margin-top:8px}
+  .classic-layout .board-caption{font-size:10px;gap:8px;align-items:start}
+  .classic-layout .board-caption>span{max-width:75%}
+  .classic-layout .board-caption button{font-size:10px;white-space:nowrap;padding:0}
+  .classic-layout .ownership-notice{bottom:84px;left:12px;right:12px;max-width:none}
+  .classic-board-view .board-center .board-wordmark{margin:0 0 20px;padding:6px 10px}
+  .classic-board-view .center-role{margin-bottom:4px}
+  .classic-board-view .center-status{margin-top:8px}
+  .classic-board-view .dice{margin-top:12px}
+  .classic-board-view .dice-total{margin-top:8px}
+  .classic-board-view .center-controls{display:none}
+}
+@media(max-width:420px){
+  .classic-layout .actions-panel{grid-template-columns:minmax(0,1fr)}
+  .classic-layout .readable-view-switch button{font-size:12px;min-height:44px;padding:8px 6px}
+  .classic-board-view .board{border-width:3px}
+  .classic-board-view .board-center .board-wordmark{margin-bottom:14px}
+  .classic-board-view .center-status{max-width:96%;margin-top:6px}
+  .classic-board-view .dice{margin-top:8px}
+  .classic-board-view .dice-total{margin-top:6px}
+}
+@media(prefers-reduced-motion:reduce){.classic-board-view .player-token{transition:none}}
