@@ -1,5 +1,5 @@
 /* Tabletop finish: a printed card board in a walnut frame, sized to the screen. */
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&display=swap');
 
 :root{
   --walnut:#3b2618;--walnut-light:#5a3a24;--card:#f2ead4;--card-shade:#e4d9bc;
