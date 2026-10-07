@@ -139,3 +139,11 @@
 .network-status .text-button{min-height:0;padding:0 4px;font-size:inherit;text-decoration:underline}
 /* Keep the room status line clear of the fixed phone control bar. */
 @media(max-width:760px),(min-width:601px) and (max-width:1000px) and (max-height:600px){.online-notices{padding-bottom:96px}}
+
+/* Build section on a property deed (owner only). */
+.deed-build{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel-raised)}
+.deed-build-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.deed-build-row button{min-width:170px}
+.deed-build-reason{margin:8px 0 0}
+.deed-build-reason.ok{color:var(--gold)}
+.deed-build-title{font-weight:650;color:var(--text)}
