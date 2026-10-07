@@ -79,8 +79,10 @@ test('the supplied visitor sound triggers on another owner’s space, even when 
   game.state.settings.sound = true; game.state.currentPlayer = 1; land(game, 1);
   assert.equal(played.filter(kind => kind === 'visitor').length, 2);
 });
-test('Monopolists need the full unmortgaged group; Competitors build independently at 25% less', () => {
-  const game = create(); own(game, 1); assert.throws(() => game.buildStructure(1), /entire district/);
+test('Monopolists need 2 unmortgaged properties of a color; Competitors build independently at 25% less', () => {
+  const canal = create(); own(canal, 4); assert.throws(() => canal.buildStructure(4), /at least 2/);
+  own(canal, 6); canal.buildStructure(4); assert.equal(canal.asset(4).buildings, 1);
+  const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 20); assert.throws(() => game.buildStructure(1), /at least 2/);
   own(game, 2); assert.equal(game.calculateRent(1), 20); game.buildStructure(1);
   assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
   game.state.currentPlayer = 1; own(game, 4, 1); game.buildStructure(4);
@@ -95,13 +97,13 @@ test('all five development levels, sale, cost and tower rent work', () => {
 test('mortgaged groups prohibit building; selling clears Monopolist mortgage restriction', () => {
   const game = create(); own(game, 1); own(game, 2); game.buildStructure(1);
   assert.throws(() => game.mortgageProperty(2), /district/);
-  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => game.buildStructure(1), /entire district/);
+  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => game.buildStructure(1), /at least 2/);
   game.unmortgageProperty(2); game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
 });
 test('mortgage disables rent and development; 10% fee restores rent', () => {
   const game = create(); own(game, 1); game.mortgageProperty(1);
   assert.equal(game.active.cash, 1550); assert.equal(game.calculateRent(1), 0); assert.throws(() => game.buildStructure(1), /Unmortgage/);
-  game.unmortgageProperty(1); assert.equal(game.active.cash, 1495); assert.equal(game.calculateRent(1), 8);
+  game.unmortgageProperty(1); assert.equal(game.active.cash, 1495); assert.equal(game.calculateRent(1), 20);
   assert.throws(() => game.mortgageProperty(4), /owner/); assert.throws(() => game.sellBuilding(1), /no buildings/);
 });
 test('transport and utility rents count only active stations, buildings are prohibited', () => {
