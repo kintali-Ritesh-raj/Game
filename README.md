@@ -1,6 +1,6 @@
 ﻿# MARKET WARS — Online Multiplayer
 
-An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers, with an animated 3D tabletop, shared dice and card reveals, and the supplied dice and property-visit sounds.
+An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers, with a readable responsive board, an optional animated 3D tabletop, shared dice and card reveals, and the supplied dice and property-visit sounds.
 
 The application uses **Next.js 16, TypeScript, Supabase Auth/Postgres/Realtime, and Vercel**. Every game command runs on the server and is committed to Supabase. There is no offline game-state fallback.
 
@@ -73,7 +73,9 @@ The GitHub Actions workflow runs the rule, authorization, database-policy tests,
 - An uncertain command response keeps the original request ID for safe retry, including after refresh. Known invalid/stale actions refresh the room before another attempt.
 - Clearing browser site data or switching browser profiles loses an anonymous identity. A room code identifies the room, not an existing player's identity. New devices can join as new players before the game starts; account-based identity recovery is outside this version.
 
-The board fits small screens by default. Drag to rotate, pinch or scroll to zoom, and use the camera buttons to reset or look straight down. Keyboard users can focus the board, select spaces with arrow keys, and open a deed with Enter. A flat board is available when WebGL cannot initialize. Mobile controls remain accessible at the bottom. Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
+The default **Clear view** shows all 40 spaces in numbered travel order, with upright text, full names, prices, ownership, buildings, and visiting players. Spaces reflow into fewer columns on smaller screens instead of shrinking their text. Phones use a vertically scrolling board; no zoom is needed to read it. **Your token** and the current location button jump to the relevant space. Keyboard users can focus a space and open its deed with Enter or Space.
+
+Choose **3D view** for the animated tabletop. Drag to rotate, pinch or scroll to zoom, and use the camera buttons to reset or look straight down. Clear view remains playable when WebGL is unavailable. Mobile controls remain accessible at the bottom. Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
 
 Buying a property shows the owner's token on the board and a purchase popup for everyone. Player cards and deeds show individual house icons and counts; the board also displays the buildings. A tower represents the fifth development level.
 
@@ -87,7 +89,7 @@ Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with 
 | Room creation and commands | Authenticated route handlers under `app/api/rooms/` |
 | Authoritative rules | `lib/game-engine.cjs`, shared server-validated rules model |
 | Identity/turn checks | `lib/game-actions.ts`, `lib/validation.ts` |
-| Board renderer | `lib/board-3d.ts` (Three.js), `lib/game-ui.js`, `style.css`, and `app/multiplayer.css` |
+| Board renderer | `lib/board-readable.ts`, optional `lib/board-3d.ts` (Three.js), `lib/game-ui.js`, and `app/readable-board.css` |
 | Online UI and recovery | `components/useMultiplayer.ts`, `GameClient`, `Lobby`, `PlayerForm` |
 | Public room state | `mw_rooms`, read-only to authenticated room members |
 | Private state/deck order | `mw_game_secrets`, server access only |
@@ -121,7 +123,7 @@ npx playwright-cli -s=market-online run-code --filename=output/playwright/online
 npx playwright-cli -s=market-online close
 ```
 
-These browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, house counts, owner auctions, shared event cards, reduced motion, both audio files, room-link entry, refresh, and layouts from 320px to 1440px. Screenshots are written under `output/playwright/`.
+These browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, house counts, owner auctions, shared event cards, reduced motion, both audio files, room-link entry, refresh, and layouts from 320px to 1440px. Every space is checked for readable text sizes and unclipped labels. The checks also cover keyboard access, locating a token, switching board views, and a device without WebGL. Screenshots are written under `output/playwright/`.
 
 For a **real internet/Supabase smoke test**, configure a test Supabase project with anonymous sign-ins and the migration, start the Next app against it, and run:
 
