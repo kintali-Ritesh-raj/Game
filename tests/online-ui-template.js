@@ -3,7 +3,7 @@ async (page) => {
   for(const context of page.context().browser().contexts()) if(context!==page.context()) await context.close();
   await page.context().unrouteAll({behavior:'ignoreErrors'});
   const checks=[];const errors=[];const sockets=[];const connections=[];
-  let room=null;
+  let room=null,botMode=false,botStep=4,botRequests=0;
   const assert=(condition,message)=>{if(!condition)throw Error(message);checks.push(message);};
   const clone=v=>JSON.parse(JSON.stringify(v));
   const broadcast=(table,record)=>{
@@ -31,18 +31,27 @@ async (page) => {
         room={code:'AB12CD',host_id:actor,created_by:actor,creation_id:body.request_id,members:[fixture.members[0]],member_ids:[actor],status:'lobby',revision:0,state:null,transition:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};payload={room};
       }else if(body.operation==='join'){
         if(!room.member_ids.includes(actor)){room.members.push(fixture.members[seat]);room.member_ids.push(actor);room.revision++;broadcast('mw_rooms',room);}payload={room};
+      }else if(body.operation==='add-bot'){
+        room.members.push({...fixture.botMember,seat:room.members.length});room.member_ids=room.members.map(m=>m.user_id);room.revision++;payload={room};broadcast('mw_rooms',room);
+      }else if(body.operation==='remove-bot'){
+        room.members=room.members.filter(m=>m.user_id!==body.bot_id).map((m,seat)=>({...m,seat}));room.member_ids=room.members.map(m=>m.user_id);room.revision++;payload={room};broadcast('mw_rooms',room);
+      }else if(body.operation==='bot-step'){
+        if(!botMode||room.state.currentPlayer!==1)throw Error('Bot attempted to take a human turn');
+        botRequests++;room.state=clone(fixture.botStates[botStep]);room.revision++;room.updated_at=new Date().toISOString();
+        room.transition={action:['roll','buy','build','end'][botStep-4],player:1,dice:room.state.dice,path:botStep===4?[1,2,3,4,5,6]:[],sounds:[]};
+        botStep++;payload={room};broadcast('mw_rooms',room);
       }else if(body.operation==='heartbeat'){
         const old=connections.find(c=>c.client_id===body.client_id);
         const connection={code:room.code,user_id:actor,client_id:body.client_id,connected:body.connected!==false,seen_at:new Date().toISOString()};
         if(old)Object.assign(old,connection);else connections.push(connection);broadcast('mw_connections',connection);payload={ok:true};
       }else if(body.operation==='start'){
         if(actor!==room.host_id){status=403;payload={error:'Only the Host can start the game.'};}
-        else{room.state=clone(fixture.states[0]);room.status='playing';room.revision++;payload={room};broadcast('mw_rooms',room);}
+        else{room.state=clone(botMode?fixture.botStates[0]:fixture.states[0]);room.status='playing';room.revision++;room.updated_at=new Date().toISOString();payload={room};broadcast('mw_rooms',room);}
       }else if(body.operation==='action'){
         const next=body.action==='roll'?(seat===0?1:4):body.action==='buy'?2:body.action==='end'?3:null;
         const special=body.action==='auction'?fixture.extras.auction:body.action==='bid'?fixture.extras.resold:null;
         if(next===null&&!special)throw Error('Unexpected fixture action '+body.action);
-        room.state=clone(special||fixture.states[next]);room.revision++;
+        room.state=clone(special||(botMode?fixture.botStates[next]:fixture.states[next]));room.revision++;room.updated_at=new Date().toISOString();
         room.transition={action:body.action,player:seat,dice:room.state.dice,path:body.action==='roll'?[1,2,3,4]:[],sounds:body.action==='roll'?(seat===0?['dice']:['dice','visitor']):[]};
         payload={room};broadcast('mw_rooms',room);
       }else throw Error('Unexpected fixture operation '+body.operation);
@@ -62,6 +71,11 @@ async (page) => {
   await page.goto('http://127.0.0.1:3000');await page.getByRole('button',{name:'Create Game',exact:true}).click();
   await page.locator('#online-name').fill('Host');await page.getByRole('button',{name:'Create Game',exact:true}).click();
   await page.locator('#room-code-display').waitFor();
+  await page.getByRole('button',{name:'Add bot +',exact:true}).click();
+  await page.getByText('Bot · Ready',{exact:true}).waitFor();
+  assert(await page.getByRole('button',{name:'Start Game'}).isEnabled(),'A human host can start with a bot opponent');
+  await page.getByRole('button',{name:'Remove Bot Ada',exact:true}).click();
+  assert(await page.locator('.lobby-player:not(.empty-seat)').count()===1,'Host can remove a bot before starting');
   assert(await page.locator('#room-code-display').inputValue()==='AB12CD','Host receives room code');
   assert((await page.locator('#room-link-display').inputValue()).endsWith('/game/AB12CD'),'Share link has the room route');
   await page.getByRole('button',{name:'Copy Code',exact:true}).click();
@@ -71,6 +85,7 @@ async (page) => {
   await guest.getByRole('button',{name:'Join lobby',exact:true}).click();await guest.locator('#room-code-display').waitFor();
   await page.getByText('Guest',{exact:true}).waitFor();
   assert(await guest.getByRole('button',{name:'Start Game'}).count()===0,'Guest cannot see a Start Game button');
+  assert(await guest.getByRole('button',{name:'Add bot +',exact:true}).count()===0,'Guest cannot add or remove host-managed bots');
   assert(await page.locator('.lobby-player:not(.empty-seat)').count()===2,'Host sees both connected players');
   await guest.screenshot({path:'output/playwright/online-lobby-mobile.png',fullPage:true});
   await page.getByRole('button',{name:'Start Game'}).click();await page.locator('#game-screen').waitFor({state:'visible'});await guest.locator('#game-screen').waitFor({state:'visible'});
@@ -176,7 +191,28 @@ async (page) => {
   await page.screenshot({path:'output/playwright/animated-event-card.png',fullPage:true});
   await guest.emulateMedia({reducedMotion:'reduce'});await guest.reload();await guest.locator('#modal .event-card').waitFor();
   assert(await guest.locator('#modal .event-card').evaluate(el=>el.getAnimations().length===0),'Reduced motion suppresses card animation and preserves event state');
-  assert(errors.length===0,'No browser runtime errors: '+errors.join('; '));
   await guestContext.close();
+  botMode=true;
+  await page.goto('http://127.0.0.1:3000');await page.getByRole('button',{name:'Create Game',exact:true}).click();
+  await page.locator('#online-name').fill('Host');await page.getByRole('button',{name:'Create Game',exact:true}).click();
+  await page.getByRole('button',{name:'Add bot +',exact:true}).click();
+  await page.getByText('Bot · Ready',{exact:true}).waitFor();
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'output/playwright/bot-lobby-mobile.png',fullPage:true});
+  await page.getByRole('button',{name:'Start Game'}).click();
+  await page.locator('.mobile-controls [data-action=roll]').click();
+  await page.locator('#modal [data-action=buy]').click();
+  await page.locator('.mobile-controls [data-action=end]').click();
+  await page.locator('#readable-dice[data-dice-state=rolling]').waitFor();
+  assert(await page.locator('.mobile-controls [data-action=roll]').isDisabled(),'Human controls lock while the bot rolls');
+  await page.reload();await page.locator('#game-screen').waitFor({state:'visible'});
+  await page.waitForFunction(()=>document.querySelector('#readable-space-6 .space-buildings')?.textContent.includes('1 house'),{},{timeout:20000});
+  await page.waitForFunction(()=>!document.querySelector('.mobile-controls [data-action=roll]').disabled);
+  assert(botRequests===4,'Bot automatically rolls, buys, builds and ends once across a browser refresh');
+  assert((await page.locator('#readable-space-6 .space-ownership').textContent()).includes('Bot Ada'),'Bot ownership appears on the shared board');
+  assert(await page.locator('.bot-badge').count()===1,'Bot player is clearly marked during play');
+  await page.locator('#readable-space-6').evaluate(el=>el.scrollIntoView({block:'center'}));
+  await page.screenshot({path:'output/playwright/bot-game-mobile.png'});
+  assert(errors.length===0,'No browser runtime errors: '+errors.join('; '));
   return {transport:'Mocked Supabase Auth, HTTP and Realtime; real browser client and rules fixtures',checks};
 }

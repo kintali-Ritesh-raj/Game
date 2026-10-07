@@ -60,6 +60,7 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
       room={multiplayer.room} userId={multiplayer.userId} connections={multiplayer.connections}
       busy={multiplayer.busy || Boolean(multiplayer.pending)} connected={multiplayer.connection === 'connected'}
       start={multiplayer.start} leave={multiplayer.leave} updateProfile={multiplayer.updateProfile}
+      addBot={multiplayer.addBot} removeBot={multiplayer.removeBot}
     />}
     <noscript><p className="noscript">Enable JavaScript to play MARKET WARS online.</p></noscript>
   </>;

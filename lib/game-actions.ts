@@ -21,6 +21,7 @@ export function startGame(room: Room, actor: string) {
   const error = MarketWars.validatePlayers(room.members);
   if (error) throw new ApiError(400, error);
   const game = new MarketWars.Game(room.members, {}, options);
+  game.state.players.forEach((player, seat) => { player.type = room.members[seat].type === 'bot' ? 'bot' : 'human'; });
   return JSON.parse(game.serialize()) as GameState;
 }
 

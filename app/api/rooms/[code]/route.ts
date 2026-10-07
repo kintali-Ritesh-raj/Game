@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
 import { authenticate } from '@/lib/supabase-server';
 import { ApiError, apiResponse, command, jsonBody, profile, requestId, revision, roomCode } from '@/lib/validation';
-import { readRoom, roomRpc } from '@/lib/room-store';
+import { readGameRoom, readRoom, roomRpc } from '@/lib/room-store';
 import { applyGameAction, requireRevision, startGame } from '@/lib/game-actions';
-import type { GameState, Room } from '@/lib/types';
+import { addBotMembers, membersAfterLeaving, removeBotMembers, saveLobbyMembers } from '@/lib/lobby-bots';
+import { advanceBot } from '@/lib/bot-runner';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ code: string }> };
@@ -22,13 +23,23 @@ export async function POST(request: Request, context: Context) {
     const code = roomCode((await context.params).code), body = await jsonBody(request);
     if (body.operation === 'join') return Response.json({ room: await roomRpc(db, 'mw_join_room', { p_code: code, p_actor: actor, p_profile: profile(body) }) });
     const room = await readRoom(db, code, actor);
+    if (body.operation === 'add-bot' || body.operation === 'remove-bot') {
+      const expected = revision(body.revision);
+      const members = body.operation === 'add-bot' ? addBotMembers(room,actor,expected,body.role) : removeBotMembers(room,actor,expected,body.bot_id);
+      return Response.json({room:await saveLobbyMembers(db,room,members)});
+    }
+    if (body.operation === 'bot-step') return Response.json({room:await advanceBot(db,room,actor,revision(body.revision))});
     if (body.operation === 'heartbeat') {
       const { error } = await db.from('mw_connections').upsert({ code, user_id: actor, client_id: requestId(body.client_id), seen_at: new Date().toISOString(), connected: body.connected !== false });
       if (error) throw error;
       return Response.json({ ok: true });
     }
     if (body.operation === 'profile') return Response.json({ room: await roomRpc(db, 'mw_profile_room', { p_code: code, p_actor: actor, p_profile: profile(body), p_expected: revision(body.revision) }) });
-    if (body.operation === 'leave') return Response.json({ room: await roomRpc(db, 'mw_leave_room', { p_code: code, p_actor: actor }) });
+    if (body.operation === 'leave') {
+      if (room.status !== 'lobby') return Response.json({room:await roomRpc(db,'mw_leave_room',{p_code:code,p_actor:actor})});
+      const next = membersAfterLeaving(room,actor);
+      return Response.json({room:await saveLobbyMembers(db,room,next.members,next.host_id,next.status)});
+    }
     if (body.operation !== 'start' && body.operation !== 'action') throw new ApiError(400, 'Unknown room operation.');
     const id = requestId(body.request_id), expected = revision(body.revision);
     const action = body.operation === 'start' ? null : command(body);
@@ -44,12 +55,7 @@ export async function POST(request: Request, context: Context) {
     if (action) {
       // Read the revision and private state in one database snapshot. Another
       // command can commit between separate reads of the public and private rows.
-      const {data, error} = await db.from('mw_rooms').select('*,mw_game_secrets(state)').eq('code',code).single();
-      if (error) throw error;
-      const {mw_game_secrets:secrets,...snapshot}=data as unknown as Room & {mw_game_secrets:{state:GameState}|null};
-      requireRevision(snapshot,expected);
-      if (!secrets) throw new ApiError(503,'The game state is unavailable. Try again.');
-      authoritative = {...snapshot,state:secrets.state};
+      authoritative = await readGameRoom(db,code,expected);
     }
     const result = action ? await applyGameAction(authoritative, actor, action) : { state: startGame(room, actor), transition: null };
     return Response.json({ room: await roomRpc(db, 'mw_commit_game', {

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ApiError } from './validation';
-import type { Room } from './types';
+import type { GameState, Room } from './types';
 
 export async function readRoom(db: SupabaseClient, code: string, actor: string) {
   const { data, error } = await db.from('mw_rooms').select('*').eq('code', code).single();
@@ -9,6 +9,14 @@ export async function readRoom(db: SupabaseClient, code: string, actor: string) 
   const room = data as Room;
   if (!room.member_ids.includes(actor)) throw new ApiError(403, 'Join this room to access the lobby.');
   return room;
+}
+export async function readGameRoom(db: SupabaseClient, code: string, expected: number) {
+  const {data,error} = await db.from('mw_rooms').select('*,mw_game_secrets(state)').eq('code',code).single();
+  if (error) throw error;
+  const {mw_game_secrets:secrets,...room} = data as unknown as Room & {mw_game_secrets:{state:GameState}|null};
+  if (room.revision !== expected) throw new ApiError(409,'The room changed. Synchronize and try again.');
+  if (!secrets) throw new ApiError(503,'The game state is unavailable. Try again.');
+  return {...room,state:secrets.state};
 }
 export async function roomRpc(db: SupabaseClient, name: string, params: Record<string, unknown>) {
   const { data, error } = await db.rpc(name, params);

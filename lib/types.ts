@@ -1,13 +1,13 @@
 export type Role = 'monopolist' | 'competitor';
 export type Token = 'briefcase' | 'rocket' | 'building' | 'car' | 'coin' | 'crown' | 'factory' | 'laptop';
 export type Profile = { name: string; role: Role; token: Token };
-export type Member = Profile & { user_id: string; seat: number };
+export type Member = Profile & { user_id: string; seat: number; type?: 'human' | 'bot' };
 export type Stats = Record<'propertiesPurchased' | 'rentEarned' | 'rentPaid' | 'buildingsBuilt' | 'taxesPaid' | 'startBonuses' | 'auctionWins' | 'cardsDrawn' | 'turnsPlayed' | 'bonusIncome', number>;
-export type Player = Profile & { id: number; cash: number; position: number; bankrupt: boolean; penalty: { kind: 'prison' | 'pricewar'; attempts: number } | null; stats: Stats; color: string };
+export type Player = Profile & { id: number; type?: 'human' | 'bot'; cash: number; position: number; bankrupt: boolean; penalty: { kind: 'prison' | 'pricewar'; attempts: number } | null; stats: Stats; color: string };
 export type GameState = {
   version: number; players: Player[]; properties: Record<string, { owner: number | null; buildings: number; mortgaged: boolean }>;
   currentPlayer: number; turn: number; phase: 'ready' | 'end' | 'offer' | 'auction' | 'event' | 'debt' | 'victory' | 'rolling' | 'moving';
-  dice: number[]; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
+  dice: number[]; offer: number | null; extraRoll: boolean; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
   auction: { bidder: number; property: number; seller?: number | null; returnPhase?: 'ready' | 'end'; bid: number; leader: number | null; order: number[]; passed: number[] } | null;
   settings: Record<string, boolean | number>; winner: number | null;
 };

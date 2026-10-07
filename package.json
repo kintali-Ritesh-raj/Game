@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/rules.cjs && tsx --test tests/multiplayer.test.ts && node --test tests/database.test.cjs",
+    "test": "node tests/rules.cjs && tsx --test tests/multiplayer.test.ts tests/bots.test.ts && node --test tests/database.test.cjs",
     "test:online": "node tests/online.cjs",
     "db:push": "supabase db push"
   },

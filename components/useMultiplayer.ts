@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ensureIdentity, getBrowserClient, request, RequestError } from '@/lib/supabase-browser';
-import type { Command, Connection, Profile, Room } from '@/lib/types';
+import type { Command, Connection, Profile, Role, Room } from '@/lib/types';
+import { botReadyAt, botSeat } from '@/lib/bot-timing';
 
 type Screen = 'home' | 'create' | 'join' | 'room';
 type Snapshot = { room: Room; connections?: Connection[] };
@@ -139,6 +140,37 @@ export function useMultiplayer(initialCode?: string) {
     };
   }, [code, userId, isMember, accept]);
 
+  const activeBot = room ? botSeat(room) : null;
+  const botRevision = room?.revision;
+  useEffect(() => {
+    if (screen !== 'room' || activeBot === null || connection !== 'connected') return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const advance = async () => {
+      const current = roomRef.current;
+      if (cancelled || !current || current.code !== code || current.revision !== botRevision || botSeat(current) === null) return;
+      let retryDelay = 1500;
+      try {
+        const snapshot = await request<Snapshot>('/api/rooms/' + code,'POST',{operation:'bot-step',revision:current.revision});
+        if (!cancelled) {
+          accept(snapshot);
+          setError(current => current.startsWith('The bot is reconnecting.') ? '' : current);
+        }
+      } catch (caught) {
+        retryDelay = 5000;
+        if (!cancelled) {
+          // Another browser may have committed the same bot's turn first.
+          if (caught instanceof RequestError && caught.status === 409) await load(code).catch(() => {});
+          else setError('The bot is reconnecting. Your game is saved; it will retry automatically.');
+        }
+      }
+      if (!cancelled && roomRef.current?.revision === botRevision) timer = setTimeout(advance,retryDelay);
+    };
+    const delay = Math.max(750,botReadyAt(roomRef.current!) - Date.now() + 150);
+    timer = setTimeout(advance,delay);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [activeBot,botRevision,code,connection,screen,accept,load]);
+
   const enter = useCallback((snapshot: Snapshot) => {
     accept(snapshot); setCode(snapshot.room.code); setScreen('room'); setLoading(false); setError('');
     safeStorage.set(LAST_ROOM, snapshot.room.code);
@@ -208,6 +240,17 @@ export function useMultiplayer(initialCode?: string) {
     finally { setBusy(false); }
   };
 
+  const manageBot = async (operation:'add-bot'|'remove-bot', values:Record<string,unknown>) => {
+    if (busy || !roomRef.current) return;
+    setBusy(true); setError('');
+    try {
+      accept(await request<Snapshot>('/api/rooms/' + code,'POST',{operation,revision:roomRef.current.revision,...values}));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update the bot seats.');
+      await load(code).catch(() => {});
+    } finally { setBusy(false); }
+  };
+
   const navigate = (action: string) => {
     setError('');
     if (action === 'load') {
@@ -220,6 +263,7 @@ export function useMultiplayer(initialCode?: string) {
 
   return { screen, code, room, connections, userId, connection, busy, loading, error, setError,
     pending, navigate, joinOrCreate, updateProfile, leave,
+    addBot: (role:Role) => manageBot('add-bot',{role}), removeBot: (id:string) => manageBot('remove-bot',{bot_id:id}),
     start: () => send('start'), command: (action: Command) => send('action', action),
     retry: () => pending ? runPending(pending) : Promise.resolve(),
     dismissPending: () => { setPending(null); safeStorage.remove(PENDING); setError(''); },
