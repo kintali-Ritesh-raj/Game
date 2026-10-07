@@ -29,7 +29,7 @@ export async function POST(request: Request, context: Context) {
     if (body.operation === 'rejoin-code') return Response.json({ rejoin_code: await seatKey(db, room, actor) });
     if (body.operation === 'add-bot' || body.operation === 'remove-bot') {
       const expected = revision(body.revision);
-      const members = body.operation === 'add-bot' ? addBotMembers(room,actor,expected,body.role) : removeBotMembers(room,actor,expected,body.bot_id);
+      const members = body.operation === 'add-bot' ? addBotMembers(room,actor,expected) : removeBotMembers(room,actor,expected,body.bot_id);
       return Response.json({room:await saveLobbyMembers(db,room,members)});
     }
     if (body.operation === 'forfeit') return Response.json({room:await forfeitGame(db,room,actor,revision(body.revision))});

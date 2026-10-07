@@ -3,7 +3,7 @@
 const fs=require('node:fs');
 const {Game}=require('../lib/game-engine.cjs');
 (async()=>{
-  const members=[{name:'Host',role:'monopolist',token:'briefcase',user_id:'10000000-0000-4000-8000-000000000001',seat:0},{name:'Guest',role:'competitor',token:'rocket',user_id:'10000000-0000-4000-8000-000000000002',seat:1}];
+  const members=[{name:'Host',token:'briefcase',user_id:'10000000-0000-4000-8000-000000000001',seat:0},{name:'Guest',token:'rocket',user_id:'10000000-0000-4000-8000-000000000002',seat:1}];
   const game=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
   // Roll 1 + 3 = 4 (not doubles, so the landing resolves) onto Lockside Walk.
   let face=0;game.random=()=>[0,.4][face++%2];
@@ -12,17 +12,17 @@ const {Game}=require('../lib/game-engine.cjs');
   game.purchaseProperty();states.push(JSON.parse(game.serialize()));
   game.nextTurn();states.push(JSON.parse(game.serialize()));
   await game.rollDice();states.push(JSON.parse(game.serialize()));
-  // Host is back on Lockside Walk after a later landing, so building is unlocked there.
+  // Host owns the whole canal set, so building is allowed; build evenly to two houses on Lockside Walk.
   game.state.currentPlayer=0;game.state.phase='end';game.state.hasRolled=true;game.state.extraRoll=false;
   const group=require('../lib/game-engine.cjs').BOARD[4].group;
   for(const space of game.groupSpaces(group))game.asset(space.id).owner=0;
-  game.asset(4).ready=true;game.buildStructure(4);game.buildStructure(4);
+  for(const id of [4,6,7,4])game.buildStructure(id);
   const developed=JSON.parse(game.serialize());
   game.startAuction(4);const auction=JSON.parse(game.serialize());
   game.auctionBid(20);const resold=JSON.parse(game.serialize());
   game.drawCard('market');const event=JSON.parse(game.serialize());
   const extras={developed,auction,resold,event};
-  const botMember={name:'Bot Ada',role:'competitor',token:'laptop',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
+  const botMember={name:'Bot Ada',token:'laptop',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{}});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];
   const botStates=[JSON.parse(botGame.serialize())];
@@ -32,8 +32,8 @@ const {Game}=require('../lib/game-engine.cjs');
   let die=0;botGame.random=()=>die++%2?.55:.2;
   await botGame.rollDice();botStates.push(JSON.parse(botGame.serialize()));
   botGame.purchaseProperty();botStates.push(JSON.parse(botGame.serialize()));
-  // Fixture shortcut: treat Ripple Arcade as already revisited so the bot's build step can be shown.
-  botGame.asset(6).ready=true;botGame.buildStructure(6);botStates.push(JSON.parse(botGame.serialize()));
+  // Fixture shortcut: hand the bot the rest of the canal set so its build step can be shown.
+  botGame.asset(4).owner=1;botGame.asset(7).owner=1;botGame.buildStructure(6);botStates.push(JSON.parse(botGame.serialize()));
   botGame.nextTurn();botStates.push(JSON.parse(botGame.serialize()));
   for(const state of [...states,...botStates,...Object.values(extras)])for(const deck of Object.values(state.decks))deck.order=[];
   const sessions=members.map(m=>{

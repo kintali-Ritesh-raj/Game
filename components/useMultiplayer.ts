@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ensureIdentity, getBrowserClient, request, RequestError } from '@/lib/supabase-browser';
-import type { Command, Connection, Profile, Role, Room } from '@/lib/types';
+import type { Command, Connection, Profile, Room } from '@/lib/types';
 import { botReadyAt, botSeat, idleSeat, turnDeadline } from '@/lib/bot-timing';
 
 type Screen = 'home' | 'create' | 'join' | 'room';
@@ -316,7 +316,7 @@ export function useMultiplayer(initialCode?: string) {
 
   return { screen, code, room, connections, userId, connection, busy, loading, error, setError,
     pending, navigate, joinOrCreate, updateProfile, leave, exitGame, reclaim, rejoinCode,
-    addBot: (role:Role) => manageBot('add-bot',{role}), removeBot: (id:string) => manageBot('remove-bot',{bot_id:id}),
+    addBot: () => manageBot('add-bot',{}), removeBot: (id:string) => manageBot('remove-bot',{bot_id:id}),
     start: () => send('start'), command: (action: Command) => send('action', action),
     retry: () => pending ? runPending(pending) : Promise.resolve(),
     dismissPending: () => { setPending(null); safeStorage.remove(PENDING); setError(''); },

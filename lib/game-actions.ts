@@ -33,11 +33,13 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
   const state = room.state;
   const auctionAction = ['bid', 'pass'].includes(command.action);
   const managementAction = ['build', 'sell', 'mortgage', 'unmortgage', 'settle', 'bankrupt'].includes(command.action);
-  // Auctions and event debts can belong to a player other than the current turn.
-  const actingSeat = auctionAction ? state.auction?.bidder : managementAction ? state.pending?.payer ?? state.currentPlayer : state.currentPlayer;
+  const tradeResponse = ['accept-trade', 'reject-trade'].includes(command.action);
+  // Auctions, event debts and trade answers can belong to a player other than the current turn.
+  const actingSeat = auctionAction ? state.auction?.bidder : managementAction ? state.pending?.payer ?? state.currentPlayer : tradeResponse ? state.trade?.to : state.currentPlayer;
   if (seat !== actingSeat || state.players[seat].bankrupt) throw new ApiError(403, 'Only the acting player can take this action.');
   if (state.pending && !managementAction) throw new ApiError(409, 'The pending payment must be resolved first.');
   if (state.auction && !auctionAction) throw new ApiError(409, 'The auction must be resolved first.');
+  if (state.trade && !tradeResponse) throw new ApiError(409, 'The trade offer must be answered first.');
   const transition: Transition = { action: command.action, player: state.currentPlayer, dice: [...state.dice], path: [], sounds: [] };
   let lastPosition = state.players[state.currentPlayer].position;
   const game = MarketWars.Game.restore(JSON.stringify(state), {
@@ -68,6 +70,9 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
       case 'unmortgage': game.unmortgageProperty(command.id); break;
       case 'settle': game.settleDebt(); break;
       case 'bankrupt': game.declareBankruptcy(); break;
+      case 'trade': game.proposeTrade(command.trade); break;
+      case 'accept-trade': game.acceptTrade(); break;
+      case 'reject-trade': game.rejectTrade(); break;
     }
     // The unchanged model also starts movement from a payment continuation.
     // Drain that work before saving; animation never holds a database lock.

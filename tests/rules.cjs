@@ -1,4 +1,4 @@
-/* Regression tests for the unchanged game rules, shared by client and server. */
+/* Regression tests for the classic game rules, shared by client and server. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -8,10 +8,10 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'lib', 'game-engine.cjs'), 'utf8'), context);
 const { Game, BOARD, DECKS, validatePlayers } = context.MarketWars;
 const players = [
-  { name: 'Ritesh', role: 'monopolist', token: 'briefcase' },
-  { name: 'Manish', role: 'competitor', token: 'rocket' },
-  { name: 'Asha', role: 'monopolist', token: 'building' },
-  { name: 'Dev', role: 'competitor', token: 'car' }
+  { name: 'Ritesh', token: 'briefcase' },
+  { name: 'Manish', token: 'rocket' },
+  { name: 'Asha', token: 'building' },
+  { name: 'Dev', token: 'car' }
 ];
 const testCases = [];
 const test = (name, run) => testCases.push({ name, run });
@@ -32,11 +32,12 @@ test('2, 3 and 4 players start with valid state and $1,500 each', () => {
   assert.equal(BOARD.length, 40);
   assert.equal(DECKS.market.length, 15); assert.equal(DECKS.economic.length, 15);
 });
-test('setup rejects repeated names, repeated tokens, blank names and a single role', () => {
+test('setup rejects repeated names, repeated tokens and blank names; no roles are needed', () => {
   assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], name: ' ritesh ' }]));
   assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], token: 'briefcase' }]));
   assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], name: '  ' }]));
-  assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], role: 'monopolist' }]));
+  assert.equal(validatePlayers(players.slice(0, 2)), '');
+  assert.ok(create(2).state.players.every(player => !('role' in player)));
 });
 test('dice stay within 1–6, illegal rolls are rejected, turns switch correctly', async () => {
   for (const value of [0, .1, .4, .7, .999999]) {
@@ -81,38 +82,51 @@ test('the supplied visitor sound triggers on another owner’s space, even when 
   game.state.settings.sound = true; game.state.currentPlayer = 1; land(game, 1);
   assert.equal(played.filter(kind => kind === 'visitor').length, 2);
 });
-test('Monopolists need 2 unmortgaged properties of a color; both roles pay 75% of the district price', () => {
-  const canal = create(); own(canal, 4); assert.throws(() => (stand(canal, 4), canal.buildStructure(4)), /at least 2/);
-  own(canal, 6); (stand(canal, 4), canal.buildStructure(4)); assert.equal(canal.asset(4).buildings, 1);
-  const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 20); assert.throws(() => (stand(game, 1), game.buildStructure(1)), /at least 2/);
-  own(game, 2); assert.equal(game.calculateRent(1), 20); (stand(game, 1), game.buildStructure(1));
-  assert.equal(game.active.cash, 1462); assert.equal(game.calculateRent(1), 32);
-  game.state.currentPlayer = 1; own(game, 4, 1); (stand(game, 4), game.buildStructure(4));
-  assert.equal(game.active.cash, 1455); assert.equal(game.asset(4).buildings, 1); assert.equal(game.calculateRent(4), 36);
+test('building needs the whole color set and costs the district price per level', () => {
+  const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 8);
+  assert.throws(() => game.buildStructure(1), /Own every Tidehaven/);
+  own(game, 2); assert.equal(game.calculateRent(1), 16, 'a full set doubles undeveloped rent');
+  game.buildStructure(1); assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
+  const canal = create(); own(canal, 4); own(canal, 6); assert.throws(() => canal.buildStructure(4), /Own every Canal Quarter/);
+  own(canal, 7); canal.buildStructure(4); assert.equal(canal.active.cash, 1440); assert.equal(canal.calculateRent(4), 48);
+});
+test('building and selling must stay even across a color set', () => {
+  const game = create(); own(game, 1); own(game, 2);
+  game.buildStructure(1); assert.throws(() => game.buildStructure(1), /evenly/);
+  game.buildStructure(2); game.buildStructure(1); assert.equal(game.asset(1).buildings, 2);
+  assert.throws(() => game.sellBuilding(2), /Sell evenly/);
+  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 1); assert.equal(game.active.cash, 1500 - 150 + 25);
+});
+test('every player builds on their turn without landing on the property', () => {
+  const game = create(); game.state.currentPlayer = 1; own(game, 1, 1); own(game, 2, 1);
+  game.active.position = 20; game.state.hasRolled = false;
+  game.buildStructure(1); game.buildStructure(2); assert.equal(game.asset(1).buildings, 1); assert.equal(game.asset(2).buildings, 1);
+  assert.throws(() => game.buildStructure(4), /owner/);
 });
 test('all five development levels, sale, cost and tower rent work', () => {
   const game = create(); own(game, 1); own(game, 2);
-  for (let i = 0; i < 5; i++) (stand(game, 1), game.buildStructure(1));
+  for (let i = 0; i < 5; i++) { game.buildStructure(1); game.buildStructure(2); }
   assert.equal(game.asset(1).buildings, 5); assert.equal(game.calculateRent(1), 400); assert.throws(() => game.buildStructure(1), /tower/);
-  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1329);
+  assert.equal(game.active.cash, 1000);
+  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1025); assert.equal(game.calculateRent(1), 288);
 });
-test('mortgaged groups prohibit building; selling clears Monopolist mortgage restriction', () => {
-  const game = create(); own(game, 1); own(game, 2); (stand(game, 1), game.buildStructure(1));
+test('mortgaged groups prohibit building; buildings in the color block mortgages', () => {
+  const game = create(); own(game, 1); own(game, 2); game.buildStructure(1);
   assert.throws(() => game.mortgageProperty(2), /district/);
-  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => (stand(game, 1), game.buildStructure(1)), /at least 2/);
-  game.unmortgageProperty(2); (stand(game, 1), game.buildStructure(1)); assert.equal(game.asset(1).buildings, 1);
+  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => game.buildStructure(1), /unmortgaged/);
+  game.unmortgageProperty(2); game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
 });
 test('mortgage disables rent and development; 10% fee restores rent', () => {
   const game = create(); own(game, 1); game.mortgageProperty(1);
   assert.equal(game.active.cash, 1550); assert.equal(game.calculateRent(1), 0); assert.throws(() => game.buildStructure(1), /Unmortgage/);
-  game.unmortgageProperty(1); assert.equal(game.active.cash, 1495); assert.equal(game.calculateRent(1), 20);
+  game.unmortgageProperty(1); assert.equal(game.active.cash, 1495); assert.equal(game.calculateRent(1), 8);
   assert.throws(() => game.mortgageProperty(4), /owner/); assert.throws(() => game.sellBuilding(1), /no buildings/);
 });
 test('transport and utility rents count only active stations, buildings are prohibited', () => {
   const game = create(); own(game, 8); own(game, 23); own(game, 15); own(game, 29);
-  assert.equal(game.calculateRent(8), 60); assert.equal(game.calculateRent(15, 7), 70);
+  assert.equal(game.calculateRent(8), 50); assert.equal(game.calculateRent(15, 7), 70);
   game.mortgageProperty(23); game.mortgageProperty(29);
-  assert.equal(game.calculateRent(8), 30); assert.equal(game.calculateRent(15, 7), 28);
+  assert.equal(game.calculateRent(8), 25); assert.equal(game.calculateRent(15, 7), 28);
   assert.throws(() => game.buildStructure(8), /cannot be developed/);
 });
 test('auction cycles bidders, awards highest bid, and handles no bids', () => {
@@ -131,11 +145,18 @@ test('auction rejects over-budget bids and invalid increments', () => {
   assert.throws(() => game.auctionBid(9), /at least/); assert.throws(() => game.auctionBid(10.5), /whole/); assert.throws(() => game.auctionBid(1501), /cover/);
   assert.equal(game.state.auction.bidder, 1); game.auctionBid(10); assert.equal(game.asset(1).owner, 1); assert.equal(game.player(0).cash, 1410);
 });
-test('buy first, skip without auction, and only an owner may sell during their turn', () => {
-  const game = create(); land(game, 1); assert.throws(() => game.startAuction(1), /owner/);
-  game.declineProperty(); assert.equal(game.asset(1).owner, null); assert.equal(game.state.auction, null); assert.equal(game.state.phase, 'end');
-  land(game, BOARD.find(space => space.type === 'auction').id); assert.equal(game.state.phase, 'offer'); assert.equal(game.state.auction, null);
-  game.declineProperty(); land(game, 1); game.purchaseProperty(); assert.equal(game.state.auction, null);
+test('a skipped property goes to a bank auction open to every player, including the one who skipped', () => {
+  const game = create(3); land(game, 1); assert.throws(() => game.startAuction(1), /owner/);
+  game.declineProperty(); assert.equal(game.state.phase, 'auction'); assert.equal(game.state.auction.seller, null);
+  assert.deepEqual([...game.state.auction.order], [0, 1, 2]); assert.equal(game.state.auction.bidder, 0);
+  game.auctionPass(); game.auctionBid(40); game.auctionBid(10); game.auctionPass();
+  assert.equal(game.asset(1).owner, 2); assert.equal(game.player(2).cash, 1450); assert.equal(game.player(0).cash, 1500, 'the bank keeps the winning bid');
+  assert.equal(game.state.phase, 'end'); assert.equal(game.state.currentPlayer, 0);
+  const unsold = create(); land(unsold, 1); unsold.declineProperty(); unsold.auctionPass(); unsold.auctionPass();
+  assert.equal(unsold.asset(1).owner, null); assert.equal(unsold.state.phase, 'end');
+});
+test('only an owner may start an auction during their turn', () => {
+  const game = create(); land(game, 1); game.purchaseProperty(); assert.equal(game.state.auction, null);
   game.mortgageProperty(1); assert.throws(() => game.startAuction(1), /Unmortgage/); game.unmortgageProperty(1);
   game.nextTurn(); assert.throws(() => game.startAuction(1), /owner/);
 });
@@ -165,17 +186,25 @@ test('every event resolves, card decks recycle, and effects cannot apply twice',
     assert.equal(seen.size, 15); game.drawCard(name); assert.equal(game.state.decks[name].cursor, 1);
   }
 });
-test('taxes, wealth calculation, free market and bank bonuses are role-specific', () => {
-  const game = create(); land(game, 5); assert.equal(game.active.cash, 1400); assert.equal(game.active.stats.taxesPaid, 100);
-  land(game, 20); assert.equal(game.active.cash, 1400); land(game, 33); assert.equal(game.active.cash, 1450);
-  game.state.currentPlayer = 1; land(game, 5); assert.equal(game.active.cash, 1420);
-  land(game, 20); assert.equal(game.active.cash, 1495); land(game, 25); assert.equal(game.active.cash, 1435); // ceil(1495 × .04)
+test('taxes are flat, Free Market pays nothing and City Bank pays interest, for every player', () => {
+  const game = create(); land(game, 5); assert.equal(game.active.cash, 1300); assert.equal(game.active.stats.taxesPaid, 200);
+  land(game, 20); assert.equal(game.active.cash, 1300); land(game, 33); assert.equal(game.active.cash, 1350);
+  land(game, 25); assert.equal(game.active.cash, 1250); assert.equal(game.active.stats.taxesPaid, 300);
+  game.state.currentPlayer = 1; land(game, 5); assert.equal(game.active.cash, 1300); land(game, 20); assert.equal(game.active.cash, 1300);
 });
-test('role penalties have different destinations and rent permissions', () => {
-  const game = create(); own(game, 1); own(game, 4, 1); land(game, 36);
-  assert.equal(game.active.position, 10); assert.equal(game.active.penalty.kind, 'prison'); assert.equal(game.calculateRent(1), 0);
-  game.state.currentPlayer = 1; land(game, 36); assert.equal(game.active.position, 30); assert.equal(game.active.penalty.kind, 'pricewar'); assert.equal(game.calculateRent(4), 12);
-  const visit = create(); land(visit, 10); assert.equal(visit.active.penalty, null); land(visit, 30); assert.equal(visit.active.penalty, null);
+test('Go to Prison sends everyone to the one Prison, and rent continues inside', () => {
+  const game = create(); own(game, 1); land(game, 30);
+  assert.equal(game.active.position, 10); assert.equal(game.active.penalty.kind, 'prison'); assert.equal(game.calculateRent(1), 8);
+  game.state.currentPlayer = 1; land(game, 30); assert.equal(game.active.position, 10); assert.equal(game.active.penalty.kind, 'prison');
+  const visit = create(); land(visit, 10); assert.equal(visit.active.penalty, null);
+  assert.equal(BOARD[36].type, 'market'); land(visit, 36); assert.equal(visit.state.phase, 'event');
+});
+test('saves from the two-role version restore with roles dropped and Price War mapped to Prison', () => {
+  const s = JSON.parse(create().serialize());
+  s.players[0].role = 'monopolist'; s.players[1].role = 'competitor'; s.players[1].position = 30; s.players[1].penalty = { kind: 'pricewar', attempts: 1 };
+  const game = Game.restore(JSON.stringify(s));
+  assert.ok(game.state.players.every(player => !('role' in player)));
+  assert.equal(game.player(1).penalty.kind, 'prison'); assert.equal(game.player(1).position, 10);
 });
 test('paying penalty gives a normal roll; doubles release without an extra roll', async () => {
   const game = create(2, () => .2); game.sendPlayerToPenalty(game.active); game.state.phase = 'ready'; game.payPenalty();
@@ -191,35 +220,45 @@ test('three failed detention rolls require payment; cash recovery resumes the la
   game.mortgageProperty(1); game.settleDebt(); await drain(game);
   assert.equal(game.active.penalty, null); assert.equal(game.active.position, 13); assert.equal(game.state.phase, 'offer');
 });
-test('Competitors build only while standing on the property after landing there', () => {
-  const game = create(); game.state.currentPlayer = 1; own(game, 1, 1); own(game, 2, 1);
-  game.active.position = 5; game.state.hasRolled = true;
-  assert.throws(() => game.buildStructure(1), /Land on Beacon Wharf/);
-  game.active.position = 1; game.state.hasRolled = false;
-  assert.throws(() => game.buildStructure(1), /Land on/);
-  game.state.hasRolled = true; game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
-  assert.throws(() => game.buildStructure(2), /Land on/);
-});
-test('Competitors must land again after buying; Monopolists build on any owned property', () => {
-  const rival = create(); rival.state.currentPlayer = 1; land(rival, 9); rival.purchaseProperty();
-  assert.throws(() => rival.buildStructure(9), /again/);
-  rival.state.phase = 'ready'; land(rival, 9); assert.equal(rival.asset(9).ready, true);
-  (stand(rival, 9), rival.buildStructure(9)); assert.equal(rival.asset(9).buildings, 1);
-  // Monopolist: straight after buying, before rolling, and while standing elsewhere.
-  const game = create(); own(game, 6); land(game, 4); game.purchaseProperty();
-  game.buildStructure(4); assert.equal(game.asset(4).buildings, 1);
-  game.state.phase = 'ready'; game.state.hasRolled = false; game.active.position = 20;
-  game.buildStructure(6); game.buildStructure(4); assert.equal(game.asset(6).buildings, 1); assert.equal(game.asset(4).buildings, 2);
-  // The colour rule still applies.
-  const single = create(); own(single, 1); assert.throws(() => single.buildStructure(1), /at least 2/);
-});
-test('Competitors pay 50% more for bank land; Monopolists pay the listed price', () => {
+test('every player pays the listed price for bank land', () => {
   const game = create(); land(game, 4); game.purchaseProperty(); assert.equal(game.player(0).cash, 1500 - 140);
-  game.state.currentPlayer = 1; land(game, 6); game.purchaseProperty(); assert.equal(game.player(1).cash, 1500 - 210);
-  assert.equal(game.asset(6).owner, 1); assert.equal(BOARD[6].mortgageValue, 70);
-  for (const space of BOARD.filter(item => item.price)) assert.equal(game.purchasePrice(game.player(1), space), Math.round(space.price * 1.5));
-  const poor = create(); poor.state.currentPlayer = 1; poor.player(1).cash = 150; land(poor, 6);
-  assert.throws(() => poor.purchaseProperty(), /enough cash/);
+  game.state.currentPlayer = 1; land(game, 6); game.purchaseProperty(); assert.equal(game.player(1).cash, 1500 - 140);
+  for (const space of BOARD.filter(item => item.price)) for (const player of game.state.players) assert.equal(game.purchasePrice(player, space), space.price);
+  const poor = create(); poor.player(0).cash = 139; land(poor, 4); assert.throws(() => poor.purchaseProperty(), /enough cash/);
+});
+test('trades swap properties and cash once the other player accepts', () => {
+  const game = create(3); own(game, 1); own(game, 2, 1); own(game, 4, 2);
+  const offer = { to: 1, give: { cash: 120, properties: [] }, get: { cash: 0, properties: [2] } };
+  game.proposeTrade(offer); assert.equal(game.state.phase, 'trade'); assert.equal(game.state.trade.to, 1);
+  assert.throws(() => game.buildStructure(1)); assert.throws(() => game.proposeTrade(offer), /before rolling/);
+  game.acceptTrade(); assert.equal(game.asset(2).owner, 0); assert.equal(game.player(0).cash, 1380); assert.equal(game.player(1).cash, 1620);
+  assert.equal(game.state.phase, 'ready'); assert.equal(game.state.trade, null);
+  game.buildStructure(1); assert.equal(game.asset(1).buildings, 1, 'the traded property completes the set');
+  const swap = create(); own(swap, 1); own(swap, 4, 1); swap.asset(4).mortgaged = true;
+  swap.proposeTrade({ to: 1, give: { cash: 0, properties: [1] }, get: { cash: 30, properties: [4] } }); swap.acceptTrade();
+  assert.equal(swap.asset(1).owner, 1); assert.equal(swap.asset(4).owner, 0); assert.ok(swap.asset(4).mortgaged, 'mortgages travel with the property');
+  assert.equal(swap.player(0).cash, 1530);
+});
+test('rejected and invalid trades change nothing', () => {
+  const game = create(3); own(game, 1); own(game, 2); own(game, 4, 1); game.asset(1).buildings = 1;
+  const bad = (offer, pattern) => assert.throws(() => game.proposeTrade(offer), pattern);
+  bad({ to: 0, give: { cash: 0, properties: [] }, get: { cash: 0, properties: [4] } }, /another active player/);
+  bad({ to: 1, give: { cash: 0, properties: [2] }, get: { cash: 0, properties: [] } }, /Sell every building/);
+  bad({ to: 1, give: { cash: 0, properties: [4] }, get: { cash: 0, properties: [] } }, /own every property/);
+  bad({ to: 1, give: { cash: 2000, properties: [] }, get: { cash: 0, properties: [4] } }, /does not have/);
+  bad({ to: 1, give: { cash: 50, properties: [] }, get: { cash: 0, properties: [] } }, /at least one property/);
+  bad({ to: 1, give: { cash: -5, properties: [] }, get: { cash: 0, properties: [4] } }, /incomplete/);
+  game.state.phase = 'offer'; bad({ to: 1, give: { cash: 10, properties: [] }, get: { cash: 0, properties: [4] } }, /before rolling/); game.state.phase = 'ready';
+  game.proposeTrade({ to: 1, give: { cash: 10, properties: [] }, get: { cash: 0, properties: [4] } }); game.rejectTrade();
+  assert.equal(game.asset(4).owner, 1); assert.equal(game.player(0).cash, 1500); assert.equal(game.state.phase, 'ready');
+  game.proposeTrade({ to: 1, give: { cash: 10, properties: [] }, get: { cash: 0, properties: [4] } }); game.rejectTrade();
+  game.proposeTrade({ to: 1, give: { cash: 20, properties: [] }, get: { cash: 0, properties: [4] } }); game.rejectTrade();
+  bad({ to: 1, give: { cash: 10, properties: [] }, get: { cash: 0, properties: [4] } }, /up to 3 trades/);
+  game.state.phase = 'end'; game.nextTurn(); assert.equal(game.state.tradesThisTurn, 0);
+  const saved = create(); own(saved, 4, 1); saved.proposeTrade({ to: 1, give: { cash: 10, properties: [] }, get: { cash: 0, properties: [4] } });
+  const restored = Game.restore(saved.serialize()); restored.acceptTrade(); assert.equal(restored.asset(4).owner, 0);
+  const left = create(3); own(left, 4, 1); left.proposeTrade({ to: 1, give: { cash: 10, properties: [] }, get: { cash: 0, properties: [4] } });
+  left.forfeit(2); assert.equal(left.state.trade, null); assert.equal(left.state.phase, 'ready');
 });
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
@@ -244,7 +283,7 @@ test('a timed-out turn drops the open offer and passes to the next player', asyn
   assert.equal(game.state.currentPlayer, 1); assert.equal(game.state.phase, 'ready'); assert.equal(game.asset(9).owner, null);
   const idle = create(); idle.timeoutTurn(); assert.equal(idle.state.currentPlayer, 1);
 });
-test('three consecutive doubles send a player directly to role detention', async () => {
+test('three consecutive doubles send a player directly to Prison', async () => {
   const game = create(2, () => 0);
   for (let i = 0; i < 2; i++) { await game.rollDice(); if (game.state.phase === 'offer') game.purchaseProperty(); if (game.state.phase === 'event') await game.applyCard(); }
   await game.rollDice(); assert.equal(game.active.penalty.kind, 'prison'); assert.equal(game.active.position, 10); assert.equal(game.state.extraRoll, false);
@@ -304,7 +343,7 @@ test('a saved auction, event and debt resume once, without duplicate transaction
 
 async function simulate(count, seed) {
   let game = create(count, randomSeed(seed));
-  const events = new Set(); let actions = 0;
+  const events = new Set(); let actions = 0, trades = 0;
   while (game.state.phase !== 'victory' && actions++ < 25000) {
     const s = game.state;
     switch (s.phase) {
@@ -316,11 +355,15 @@ async function simulate(count, seed) {
         if (a.bid + 10 <= Math.min(value, bidder.cash - 100)) game.auctionBid(10); else game.auctionPass(); break;
       }
       case 'event': events.add(s.event.deck + ':' + s.event.index); await game.applyCard(); break;
+      case 'trade': {
+        const t = s.trade, price = t.get.properties.reduce((sum, id) => sum + BOARD[id].price, 0);
+        if (t.give.cash >= price * 2) { game.acceptTrade(); trades++; } else game.rejectTrade(); break;
+      }
       case 'debt': {
         const debtor = game.managerPlayer;
         if (game.liquidatable(debtor) < s.pending.amount) game.declareBankruptcy();
         else {
-          const developed = game.owned(debtor).find(space => game.asset(space.id).buildings > 0);
+          const developed = game.owned(debtor).find(space => !game.sellReason(debtor, space.id));
           const collateral = game.owned(debtor).find(space => !game.mortgageReason(debtor, space.id));
           if (debtor.cash >= s.pending.amount) game.settleDebt();
           else if (developed) game.sellBuilding(developed.id);
@@ -330,6 +373,12 @@ async function simulate(count, seed) {
         break;
       }
       case 'end': {
+        if (!s.extraRoll && !s.tradesThisTurn) {
+          const want = BOARD.find(space => space.type === 'property' && game.asset(space.id).owner !== null && game.asset(space.id).owner !== game.active.id
+            && game.groupSpaces(space.group).every(item => item.id === space.id || game.asset(item.id).owner === game.active.id));
+          const offer = want && { to: game.asset(want.id).owner, give: { cash: want.price * 2, properties: [] }, get: { cash: 0, properties: [want.id] } };
+          if (offer && game.active.cash >= offer.give.cash + 150 && !game.tradeReason(game.active.id, offer)) { game.proposeTrade(offer); break; }
+        }
         const available = game.owned(game.active).filter(space => !game.buildReason(game.active, space.id));
         const cheapest = available.sort((a, b) => game.asset(a.id).buildings - game.asset(b.id).buildings)[0];
         if (cheapest && game.active.cash > game.buildingCost(game.active, cheapest) + 200) game.buildStructure(cheapest.id);
@@ -347,7 +396,7 @@ async function simulate(count, seed) {
   assert.equal(game.state.phase, 'victory', 'complete game reaches one surviving player');
   // Every card is covered above; purchase-first games can finish in fewer turns.
   assert.equal(game.living.length, 1); assert.ok(events.size > 0);
-  console.log('  ' + count + '-player simulation: ' + game.state.turn + ' turns, ' + actions + ' actions, ' + events.size + ' distinct cards, winner ' + game.player(game.state.winner).name);
+  console.log('  ' + count + '-player simulation: ' + game.state.turn + ' turns, ' + actions + ' actions, ' + trades + ' trades, ' + events.size + ' distinct cards, winner ' + game.player(game.state.winner).name);
 }
 test('complete 2-player and 4-player games reach victory, with periodic save/reload', async () => {
   await simulate(2, 4827); await simulate(4, 99871);

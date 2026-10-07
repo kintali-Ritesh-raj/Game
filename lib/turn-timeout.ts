@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import MarketWars from './game-engine.cjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyGameAction, memberIndex, requireRevision } from './game-actions';
-import { idleSeat, turnDeadline } from './bot-timing';
+import { actingSeat, idleSeat, turnDeadline } from './bot-timing';
 import { chooseBotAction } from './bot-strategy';
 import { readGameRoom, roomRpc } from './room-store';
 import { ApiError } from './validation';
@@ -22,17 +22,18 @@ export async function expireTurn(db: SupabaseClient, room: Room, requester: stri
   let transition: Transition | null = null;
   for (let step = 0; step < 40; step++) {
     const state = current.state!;
-    const acting = state.pending?.payer ?? state.auction?.bidder ?? state.currentPlayer;
+    const acting = actingSeat(state);
     if (acting !== seat || state.phase === 'victory') break;
     let result;
     if (state.auction) result = await applyGameAction(current, actor, { action: 'pass' });
+    else if (state.trade) result = await applyGameAction(current, actor, { action: 'reject-trade' });
     else if (state.pending) result = await applyGameAction(current, actor, chooseBotAction(state)!);
     else if (state.phase === 'event') result = await applyGameAction(current, actor, { action: 'apply-event' });
     else result = await applyGameAction(current, actor, { action: 'timeout' });
     current = { ...current, state: result.state };
     transition = result.transition;
-    // An auction pass or an off-turn debt only releases this player; the turn itself continues.
-    if (state.auction || (state.pending && state.pending.payer !== state.currentPlayer && !result.state.pending)) break;
+    // An auction pass, an unanswered trade or an off-turn debt only releases this player; the turn itself continues.
+    if (state.auction || state.trade || (state.pending && state.pending.payer !== state.currentPlayer && !result.state.pending)) break;
   }
   const hash = createHash('sha256').update('timeout:' + room.code + ':' + expected).digest('hex');
   const id = `${hash.slice(0,8)}-${hash.slice(8,12)}-4${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
@@ -50,7 +51,7 @@ export async function forfeitGame(db: SupabaseClient, room: Room, requester: str
   requireRevision(room, expected);
   const current = await readGameRoom(db, room.code, expected);
   const state = current.state!;
-  const acting = state.pending?.payer ?? state.auction?.bidder ?? state.currentPlayer;
+  const acting = actingSeat(state);
   const game = MarketWars.Game.restore(JSON.stringify(state), { wait: async () => {} });
   try { game.forfeit(seat); } catch (error) { throw new ApiError(409, error instanceof Error ? error.message : 'You cannot leave right now.'); }
   const transition: Transition = { action: 'forfeit', player: state.currentPlayer, dice: [...game.state.dice], path: [], sounds: [] };

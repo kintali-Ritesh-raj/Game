@@ -7,10 +7,10 @@ const { PGlite } = require('@electric-sql/pglite');
 const { Game } = require('../lib/game-engine.cjs');
 const db = new PGlite();
 const host = randomUUID(), guest = randomUUID(), third = randomUUID(), fourth = randomUUID(), fifth = randomUUID();
-const p = (name, role = 'competitor', token = 'rocket') => ({ name, role, token });
+const p = (name, token = 'rocket') => ({ name, token });
 const query = async (sql, params = []) => (await db.query(sql, params)).rows;
 const rpc = async (name, args, casts) => (await query('select to_jsonb(r) as room from public.' + name + '(' + args.map((_, i) => '$' + (i + 1) + '::' + casts[i]).join(',') + ') r', args))[0].room;
-const create = (code, actor = host, id = randomUUID()) => rpc('mw_create_room', [code, actor, p('Host', 'monopolist', 'briefcase'), id], ['text','uuid','jsonb','uuid']);
+const create = (code, actor = host, id = randomUUID()) => rpc('mw_create_room', [code, actor, p('Host', 'briefcase'), id], ['text','uuid','jsonb','uuid']);
 const joinRoom = (code, actor, player) => rpc('mw_join_room', [code, actor, player], ['text','uuid','jsonb']);
 const commit = (r, actor, state, id = randomUUID(), start = false, fingerprint = 'action') => rpc('mw_commit_game', [r.code, actor, r.revision, state, null, id, fingerprint, start], ['text','uuid','bigint','jsonb','jsonb','uuid','text','boolean']);
 const stateFor = r => JSON.parse(new Game(r.members, {}, { wait: async () => {} }).serialize());
@@ -28,6 +28,7 @@ before(async () => {
   const cleanup = readFileSync(join(__dirname,'../supabase/migrations','20261007120000_cleanup_and_rejoin.sql'),'utf8')
     .replace(/create extension if not exists pg_cron;/, '').replace(/select cron\.schedule\([^;]*\);/, '');
   await db.exec(cleanup);
+  await db.exec(readFileSync(join(__dirname,'../supabase/migrations','20261007180000_single_ruleset.sql'),'utf8'));
 });
 after(async () => { await db.close(); });
 
@@ -37,11 +38,11 @@ test('Database enforces unique rooms, idempotent creation, and four seats', asyn
   assert.equal((await create('DB0002', host, id)).code, 'DB0001');
   await assert.rejects(create('DB0001'), /duplicate key/);
   await joinRoom(room.code, guest, p('Guest'));
-  await joinRoom(room.code, third, p('Third','monopolist','building'));
-  const full = await joinRoom(room.code, fourth, p('Fourth','competitor','car'));
+  await joinRoom(room.code, third, p('Third','building'));
+  const full = await joinRoom(room.code, fourth, p('Fourth','car'));
   assert.equal(full.members.length, 4);
-  await assert.rejects(joinRoom(room.code, fifth, p('Fifth','competitor','coin')), /maximum of 4/);
-  const reconnect = await joinRoom(room.code, guest, p('Different','monopolist','crown'));
+  await assert.rejects(joinRoom(room.code, fifth, p('Fifth','coin')), /maximum of 4/);
+  const reconnect = await joinRoom(room.code, guest, p('Different','crown'));
   assert.equal(reconnect.members[1].name, 'Guest');
   assert.equal(reconnect.revision, full.revision);
 });
@@ -49,12 +50,12 @@ test('Database enforces unique rooms, idempotent creation, and four seats', asyn
 test('Database locks names, tokens, host starts and post-start joining', async () => {
   let room = await create('DB0003');
   await assert.rejects(joinRoom(room.code, guest, p('Host')), /name is taken/);
-  await assert.rejects(joinRoom(room.code, guest, p('Guest','competitor','briefcase')), /token is taken/);
+  await assert.rejects(joinRoom(room.code, guest, p('Guest','briefcase')), /token is taken/);
   room = await joinRoom(room.code, guest, p('Guest'));
   const state = stateFor(room);
   await assert.rejects(commit(room, guest, state, randomUUID(), true), /Only the Host/);
   room = await commit(room, host, state, randomUUID(), true);
-  await assert.rejects(joinRoom(room.code, third, p('Third','competitor','car')), /already started/);
+  await assert.rejects(joinRoom(room.code, third, p('Third','car')), /already started/);
   assert.equal((await joinRoom(room.code, guest, p('Guest'))).status, 'playing');
 });
 
@@ -69,11 +70,15 @@ test('Revision compare-and-swap and receipts prevent duplicate game actions', as
   assert.equal((await commit(room, host, snapshot, id)).revision, updated.revision);
   await assert.rejects(commit(room, guest, snapshot, id), /identifier/);
   await assert.rejects(commit(updated, guest, snapshot), /acting player/);
+  const offer = { ...updated.state, phase: 'trade', trade: { from: 0, to: 1, returnPhase: 'end', give: { cash: 10, properties: [] }, get: { cash: 0, properties: [1] } } };
+  const traded = await commit(updated, host, offer);
+  await assert.rejects(commit(traded, host, { ...offer, phase: 'end', trade: null }), /acting player/);
+  assert.equal((await commit(traded, guest, { ...offer, phase: 'end', trade: null })).revision, traded.revision + 1, 'the trade recipient answers the offer');
 });
 
 test('Host transfer and seat indexing are atomic in the lobby; play retains seats', async () => {
   let room = await create('DB0005'); room = await joinRoom(room.code, guest, p('Guest'));
-  room = await joinRoom(room.code, third, p('Third','monopolist','building'));
+  room = await joinRoom(room.code, third, p('Third','building'));
   room = await rpc('mw_leave_room',[room.code,host],['text','uuid']);
   assert.equal(room.host_id, guest); assert.deepEqual(room.members.map(m=>m.seat), [0,1]);
   room = await commit(room, guest, stateFor(room), randomUUID(), true);

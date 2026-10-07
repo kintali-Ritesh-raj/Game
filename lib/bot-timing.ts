@@ -1,8 +1,13 @@
-import type { Room } from './types';
+import type { GameState, Room } from './types';
+
+// The seat whose input the table is waiting for: a debtor, an auction bidder, a trade recipient, or the current player.
+export function actingSeat(state: GameState): number {
+  return state.pending?.payer ?? state.auction?.bidder ?? state.trade?.to ?? state.currentPlayer;
+}
 
 export function botSeat(room: Room): number | null {
   if (room.status !== 'playing' || !room.state) return null;
-  const seat = room.state.pending?.payer ?? room.state.auction?.bidder ?? room.state.currentPlayer;
+  const seat = actingSeat(room.state);
   return room.members[seat]?.type === 'bot' && !room.state.players[seat]?.bankrupt ? seat : null;
 }
 
@@ -18,7 +23,7 @@ export const TURN_SECONDS = 90;
 // The human whose input the table is waiting for, if their turn timer applies.
 export function idleSeat(room: Room): number | null {
   if (room.status !== 'playing' || !room.state || ['rolling', 'moving', 'victory'].includes(room.state.phase)) return null;
-  const seat = room.state.pending?.payer ?? room.state.auction?.bidder ?? room.state.currentPlayer;
+  const seat = actingSeat(room.state);
   return room.members[seat] && room.members[seat].type !== 'bot' && !room.state.players[seat]?.bankrupt ? seat : null;
 }
 

@@ -1,6 +1,6 @@
 import type { GameState, Profile } from './types';
 interface EngineOptions { random?:()=>number; wait?:(ms:number)=>Promise<void>; onChange?:(state:GameState)=>void; onSound?:(sound:string)=>void }
-interface Space { id:number; name:string; type:string; group:string; price:number; buildingCost:number; mortgageValue:number }
+interface Space { id:number; name:string; type:string; group:string; price:number; buildingCost:number; mortgageValue:number; baseRent:number }
 declare class Game {
   constructor(players:Profile[], settings?:Record<string,boolean|number>, options?:EngineOptions);
   state: GameState;
@@ -13,6 +13,10 @@ declare class Game {
   groupSpaces(group:string):Space[];
   buildingCost(player:GameState['players'][number],space:Space):number;
   buildReason(player:GameState['players'][number],id:number):string;
+  completeGroup(player:GameState['players'][number],group:string):boolean;
+  tradeReason(from:number,offer:unknown):string;
+  proposeTrade(offer?:unknown):void; acceptTrade():void; rejectTrade(reason?:string):void;
+  sellReason(player:GameState['players'][number],id:number):string;
   mortgageReason(player:GameState['players'][number],id:number):string;
   liquidatable(player:GameState['players'][number]):number;
   static restore(save:string,options?:EngineOptions):Game;

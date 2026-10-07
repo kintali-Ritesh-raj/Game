@@ -64,17 +64,17 @@ The GitHub Actions workflow runs the rule, authorization, database-policy tests,
 
 ## Play and reconnect
 
-- **Create Game:** enter a name, role, and token. You become the Host and receive a unique six-character room code and share link.
-- **Join Game:** enter a code, or open a shared `/game/CODE` link. New visitors choose their own name, role, and token at that room's entry screen.
-- The lobby shows the Host, names, roles, tokens, and connection status. Names and tokens must be unique. At most four players can join.
-- Only the Host can start, with at least two players and at least one Monopolist and one Competitor. Player choices lock when play starts.
-- Every player sees the same dice, movement, money, assets, buildings, events, rent, Prison/Price War status, bankruptcy, and winner.
-- Each browser can act only for its own player. Auctions authorize the current bidder; an event debt authorizes its debtor even outside their normal turn.
+- **Create Game:** enter a name and token. You become the Host and receive a unique six-character room code and share link.
+- **Join Game:** enter a code, or open a shared `/game/CODE` link. New visitors choose their own name and token at that room's entry screen.
+- The lobby shows the Host, names, tokens, and connection status. Names and tokens must be unique. At most four players can join.
+- Only the Host can start, with at least two players. Everyone plays by the same rules; there are no roles. Player choices lock when play starts.
+- Every player sees the same dice, movement, money, assets, buildings, events, rent, Prison status, trade offers, bankruptcy, and winner.
+- Each browser can act only for its own player. Auctions authorize the current bidder, a trade offer authorizes its recipient, and an event debt authorizes its debtor, even outside their normal turn.
 - Refresh or reopen the room link **in the same browser profile** to recover your seat. Supabase retains the game; the browser retains your anonymous identity.
 - **Rejoin codes:** select **Show rejoin code** on the room status line to see your private 8-character code (like `ABCD-2345`). On another device, or after clearing browser data, choose **Join Game → Already have a seat? Rejoin with a code**, enter the room code and your rejoin code, and your seat, cash, and properties move to that device. Whoever holds the code can move the seat, so keep it private. Bots have no codes.
 - **Exit game** (top bar) leaves a running game for good: your properties and buildings return to the bank and play continues. It is unavailable during an auction or unpaid payment.
 - Connection status uses a separate heartbeat for every tab. An abrupt disconnect is marked offline after approximately 45 seconds. A clean tab departure is reported immediately where the browser permits it.
-- Each player has 90 seconds to act. When time runs out, any connected player's browser asks the server to pass the turn: an open offer is skipped, an event is applied, an auction bid is passed, and a pending payment is settled (or the player goes bankrupt if their assets cannot cover it).
+- Each player has 90 seconds to act. When time runs out, any connected player's browser asks the server to pass the turn: an open offer is skipped, an event is applied, an auction bid is passed, an unanswered trade offer is declined, and a pending payment is settled (or the player goes bankrupt if their assets cannot cover it).
 - Rolling doubles makes that landing a waypoint with no action; the player must roll again, and only the final landing is resolved. The Host does not need to stay online after the game starts.
 - Leaving a lobby transfers hosting to the next remaining player. Simply refreshing or briefly disconnecting does not transfer hosting.
 - An uncertain command response keeps the original request ID for safe retry, including after refresh. Known invalid/stale actions refresh the room before another attempt.
@@ -86,7 +86,9 @@ Sound can be muted in Settings; browser audio requires an initial user interacti
 
 Purchases, rent, taxes, Launch income, events, and penalties appear as short notifications at the top of the screen for every player. Player cards and deeds show individual house icons and counts; the board also displays the buildings. A tower represents the fifth development level.
 
-Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with the bank. After purchase, the owner can choose **Auction property** during their own turn, before rolling or after resolving their landing. Other players bid; the seller receives the winning amount and the buyer receives the property with its buildings. If everyone passes, the owner keeps it. Mortgaged properties must be unmortgaged first.
+Unowned properties offer **Buy** or **Skip**. Skipping sends the property to a bank auction where every player, including the one who skipped, can bid; the bank keeps the winning bid. After purchase, the owner can choose **Auction property** during their own turn, before rolling or after resolving their landing. Other players bid; the seller receives the winning amount and the buyer receives the property with its buildings. If everyone passes, the owner keeps it. Mortgaged properties must be unmortgaged first.
+
+**Trading:** on your turn, before rolling or after resolving your move, choose **Propose trade** (action card or Assets) to offer any player properties and/or cash for their properties and/or cash. The other player accepts or declines; an unanswered offer is declined after 90 seconds. Properties in a color that has buildings cannot be traded, and mortgages move with the property. You can make up to 3 offers per turn. Bots accept offers they consider fair and may offer cash for the last property they need to complete a set.
 
 ## Architecture and integrity
 
@@ -124,7 +126,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs 36 rule checks, 16 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games, rents by role, building permission, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
+`npm test` runs 41 rule checks, 18 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, full-set and even building, trades, bank auctions, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
 
 Deterministic two-browser UI checks use the Playwright CLI. Start the app with `npm run dev` first, then open it at `localhost` (the Next.js dev server rejects `127.0.0.1`):
 
@@ -135,7 +137,7 @@ npx playwright-cli -s=market-online run-code --filename=output/playwright/online
 npx playwright-cli -s=market-online close
 ```
 
-These 59 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
+These 69 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
 
 For a **real internet/Supabase smoke test**, configure a test Supabase project with anonymous sign-ins and the migration, start the Next app against it, and run:
 
@@ -151,11 +153,16 @@ Before inviting friends, also open the deployed link on two different devices/ne
 
 ## Rules
 
-Everyone begins with $1,500 and the last financially active player wins. The 40 spaces, property names, two 15-card event decks, mortgages, taxes, detention, and bankruptcy work as before. The in-game **How to play** dialog has the full rules. Changes from the original version:
+Everyone begins with $1,500 and the last financially active player wins. All players follow one classic rule set; there are no roles. The in-game **How to play** dialog has the full rules.
 
-- **Rent by role:** an undeveloped property charges a Monopolist owner's higher rate (about 2.5× base rent) whether or not they own the whole color; Competitors charge base rent.
-- **Building:** you can build only on the property your token landed on this turn, after the dice moved you there. A newly bought property must be landed on again on a later turn before its first build. Monopolists also need at least 2 unmortgaged properties of that color.
-- **Doubles:** a doubles landing is a waypoint with no purchase, rent, tax, or event. You must roll again; only the final landing resolves, and End turn stays disabled until then. Three doubles in a row still sends you to Prison or Price War.
-- **Prison and Price War:** a detained turn offers **Roll for doubles** and **Pay $50 to leave** side by side.
+- **Buying:** unowned property costs its listed price. Skipping it starts a bank auction for every player.
+- **Rent:** undeveloped land charges base rent, doubled when the owner holds the whole color group. Houses and the tower use the rent table on each deed. Transit stations charge $25 with one and $50 with both; utilities charge the dice total ×4, or ×10 with both. Mortgaged property collects no rent. Rent is still collected while in Prison.
+- **Building:** own every property of a color, none mortgaged. Build at any point in your turn (no need to land on it), evenly across the set, at the district price per level. Sell evenly for half the cost.
+- **Mortgages:** half the price; sell every building in the color first. Unmortgage for the value plus 10%.
+- **Trading:** properties and cash between players, as described above.
+- **Taxes and spaces:** Business Tax $200, Wealth Tax $100, Free Market does nothing, City Bank pays $50, Open Auction offers a random unowned property.
+- **Prison:** the Go to Prison corner, some event cards, or three doubles in a row. Roll doubles, pay $50 before rolling, or pay $50 after three failed rolls. Landing on Prison normally is just a visit.
+- **Doubles:** a doubles landing is a waypoint with no purchase, rent, tax, or event. You must roll again; only the final landing resolves, and End turn stays disabled until then.
 - **Turn timer:** 90 seconds of inactivity passes the turn, as described above.
-- **Auctions** start only when an owner chooses to sell; the auction space offers an unowned property for purchase first. Existing saved bank auctions can still finish.
+
+Games saved under the earlier two-role version still load: roles are ignored and a Price War detention becomes Prison.

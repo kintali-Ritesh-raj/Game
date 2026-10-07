@@ -6,8 +6,8 @@ import MarketWars from '../lib/game-engine.cjs';
 import type { GameState, Room } from '../lib/types';
 
 const members = [
-  { name: 'Host', user_id: 'host', seat: 0, role: 'monopolist' as const, token: 'briefcase' as const },
-  { name: 'Guest', user_id: 'guest', seat: 1, role: 'competitor' as const, token: 'rocket' as const },
+  { name: 'Host', user_id: 'host', seat: 0, token: 'briefcase' as const },
+  { name: 'Guest', user_id: 'guest', seat: 1, token: 'rocket' as const },
 ];
 const lobby = (): Room => ({ code: 'AB12CD', host_id: 'host', members: structuredClone(members), member_ids: ['host', 'guest'], status: 'lobby', revision: 1, state: null, transition: null, created_at: '', updated_at: '' });
 const playing = (): Room => { const room = lobby(); room.state = startGame(room, 'host'); room.status = 'playing'; return room; };
@@ -17,8 +17,6 @@ const saved = (game: ReturnType<typeof fixture>) => JSON.parse(game.serialize())
 test('Host authorization, membership, and unchanged starting rules', () => {
   assert.throws(() => startGame(lobby(), 'guest'), /Only the Host/);
   assert.throws(() => startGame(lobby(), 'outsider'), /not a player/);
-  const room = lobby(); room.members[1].role = 'monopolist';
-  assert.throws(() => startGame(room, 'host'), /at least one Monopolist/);
   const state = startGame(lobby(), 'host');
   assert.deepEqual(state.players.map(p => p.cash), [1500, 1500]);
   assert.equal(state.phase, 'ready');
@@ -65,17 +63,36 @@ test('Only the current auction bidder can bid or pass', async () => {
   assert.equal(bid.state.players[0].cash, 1510);
 });
 
-test('Only the owner can offer a purchased property and skipping never starts an auction', async () => {
+test('Only the owner can offer a purchased property; skipping starts a bank auction for everyone', async () => {
   const room = playing(), game = fixture();
   game.state.phase = 'moving'; game.state.players[0].position = 1; game.resolveSpace(); room.state = saved(game);
   await assert.rejects(applyGameAction(room, 'host', { action: 'auction', id: 1 }), /owner/);
   const skipped = await applyGameAction(room, 'host', { action: 'skip' });
-  assert.equal(skipped.state.properties[1].owner, null); assert.equal(skipped.state.auction, null);
+  assert.equal(skipped.state.properties[1].owner, null); assert.equal(skipped.state.auction?.seller, null); assert.deepEqual(skipped.state.auction?.order, [0, 1]);
+  await assert.rejects(applyGameAction({ ...room, state: skipped.state }, 'host', { action: 'buy' }), /auction/);
   room.state = (await applyGameAction(room, 'host', { action: 'buy' })).state;
   await assert.rejects(applyGameAction(room, 'guest', { action: 'auction', id: 1 }), /acting player/);
   room.state = (await applyGameAction(room, 'host', { action: 'auction', id: 1 })).state;
   assert.equal(room.state.auction?.seller, 0); assert.deepEqual(room.state.auction?.order, [1]);
   assert.throws(() => command({ action: 'auction' }), /Invalid property/);
+});
+
+test('Only the current player proposes a trade and only its recipient answers it', async () => {
+  const room = playing(); room.state!.properties['2'].owner = 1;
+  const offer = { to: 1, give: { cash: 100, properties: [] }, get: { cash: 0, properties: [2] } };
+  await assert.rejects(applyGameAction(room, 'guest', { action: 'trade', trade: { ...offer, to: 0 } }), /acting player/);
+  room.state = (await applyGameAction(room, 'host', { action: 'trade', trade: offer })).state;
+  assert.equal(room.state.phase, 'trade');
+  await assert.rejects(applyGameAction(room, 'host', { action: 'accept-trade' }), /acting player/);
+  await assert.rejects(applyGameAction(room, 'guest', { action: 'roll' }), /acting player/);
+  await assert.rejects(applyGameAction(room, 'host', { action: 'roll' }), /trade offer must be answered/);
+  const accepted = await applyGameAction(room, 'guest', { action: 'accept-trade' });
+  assert.equal(accepted.state.properties['2'].owner, 0); assert.equal(accepted.state.players[0].cash, 1400); assert.equal(accepted.state.phase, 'ready');
+  const rejected = await applyGameAction(room, 'guest', { action: 'reject-trade' });
+  assert.equal(rejected.state.properties['2'].owner, 1); assert.equal(rejected.state.players[0].cash, 1500);
+  assert.deepEqual(command({ action: 'trade', trade: offer, extra: 1 }), { action: 'trade', trade: offer });
+  for (const bad of [{ ...offer, to: 9 }, { ...offer, give: { cash: 1.5, properties: [] } }, { ...offer, get: { cash: 0, properties: ['2'] } }, null])
+    assert.throws(() => command({ action: 'trade', trade: bad }), /Invalid trade/);
 });
 
 test('Only the off-turn debtor can liquidate, settle, or declare bankruptcy', async () => {
@@ -126,5 +143,6 @@ test('Revision and input validation reject stale or malformed requests', () => {
   assert.throws(() => command({ action: 'build', id: 100 }), /property/);
   assert.throws(() => command({ action: 'bid', increment: 10.5 }), /whole amount/);
   assert.throws(() => command({ action: 'replace-state' }), /Unknown/);
-  assert.throws(() => profile({ name: 'A', role: 'admin', token: 'rocket' }), /role/);
+  assert.throws(() => profile({ name: 'A', token: 'admin' }), /token/);
+  assert.deepEqual(profile({ name: ' A ', role: 'monopolist', token: 'rocket' }), { name: 'A', token: 'rocket' }, 'Legacy role fields are dropped');
 });

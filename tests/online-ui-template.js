@@ -90,7 +90,7 @@ async (page) => {
   await page.getByRole('button',{name:'Copy Code',exact:true}).click();
   assert((await page.locator('.copy-status').textContent()).length>0,'Copy Code gives feedback');
   await guest.goto('http://localhost:3000/game/AB12CD');await guest.locator('#online-name').fill('Guest');
-  await guest.locator('#online-role').selectOption('competitor');await guest.locator('#online-token').selectOption('rocket');
+  await guest.locator('#online-token').selectOption('rocket');
   await guest.getByRole('button',{name:'Join lobby',exact:true}).click();await guest.locator('#room-code-display').waitFor();
   await page.getByText('Guest',{exact:true}).waitFor();
   assert(await guest.getByRole('button',{name:'Start Game'}).count()===0,'Guest cannot see a Start Game button');
@@ -110,7 +110,7 @@ async (page) => {
   await page.locator('#board-center .dice.rolling').waitFor();
   assert(await page.locator('#turn-action-card .dice.rolling').count()===1,'Dice animate on both the board and action card');
   await page.locator('#modal [data-action=buy]').waitFor();
-  assert(await page.locator('#modal [data-action=auction]').count()===0,'Unowned property offers purchase or skip, never an auction');
+  assert(await page.locator('#modal [data-action=auction]').count()===0&&(await page.locator('#modal [data-action=skip]').textContent()).includes('auction'),'Unowned property offers purchase, or skip to a bank auction (no owner auction button)');
   assert((await page.locator('#board-center .dice-total').textContent()).includes('4 TOTAL'),'Board dice settle on the synchronized result');
   await page.locator('#modal [data-action=buy]').click();
   await guest.locator('#cash-0').filter({hasText:'$1,360'}).waitFor();
@@ -126,9 +126,9 @@ async (page) => {
   await guest.waitForFunction(()=>!document.querySelector('#board-center [data-action=roll]').disabled);
   assert(await page.locator('#board-center [data-action=roll]').isDisabled(),'Host cannot roll during guest turn');
   await guest.locator('.mobile-controls [data-action=roll]').click();
-  await page.locator('#cash-0').filter({hasText:'$1,390'}).waitFor();
-  assert(await guest.locator('#cash-1').textContent()==='$1,470','Rent deducted on the guest device');
-  assert(await page.locator('#cash-0').textContent()==='$1,390','Rent credited on the host device');
+  await page.locator('#cash-0').filter({hasText:'$1,372'}).waitFor();
+  assert(await guest.locator('#cash-1').textContent()==='$1,488','Rent deducted on the guest device');
+  assert(await page.locator('#cash-0').textContent()==='$1,372','Rent credited on the host device');
   await guest.waitForFunction(()=>window.__audioCalls.some(s=>s.endsWith('/faah_sound.mpeg')));
   const sound=await guest.evaluate(()=>window.__audioCalls);
   assert(sound.some(s=>s.endsWith('/Dice_sound.mpeg')),'Dice sound plays during online roll');
@@ -136,7 +136,7 @@ async (page) => {
   const before=await guest.locator('#turn-label').textContent();
   await guest.reload();await guest.locator('#game-screen').waitFor({state:'visible'});
   assert(await guest.locator('#turn-label').textContent()===before,'Refresh restores the same turn');
-  assert(await guest.locator('#cash-1').textContent()==='$1,470','Refresh retains money and room identity');
+  assert(await guest.locator('#cash-1').textContent()==='$1,488','Refresh retains money and room identity');
   // Go offline only once the reloaded page has attached its connection listeners.
   await guest.locator('.network-status.is-connected').waitFor();
   await guestContext.setOffline(true);
@@ -144,7 +144,7 @@ async (page) => {
   assert(await guest.locator('#board-center [data-action=end]').isDisabled(),'Offline player cannot submit moves');
   await guestContext.setOffline(false);
   await guest.waitForFunction(()=>!document.querySelector('#board-center [data-action=end]').disabled);
-  assert(await guest.locator('#cash-1').textContent()==='$1,470','Reconnect restores the latest state');
+  assert(await guest.locator('#cash-1').textContent()==='$1,488','Reconnect restores the latest state');
   await guest.setViewportSize({width:320,height:740});
   assert(await guest.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'320px phone has no page overflow');
   await guest.setViewportSize({width:390,height:844});await guest.screenshot({path:'output/playwright/online-game-mobile.png',fullPage:true});
@@ -152,7 +152,7 @@ async (page) => {
   await guest.goto('http://localhost:3000');await guest.getByRole('button',{name:'Join Game',exact:true}).click();
   await guest.locator('#join-room-code').fill('AB12CD');await guest.getByRole('button',{name:'Join lobby',exact:true}).click();
   await guest.locator('#game-screen').waitFor({state:'visible'});
-  assert(await guest.locator('#cash-1').textContent()==='$1,470','Manual room-code entry rejoins the same game');
+  assert(await guest.locator('#cash-1').textContent()==='$1,488','Manual room-code entry rejoins the same game');
   room.state=clone(fixture.extras.developed);room.revision++;room.transition={action:'build',player:0,dice:room.state.dice,path:[],sounds:['build']};broadcast('mw_rooms',room);
   await page.locator('.player-property[data-id="4"] [data-buildings="2"]').waitFor();
   assert(await page.locator('[data-pieces="4"] .piece-house').count()===2&&await page.locator('[data-pieces="4"] .piece-tower').count()===0,'Board shows two owner-coloured miniature houses on the developed property');

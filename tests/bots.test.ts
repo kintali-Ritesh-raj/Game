@@ -5,29 +5,29 @@ import MarketWars from '../lib/game-engine.cjs';
 import {applyGameAction,startGame} from '../lib/game-actions';
 import {addBotMembers,removeBotMembers,membersAfterLeaving} from '../lib/lobby-bots';
 import {chooseBotAction} from '../lib/bot-strategy';
-import {botReadyAt,botSeat} from '../lib/bot-timing';
+import {actingSeat,botReadyAt,botSeat} from '../lib/bot-timing';
 import {profile} from '../lib/validation';
 import type {Room} from '../lib/types';
 
 function lobby():Room {
-  const host={name:'Human',role:'monopolist' as const,token:'briefcase' as const,user_id:randomUUID(),seat:0};
+  const host={name:'Human',token:'briefcase' as const,user_id:randomUUID(),seat:0};
   return {code:'BOT123',host_id:host.user_id,members:[host],member_ids:[host.user_id],status:'lobby',revision:0,state:null,transition:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
 }
-function add(room:Room,role:'monopolist'|'competitor'='competitor') {
-  room.members=addBotMembers(room,room.host_id,room.revision,role);room.member_ids=room.members.map(m=>m.user_id);room.revision++;
+function add(room:Room) {
+  room.members=addBotMembers(room,room.host_id,room.revision);room.member_ids=room.members.map(m=>m.user_id);room.revision++;
 }
 function playing() { const room=lobby();add(room);room.state=startGame(room,room.host_id);room.status='playing';return room; }
 async function step(room:Room) {
   const command=chooseBotAction(room.state!);assert.ok(command,'every actionable phase has a decision');
-  const seat=room.state!.pending?.payer??room.state!.auction?.bidder??room.state!.currentPlayer;
+  const seat=actingSeat(room.state!);
   const result=await applyGameAction(room,room.members[seat].user_id,command);room.state=result.state;return command;
 }
 
 test('Host adds up to three distinct bots; humans cannot submit bot profiles or manage another host lobby',()=>{
-  const room=lobby();add(room);add(room,'monopolist');add(room);
+  const room=lobby();add(room);add(room);add(room);
   assert.equal(room.members.length,4);assert.equal(new Set(room.members.map(m=>m.token)).size,4);assert.equal(new Set(room.member_ids).size,4);
   assert.throws(()=>add(room),/full/);
-  assert.throws(()=>addBotMembers(room,room.members[1].user_id,room.revision,'competitor'),/Only the Host/);
+  assert.throws(()=>addBotMembers(room,room.members[1].user_id,room.revision),/Only the Host/);
   const clean=profile({...room.members[0],type:'bot'});assert.equal('type' in clean,false);
   const started=startGame(room,room.host_id);assert.deepEqual(started.players.map(p=>p.type),['human','bot','bot','bot']);
   room.status='playing';assert.throws(()=>removeBotMembers(room,room.host_id,room.revision,room.members[1].user_id),/before/);
@@ -62,13 +62,27 @@ test('Bot buys within budget, skips expensive offers, and bids without overspend
   assert.equal((await step(room)).action,'bid');assert.equal(room.state!.properties[2].owner,1);assert.equal(room.state!.players[0].cash,1510);
 });
 test('Bot develops allowed assets, unmortgages, takes doubles, and pays detention when affordable',async()=>{
-  const room=playing();room.state!.currentPlayer=1;room.state!.phase='end';room.state!.properties[1].owner=1;room.state!.players[1].position=1;room.state!.hasRolled=true;
+  const room=playing();room.state!.currentPlayer=1;room.state!.phase='end';room.state!.properties[1].owner=1;room.state!.properties[2].owner=1;room.state!.players[1].position=1;room.state!.hasRolled=true;
   assert.equal((await step(room)).action,'build');assert.equal(room.state!.properties[1].buildings,1);
   room.state!.extraRoll=true;assert.equal((await step(room)).action,'roll');
   room.state!.phase='end';room.state!.extraRoll=false;room.state!.properties[2].owner=1;room.state!.properties[2].mortgaged=true;
   assert.equal((await step(room)).action,'unmortgage');
-  room.state!.phase='ready';room.state!.players[1].penalty={kind:'pricewar',attempts:0};
+  room.state!.phase='ready';room.state!.players[1].penalty={kind:'prison',attempts:0};
   assert.equal((await step(room)).action,'release');assert.equal(room.state!.players[1].penalty,null);
+});
+test('Bots accept fair trades, refuse to hand over a set cheaply, and offer cash for the last property of a set',async()=>{
+  const room=playing();room.state!.properties[1].owner=0;room.state!.properties[2].owner=1;room.state!.properties[9].owner=1;
+  room.state!.phase='trade';room.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:150,properties:[]},get:{cash:0,properties:[2]}};
+  assert.equal(chooseBotAction(room.state!)!.action,'reject-trade','$150 is too little for the property that completes the rival set');
+  room.state!.trade.give.cash=250;assert.equal(chooseBotAction(room.state!)!.action,'accept-trade');
+  room.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:0,properties:[1]},get:{cash:0,properties:[9]}};
+  assert.equal(chooseBotAction(room.state!)!.action,'accept-trade','a property that completes the bot set is worth more to it');
+  const proposer=playing();proposer.state!.currentPlayer=1;proposer.state!.phase='end';proposer.state!.properties[1].owner=1;proposer.state!.properties[2].owner=0;
+  const offer=await step(proposer);assert.equal(offer.action,'trade');assert.deepEqual(offer.trade!.get.properties,[2]);assert.ok(offer.trade!.give.cash>=240);
+  assert.equal(proposer.state!.phase,'trade');assert.equal((await step(proposer)).action,'accept-trade');assert.equal(proposer.state!.properties[2].owner,1);
+  assert.equal((await step(proposer)).action,'build','the completed set is developed at once');
+  proposer.state!.phase='end';proposer.state!.tradesThisTurn=0;proposer.state!.properties[2].owner=0;proposer.state!.properties[1].buildings=0;
+  assert.notEqual(chooseBotAction(proposer.state!)!.action,'trade','the same offer is not repeated straight away');
 });
 test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolvent bots go bankrupt',async()=>{
   const room=playing();
@@ -81,7 +95,7 @@ test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolven
 });
 test('Bot strategy completes 2- and 4-seat games, survives refresh, and never violates money or building rules',async()=>{
   for(const count of [2,4]) {
-    const room=lobby();while(room.members.length<count)add(room,room.members.length%2?'competitor':'monopolist');
+    const room=lobby();while(room.members.length<count)add(room);
     room.state=startGame(room,room.host_id);room.status='playing';let actions=0;
     while(room.state!.phase!=='victory'&&actions++<15000) {
       await step(room);

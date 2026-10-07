@@ -1,4 +1,4 @@
-import { ACTIONS, type Command, type Profile } from './types';
+import { ACTIONS, type Command, type Profile, type TradeOffer } from './types';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -10,9 +10,8 @@ export function roomCode(value: string) {
 }
 export function profile(value: Record<string, unknown>): Profile {
   if (typeof value.name !== 'string' || !value.name.trim() || value.name.trim().length > 20) throw new ApiError(400, 'Choose a name of 1–20 characters.');
-  if (!['monopolist', 'competitor'].includes(String(value.role))) throw new ApiError(400, 'Choose an economic role.');
   if (!['briefcase', 'rocket', 'building', 'car', 'coin', 'crown', 'factory', 'laptop'].includes(String(value.token))) throw new ApiError(400, 'Choose a valid token.');
-  return { name: value.name.trim(), role: value.role, token: value.token } as Profile;
+  return { name: value.name.trim(), token: value.token } as Profile;
 }
 export function requestId(value: unknown) {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) throw new ApiError(400, 'Invalid request identifier.');
@@ -26,7 +25,19 @@ export function command(value: Record<string, unknown>): Command {
   if (!ACTIONS.includes(value.action as Command['action'])) throw new ApiError(400, 'Unknown game action.');
   if (['build', 'sell', 'mortgage', 'unmortgage', 'auction'].includes(String(value.action)) && (!Number.isInteger(value.id) || Number(value.id) < 0 || Number(value.id) > 39)) throw new ApiError(400, 'Invalid property.');
   if (value.action === 'bid' && (!Number.isSafeInteger(value.increment) || Number(value.increment) < 10)) throw new ApiError(400, 'The bid increment must be a whole amount of at least $10.');
+  if (value.action === 'trade') return { action: 'trade', trade: tradeOffer(value.trade) };
   return { action: value.action, id: value.id, increment: value.increment } as Command;
+}
+function tradeOffer(value: unknown): TradeOffer {
+  const offer = value as Record<string, unknown> | null;
+  const side = (raw: unknown) => {
+    const item = raw as Record<string, unknown> | null;
+    if (!item || typeof item !== 'object' || !Number.isSafeInteger(item.cash) || Number(item.cash) < 0 || Number(item.cash) > 10_000_000
+      || !Array.isArray(item.properties) || item.properties.length > 28 || item.properties.some(id => !Number.isInteger(id) || id < 0 || id > 39)) throw new ApiError(400, 'Invalid trade offer.');
+    return { cash: Number(item.cash), properties: [...item.properties] as number[] };
+  };
+  if (!offer || typeof offer !== 'object' || !Number.isInteger(offer.to) || Number(offer.to) < 0 || Number(offer.to) > 3) throw new ApiError(400, 'Invalid trade offer.');
+  return { to: Number(offer.to), give: side(offer.give), get: side(offer.get) };
 }
 export async function jsonBody(request: Request): Promise<Record<string, unknown>> {
   const raw = await request.text();
