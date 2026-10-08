@@ -13,6 +13,7 @@ declare class Game {
   groupSpaces(group:string):Space[];
   buildingCost(player:GameState['players'][number],space:Space):number;
   buildReason(player:GameState['players'][number],id:number):string;
+  calculateRent(id:number,diceTotal?:number):number;
   completeGroup(player:GameState['players'][number],group:string):boolean;
   tradeReason(from:number,offer:unknown):string;
   proposeTrade(offer?:unknown):void; acceptTrade():void; rejectTrade(reason?:string):void;

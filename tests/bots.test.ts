@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import MarketWars from '../lib/game-engine.cjs';
 import {applyGameAction,startGame} from '../lib/game-actions';
 import {addBotMembers,removeBotMembers,membersAfterLeaving} from '../lib/lobby-bots';
-import {chooseBotAction} from '../lib/bot-strategy';
+import {chooseBotAction,timeoutCommand} from '../lib/bot-strategy';
 import {actingSeat,botReadyAt,botSeat} from '../lib/bot-timing';
 import {profile} from '../lib/validation';
 import type {Room} from '../lib/types';
@@ -83,6 +83,21 @@ test('Bots accept fair trades, refuse to hand over a set cheaply, and offer cash
   assert.equal((await step(proposer)).action,'build','the completed set is developed at once');
   proposer.state!.phase='end';proposer.state!.tradesThisTurn=0;proposer.state!.properties[2].owner=0;proposer.state!.properties[1].buildings=0;
   assert.notEqual(chooseBotAction(proposer.state!)!.action,'trade','the same offer is not repeated straight away');
+});
+test('A timed-out Prison turn pays the $50 fine, mortgaging the lowest-rent land first when cash is short',async()=>{
+  const room=playing();const s=room.state!;s.players[0].penalty={kind:'prison',attempts:1};s.players[0].position=10;
+  const forced=async()=>{const command=timeoutCommand(room.state!);room.state=(await applyGameAction(room,room.members[actingSeat(room.state!)].user_id,command)).state;return command;};
+  assert.equal((await forced()).action,'release');assert.equal(room.state!.players[0].cash,1450);assert.equal(room.state!.players[0].penalty,null);
+  assert.equal((await forced()).action,'timeout');assert.equal(room.state!.currentPlayer,1,'the turn then passes');
+  const poor=playing();poor.state!.players[0].penalty={kind:'prison',attempts:0};poor.state!.players[0].position=10;poor.state!.players[0].cash=10;
+  for(const id of [1,37,39])poor.state!.properties[id].owner=0; // rents $8, $34 and $42
+  room.state=poor.state;const steps=[];
+  for(let i=0;i<6&&room.state!.currentPlayer===0;i++)steps.push(await forced());
+  assert.deepEqual(steps.map(c=>c.action+(('id' in c && c.id)||'')),['release','mortgage1','settle','timeout'],'only Beacon Wharf (lowest rent) is mortgaged');
+  assert.equal(room.state!.properties[1].mortgaged,true);assert.equal(room.state!.properties[37].mortgaged,false);assert.equal(room.state!.players[0].cash,10);
+  assert.equal(room.state!.players[0].penalty,null);
+  const broke=playing();broke.state!.players[0].penalty={kind:'prison',attempts:0};broke.state!.players[0].cash=20;room.state=broke.state;
+  assert.equal((await forced()).action,'release');assert.equal((await forced()).action,'bankrupt');assert.equal(room.state!.phase,'victory');
 });
 test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolvent bots go bankrupt',async()=>{
   const room=playing();

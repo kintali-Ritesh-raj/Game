@@ -161,7 +161,7 @@ Everyone begins with $1,500 and the last financially active player wins. All pla
 - **Mortgages:** half the price; sell every building in the color first. Unmortgage for the value plus 10%.
 - **Trading:** properties and cash between players, as described above.
 - **Taxes and spaces:** Business Tax $200, Wealth Tax $100, Free Market does nothing, City Bank pays $50, Open Auction offers a random unowned property.
-- **Prison:** the Go to Prison corner, some event cards, or three doubles in a row. Roll doubles, pay $50 before rolling, or pay $50 after three failed rolls. Landing on Prison normally is just a visit.
+- **Prison:** the Go to Prison corner, some event cards, or three doubles in a row. Roll doubles, pay $50 before rolling, or pay $50 after three failed rolls. If a detained player's 90 seconds run out, the $50 fine is paid automatically; when cash is short, their lowest-rent property is mortgaged first. Landing on Prison normally is just a visit.
 - **Doubles:** a doubles landing is a waypoint with no purchase, rent, tax, or event. You must roll again; only the final landing resolves, and End turn stays disabled until then.
 - **Turn timer:** 90 seconds of inactivity passes the turn, as described above.
 

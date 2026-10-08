@@ -44,6 +44,30 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
   return offers[0]?.offer || null;
 }
 
+/**
+ * The forced move when a human's turn timer runs out. A detained player pays the $50 fine;
+ * if that fine cannot be paid in cash, their lowest-rent property is mortgaged first.
+ */
+export function timeoutCommand(state: GameState): Command | { action: 'timeout' } {
+  const game = MarketWars.Game.restore(JSON.stringify(state));
+  const player = game.player(actingSeat(state));
+  if (state.auction) return {action:'pass'};
+  if (state.trade) return {action:'reject-trade'};
+  if (state.pending) {
+    if (!/penalty release/.test(state.pending.reason)) return chooseBotAction(state)!;
+    if (player.cash >= state.pending.amount) return {action:'settle'};
+    if (game.liquidatable(player) < state.pending.amount) return {action:'bankrupt'};
+    const rent = (id:number) => game.calculateRent(id, 7);
+    const collateral = game.owned(player).filter(space => !game.mortgageReason(player, space.id)).sort((a, b) => rent(a.id) - rent(b.id) || a.price - b.price)[0];
+    if (collateral) return {action:'mortgage', id:collateral.id};
+    const developed = game.owned(player).filter(space => !game.sellReason(player, space.id)).sort((a, b) => rent(a.id) - rent(b.id))[0];
+    return developed ? {action:'sell', id:developed.id} : {action:'bankrupt'};
+  }
+  if (state.phase === 'event') return {action:'apply-event'};
+  if (state.phase === 'ready' && player.penalty) return {action:'release'};
+  return {action:'timeout'};
+}
+
 /** Chooses legal moves from public information; never reads future event cards. */
 export function chooseBotAction(state: GameState): Command | null {
   const game = MarketWars.Game.restore(JSON.stringify(state));

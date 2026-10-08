@@ -3,7 +3,7 @@ import MarketWars from './game-engine.cjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyGameAction, memberIndex, requireRevision } from './game-actions';
 import { actingSeat, idleSeat, turnDeadline } from './bot-timing';
-import { chooseBotAction } from './bot-strategy';
+import { timeoutCommand } from './bot-strategy';
 import { readGameRoom, roomRpc } from './room-store';
 import { ApiError } from './validation';
 import type { Room, Transition } from './types';
@@ -24,12 +24,7 @@ export async function expireTurn(db: SupabaseClient, room: Room, requester: stri
     const state = current.state!;
     const acting = actingSeat(state);
     if (acting !== seat || state.phase === 'victory') break;
-    let result;
-    if (state.auction) result = await applyGameAction(current, actor, { action: 'pass' });
-    else if (state.trade) result = await applyGameAction(current, actor, { action: 'reject-trade' });
-    else if (state.pending) result = await applyGameAction(current, actor, chooseBotAction(state)!);
-    else if (state.phase === 'event') result = await applyGameAction(current, actor, { action: 'apply-event' });
-    else result = await applyGameAction(current, actor, { action: 'timeout' });
+    const result = await applyGameAction(current, actor, timeoutCommand(state));
     current = { ...current, state: result.state };
     transition = result.transition;
     // An auction pass, an unanswered trade or an off-turn debt only releases this player; the turn itself continues.
