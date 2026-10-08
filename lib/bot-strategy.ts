@@ -15,10 +15,10 @@ function completesWith(game:Engine, seat:number, id:number, extra:number[] = [])
   const space = MarketWars.BOARD[id];
   return game.groupSpaces(space.group).every(item => item.id === id || extra.includes(item.id) || game.asset(item.id).owner === seat);
 }
-// What a property is worth to its next holder: the price, doubled when it finishes their set.
+// What a property is worth to its next holder: the price (doubled when it finishes their set) plus its buildings at cost.
 function worthTo(game:Engine, seat:number, id:number, extra:number[]) {
   const space = MarketWars.BOARD[id], base = game.asset(id).mortgaged ? space.price * .45 : space.price;
-  return completesWith(game, seat, id, extra) ? base * 2 : base;
+  return (completesWith(game, seat, id, extra) ? base * 2 : base) + game.asset(id).buildings * space.buildingCost;
 }
 /** Accept when what the bot receives is worth at least what it gives up, counting a set it would hand over. */
 export function acceptsTrade(game:Engine, trade:TradeOffer & { from:number }) {
@@ -45,7 +45,7 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
     if (!mine || mine < theirs) return [];
     const completes = completesWith(game, bot.id, space.id);
     if (human(owner) && !completes) return [];
-    const cash = Math.ceil(space.price * (completes ? 2 : 1.5) / 10) * 10 + 10;
+    const cash = Math.ceil((space.price * (completes ? 2 : 1.5) + game.asset(space.id).buildings * space.buildingCost) / 10) * 10 + 10;
     if (bot.cash < cash + 150) return [];
     const offer = { to: owner, give: { cash, properties: [] }, get: { cash: 0, properties: [space.id] } };
     return game.tradeReason(bot.id, offer) ? [] : [{ offer, completes, price: space.price }];

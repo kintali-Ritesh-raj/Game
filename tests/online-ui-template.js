@@ -174,7 +174,7 @@ async (page) => {
   assert(await page.locator('[data-pieces="4"] .piece-house').count()===2&&await page.locator('[data-pieces="4"] .piece-tower').count()===0,'Board shows two owner-coloured miniature houses on the developed property');
   assert(await page.locator('[data-pieces="4"] .piece-badge').getAttribute('data-owner')==='0','Ownership shield uses the owner (Host) while the colour band keeps the property group');
   await page.locator('#turn-action-card [data-action=trade-compose]').click();await page.locator('#trade-target').waitFor();
-  assert(await page.locator('.trade-side').first().locator('.trade-item.blocked').count()===3&&(await page.locator('.trade-side').first().innerText()).includes('Sell them to trade it'),'Trade window lists properties in a colour with buildings, greyed out with the reason');
+  assert(await page.locator('.trade-side').first().locator('[data-trade-side=give]:not([disabled])').count()===3&&(await page.locator('.trade-side').first().innerText()).includes('2 HOUSES'),'Every owned property can be offered, houses included, and the houses are shown');
   assert((await page.locator('.trade-side').nth(1).innerText()).includes('owns no properties yet'),'Trade window says when the other player owns nothing');
   await page.locator('#modal [data-action=close]').first().click();
   for(const width of [390,1366,1920]){

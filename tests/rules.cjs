@@ -269,11 +269,17 @@ test('trades swap properties and cash once the other player accepts', () => {
   assert.equal(swap.asset(1).owner, 1); assert.equal(swap.asset(4).owner, 0); assert.ok(swap.asset(4).mortgaged, 'mortgages travel with the property');
   assert.equal(swap.player(0).cash, 1530);
 });
+test('properties with houses can be traded; the houses move with them and the new owner must land there to build', () => {
+  const game = create(); own(game, 1); own(game, 2); own(game, 4, 1); own(game, 6, 1); game.asset(1).buildings = 2; game.asset(6).buildings = 1;
+  game.proposeTrade({ to: 1, give: { cash: 0, properties: [1] }, get: { cash: 100, properties: [6] } }); game.acceptTrade();
+  assert.equal(game.asset(1).owner, 1); assert.equal(game.asset(1).buildings, 2, 'houses travel with the property');
+  assert.equal(game.asset(6).owner, 0); assert.equal(game.asset(6).buildings, 1);
+  assert.equal(game.asset(1).ready, false); assert.equal(game.asset(6).ready, false);
+});
 test('rejected and invalid trades change nothing', () => {
   const game = create(3); own(game, 1); own(game, 2); own(game, 4, 1); game.asset(1).buildings = 1;
   const bad = (offer, pattern) => assert.throws(() => game.proposeTrade(offer), pattern);
   bad({ to: 0, give: { cash: 0, properties: [] }, get: { cash: 0, properties: [4] } }, /another active player/);
-  bad({ to: 1, give: { cash: 0, properties: [2] }, get: { cash: 0, properties: [] } }, /Sell every building/);
   bad({ to: 1, give: { cash: 0, properties: [4] }, get: { cash: 0, properties: [] } }, /own every property/);
   bad({ to: 1, give: { cash: 2000, properties: [] }, get: { cash: 0, properties: [4] } }, /does not have/);
   bad({ to: 1, give: { cash: 50, properties: [] }, get: { cash: 0, properties: [] } }, /at least one property/);
