@@ -45,3 +45,10 @@
 
 .theme-toggle{font-size:18px;line-height:1}
 .exit-game{color:var(--red)!important}
+
+/* Deed and offer banners: dark card so the owner line, group name and price stay readable. */
+:root[data-theme=dark] .detail-banner{background:var(--panel-raised);border-color:var(--line);border-left-color:var(--group-color)}
+:root[data-theme=dark] .detail-banner .role-badge{color:var(--muted)!important}
+:root[data-theme=dark] .detail-banner :is(h3,.property-owner,.property-owner b){color:var(--text)}
+:root[data-theme=dark] .detail-banner>span{color:var(--gold)}
+:root[data-theme=dark] .modal-close{background:var(--panel-raised);color:var(--text);border-color:var(--line)}

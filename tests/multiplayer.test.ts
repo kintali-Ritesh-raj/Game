@@ -63,13 +63,12 @@ test('Only the current auction bidder can bid or pass', async () => {
   assert.equal(bid.state.players[0].cash, 1510);
 });
 
-test('Only the owner can offer a purchased property; skipping starts a bank auction for everyone', async () => {
+test('Only the owner can offer a purchased property and skipping never starts an auction', async () => {
   const room = playing(), game = fixture();
   game.state.phase = 'moving'; game.state.players[0].position = 1; game.resolveSpace(); room.state = saved(game);
   await assert.rejects(applyGameAction(room, 'host', { action: 'auction', id: 1 }), /owner/);
   const skipped = await applyGameAction(room, 'host', { action: 'skip' });
-  assert.equal(skipped.state.properties[1].owner, null); assert.equal(skipped.state.auction?.seller, null); assert.deepEqual(skipped.state.auction?.order, [0, 1]);
-  await assert.rejects(applyGameAction({ ...room, state: skipped.state }, 'host', { action: 'buy' }), /auction/);
+  assert.equal(skipped.state.properties[1].owner, null); assert.equal(skipped.state.auction, null); assert.equal(skipped.state.phase, 'end');
   room.state = (await applyGameAction(room, 'host', { action: 'buy' })).state;
   await assert.rejects(applyGameAction(room, 'guest', { action: 'auction', id: 1 }), /acting player/);
   room.state = (await applyGameAction(room, 'host', { action: 'auction', id: 1 })).state;

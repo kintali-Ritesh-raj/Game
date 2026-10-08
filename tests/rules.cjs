@@ -145,15 +145,10 @@ test('auction rejects over-budget bids and invalid increments', () => {
   assert.throws(() => game.auctionBid(9), /at least/); assert.throws(() => game.auctionBid(10.5), /whole/); assert.throws(() => game.auctionBid(1501), /cover/);
   assert.equal(game.state.auction.bidder, 1); game.auctionBid(10); assert.equal(game.asset(1).owner, 1); assert.equal(game.player(0).cash, 1410);
 });
-test('a skipped property goes to a bank auction open to every player, including the one who skipped', () => {
+test('landing offers only buy or skip; skipping leaves the property with the bank and starts no auction', () => {
   const game = create(3); land(game, 1); assert.throws(() => game.startAuction(1), /owner/);
-  game.declineProperty(); assert.equal(game.state.phase, 'auction'); assert.equal(game.state.auction.seller, null);
-  assert.deepEqual([...game.state.auction.order], [0, 1, 2]); assert.equal(game.state.auction.bidder, 0);
-  game.auctionPass(); game.auctionBid(40); game.auctionBid(10); game.auctionPass();
-  assert.equal(game.asset(1).owner, 2); assert.equal(game.player(2).cash, 1450); assert.equal(game.player(0).cash, 1500, 'the bank keeps the winning bid');
-  assert.equal(game.state.phase, 'end'); assert.equal(game.state.currentPlayer, 0);
-  const unsold = create(); land(unsold, 1); unsold.declineProperty(); unsold.auctionPass(); unsold.auctionPass();
-  assert.equal(unsold.asset(1).owner, null); assert.equal(unsold.state.phase, 'end');
+  game.declineProperty(); assert.equal(game.asset(1).owner, null); assert.equal(game.state.auction, null); assert.equal(game.state.phase, 'end');
+  land(game, BOARD.find(space => space.type === 'auction').id); assert.equal(game.state.phase, 'offer'); game.declineProperty(); assert.equal(game.state.auction, null);
 });
 test('only an owner may start an auction during their turn', () => {
   const game = create(); land(game, 1); game.purchaseProperty(); assert.equal(game.state.auction, null);

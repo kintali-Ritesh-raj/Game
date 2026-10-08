@@ -86,7 +86,7 @@ Sound can be muted in Settings; browser audio requires an initial user interacti
 
 Purchases, rent, taxes, Launch income, events, and penalties appear as short notifications at the top of the screen for every player. Player cards and deeds show individual house icons and counts; the board also displays the buildings. A tower represents the fifth development level.
 
-Unowned properties offer **Buy** or **Skip**. Skipping sends the property to a bank auction where every player, including the one who skipped, can bid; the bank keeps the winning bid. After purchase, the owner can choose **Auction property** during their own turn, before rolling or after resolving their landing. Other players bid; the seller receives the winning amount and the buyer receives the property with its buildings. If everyone passes, the owner keeps it. Mortgaged properties must be unmortgaged first.
+Unowned properties offer **Buy** or **Skip**. Skipping leaves the property with the bank; there is no auction. After purchase, the owner can choose **Auction property** during their own turn, before rolling or after resolving their landing. Other players bid; the seller receives the winning amount and the buyer receives the property with its buildings. If everyone passes, the owner keeps it. Mortgaged properties must be unmortgaged first.
 
 **Trading:** on your turn, before rolling or after resolving your move, choose **Propose trade** (action card or Assets) to offer any player properties and/or cash for their properties and/or cash. The other player accepts or declines; an unanswered offer is declined after 90 seconds. Properties in a color that has buildings cannot be traded, and mortgages move with the property. You can make up to 3 offers per turn. Bots accept offers they consider fair and may offer cash for the last property they need to complete a set.
 
@@ -126,7 +126,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs 41 rule checks, 18 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, full-set and even building, trades, bank auctions, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
+`npm test` runs 41 rule checks, 18 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, full-set and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
 
 Deterministic two-browser UI checks use the Playwright CLI. Start the app with `npm run dev` first, then open it at `localhost` (the Next.js dev server rejects `127.0.0.1`):
 
@@ -155,7 +155,7 @@ Before inviting friends, also open the deployed link on two different devices/ne
 
 Everyone begins with $1,500 and the last financially active player wins. All players follow one classic rule set; there are no roles. The in-game **How to play** dialog has the full rules.
 
-- **Buying:** unowned property costs its listed price. Skipping it starts a bank auction for every player.
+- **Buying:** unowned property costs its listed price. Landing on it offers only **Buy** or **Skip**; a skipped property stays with the bank.
 - **Rent:** undeveloped land charges base rent, doubled when the owner holds the whole color group. Houses and the tower use the rent table on each deed. Transit stations charge $25 with one and $50 with both; utilities charge the dice total ×4, or ×10 with both. Mortgaged property collects no rent. Rent is still collected while in Prison.
 - **Building:** own every property of a color, none mortgaged. Build at any point in your turn (no need to land on it), evenly across the set, at the district price per level. Sell evenly for half the cost.
 - **Mortgages:** half the price; sell every building in the color first. Unmortgage for the value plus 10%.

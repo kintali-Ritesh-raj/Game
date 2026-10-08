@@ -110,7 +110,7 @@ async (page) => {
   await page.locator('#board-center .dice.rolling').waitFor();
   assert(await page.locator('#turn-action-card .dice.rolling').count()===1,'Dice animate on both the board and action card');
   await page.locator('#modal [data-action=buy]').waitFor();
-  assert(await page.locator('#modal [data-action=auction]').count()===0&&(await page.locator('#modal [data-action=skip]').textContent()).includes('auction'),'Unowned property offers purchase, or skip to a bank auction (no owner auction button)');
+  assert(await page.locator('#modal [data-action=auction]').count()===0,'Unowned property offers purchase or skip, never an auction');
   assert((await page.locator('#board-center .dice-total').textContent()).includes('4 TOTAL'),'Board dice settle on the synchronized result');
   await page.locator('#modal [data-action=buy]').click();
   await guest.locator('#cash-0').filter({hasText:'$1,360'}).waitFor();
