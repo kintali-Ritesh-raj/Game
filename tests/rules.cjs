@@ -107,6 +107,19 @@ test('every player builds on their turn without landing on the property', () => 
   game.buildStructure(1); game.buildStructure(2); assert.equal(game.asset(1).buildings, 1); assert.equal(game.asset(2).buildings, 1);
   assert.throws(() => game.buildStructure(4), /owner/);
 });
+test('newly acquired land must be landed on again before its first build; 2 of a color still required', () => {
+  const game = create(); own(game, 2); land(game, 1); game.purchaseProperty();
+  assert.equal(game.asset(1).ready, false); assert.throws(() => game.buildStructure(1), /Land on Beacon Wharf again/);
+  game.buildStructure(2); assert.equal(game.asset(2).buildings, 1);
+  game.buildStructure(2); assert.equal(game.asset(2).buildings, 2, 'land not yet revisited does not hold back even building elsewhere');
+  game.state.phase = 'moving'; game.active.position = 1; game.resolveSpace(); assert.equal(game.asset(1).ready, true);
+  game.buildStructure(1); game.buildStructure(1); assert.equal(game.asset(1).buildings, 2);
+  game.buildStructure(1); assert.throws(() => game.buildStructure(1), /evenly/, 'once unlocked it joins the even-building rule');
+  const lone = create(); land(lone, 4); lone.purchaseProperty(); lone.state.phase = 'moving'; lone.active.position = 4; lone.resolveSpace();
+  assert.equal(lone.asset(4).ready, true); assert.throws(() => lone.buildStructure(4), /at least 2/, 'landing again does not lift the color rule');
+  const traded = create(); own(traded, 1); own(traded, 2, 1); traded.proposeTrade({ to: 1, give: { cash: 200, properties: [] }, get: { cash: 0, properties: [2] } }); traded.acceptTrade();
+  assert.throws(() => traded.buildStructure(2), /again/, 'traded land must also be landed on first');
+});
 test('all five development levels, sale, cost and tower rent work', () => {
   const game = create(); own(game, 1); own(game, 2);
   for (let i = 0; i < 5; i++) { game.buildStructure(1); game.buildStructure(2); }

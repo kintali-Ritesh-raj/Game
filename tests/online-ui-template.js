@@ -226,6 +226,16 @@ async (page) => {
   await page.screenshot({path:'output/playwright/animated-event-card.png',fullPage:true});
   await guest.emulateMedia({reducedMotion:'reduce'});await guest.reload();await guest.locator('#modal .event-card').waitFor();
   assert(await guest.locator('#modal .event-card').evaluate(el=>el.getAnimations().length===0),'Reduced motion suppresses card animation and preserves event state');
+  room.state=clone(fixture.extras.debt);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#modal [data-action=settle]').waitFor();await page.locator('#modal [data-action=manager]').click();
+  await page.locator('#modal .debt-meter').waitFor();
+  assert(await page.locator('#modal .debt-bar').getAttribute('aria-valuenow')==='20'&&(await page.locator('#modal .debt-meter-status').textContent()).includes('$130 more needed'),'Portfolio shows a payment bar with the cash still needed');
+  assert(await page.locator('#modal .debt-meter [data-action=settle]').isDisabled()&&await page.locator('#modal .modal-actions [data-action=settle]').isDisabled(),'Pay stays disabled in the portfolio until the cash covers the debt');
+  await page.screenshot({path:'output/playwright/debt-meter-short.png'});
+  room.state=clone(fixture.extras.debtReady);room.revision++;room.transition={action:'sell',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#modal .debt-meter.ready').waitFor();
+  assert(await page.locator('#modal .debt-meter [data-action=settle]').isEnabled()&&(await page.locator('#modal .debt-bar i').getAttribute('style')).includes('100%'),'The bar fills and Pay unlocks once enough cash is raised');
+  await page.screenshot({path:'output/playwright/debt-meter-ready.png'});
   await guestContext.close();
   botMode=true;
   await page.goto('http://localhost:3000');await page.getByRole('button',{name:'Create Game',exact:true}).click();

@@ -296,3 +296,12 @@
   #game-board .token-layer .player-token,#game-board .board-tile{transition:none}
   .piece-badge.enter,.piece-house.enter,.piece-tower.rise,.piece-tower.rise .tower-contact,.player-token.hop .pawn-body,.player-token.hop .pawn-shadow,.piece-house.leave,.piece-badge.leave,.piece-tower.leave{animation:none}
 }
+
+/* Stations and utilities: no colour band (they can never be built on). A steel-grey
+   card with a fine engraved hatch and a line icon sets them apart from colour groups. */
+#game-board .board-tile.service{
+  background-image:var(--card-grain),repeating-linear-gradient(135deg,#0000 0 .5cqw,#1d2a2a0d .5cqw .6cqw),linear-gradient(160deg,#eef0ea 0%,#dde2dc 55%,#cbd2cc 100%);
+}
+#game-board .board-tile.service .space-icon{width:2.5cqw;height:2.5cqw}
+#game-board .board-tile.service .tile-name{--name-size:1.35cqw}
+#game-board .board-tile.service .tile-face{gap:.25cqw}
