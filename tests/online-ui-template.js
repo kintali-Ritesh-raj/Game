@@ -90,7 +90,8 @@ async (page) => {
   await page.getByRole('button',{name:'Copy Code',exact:true}).click();
   assert((await page.locator('.copy-status').textContent()).length>0,'Copy Code gives feedback');
   await guest.goto('http://localhost:3000/game/AB12CD');await guest.locator('#online-name').fill('Guest');
-  await guest.locator('#online-token').selectOption('rocket');
+  assert(await guest.locator('.token-option').count()===4,'The player form offers exactly the four colour markers');
+  await guest.locator('.token-option:has(input[value=blue])').click();
   await guest.getByRole('button',{name:'Join lobby',exact:true}).click();await guest.locator('#room-code-display').waitFor();
   await page.getByText('Guest',{exact:true}).waitFor();
   assert(await guest.getByRole('button',{name:'Start Game'}).count()===0,'Guest cannot see a Start Game button');

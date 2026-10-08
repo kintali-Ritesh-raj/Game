@@ -28,5 +28,5 @@ declare class Game {
   settleDebt():void; declareBankruptcy():void; resolveSpace():void;
   beginPayments(payments:{payer:number;creditor:number|null;amount:number;reason:string;category:string}[],continuation?:{kind:string;steps?:number}):void;
 }
-declare const MarketWars: {Game:typeof Game;BOARD:Space[];validatePlayers(players:Profile[]):string;TOKENS:Record<string,string>;COLORS:string[]};
+declare const MarketWars: {Game:typeof Game;BOARD:Space[];validatePlayers(players:Profile[]):string;TOKENS:Record<string,string>;TOKEN_COLORS:Record<string,string>;COLORS:string[]};
 export = MarketWars;

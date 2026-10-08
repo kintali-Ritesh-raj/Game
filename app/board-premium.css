@@ -47,7 +47,7 @@
 }
 
 /* Recessed board bed with a brass trim line; the raised inner wooden lip sits around it. */
-#game-board{
+:is(#game-board,#preview-board){
   --tile-font:1.62cqw;
   grid-template-columns:1.4fr repeat(9,minmax(0,1fr)) 1.4fr;
   grid-template-rows:1.4fr repeat(9,minmax(0,1fr)) 1.4fr;
@@ -57,7 +57,7 @@
   border-image:var(--gold-edge) 1;
   box-shadow:0 0 0 1px #00000099;
 }
-#game-board::before{
+:is(#game-board,#preview-board)::before{
   content:'';position:absolute;z-index:-1;pointer-events:none;
   inset:calc(-1.75cqw - .36cqw);
   border:1.75cqw solid;border-color:#a8714a #4b2a16 #3e2312 #94613d;
@@ -66,7 +66,7 @@
 }
 
 /* ── Property cards: individually made ivory cards with thickness and a contact shadow ── */
-#game-board .board-tile{
+:is(#game-board,#preview-board) .board-tile{
   container-type:normal;
   position:relative;overflow:hidden;padding:0;border:0;border-radius:.55cqw;color:#18190f;
   background-color:var(--ivory);
@@ -80,14 +80,14 @@
     .4cqw .6cqw .8cqw #000000a6;
   transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;
 }
-#game-board .board-tile:hover{transform:translate(-.06cqw,-.1cqw);filter:brightness(1.03)}
-#game-board .board-tile:focus-visible{outline:.25cqw solid #f0cf7c;outline-offset:.1cqw;z-index:4}
-#game-board .board-tile.selected{box-shadow:
+:is(#game-board,#preview-board) .board-tile:hover{transform:translate(-.06cqw,-.1cqw);filter:brightness(1.03)}
+:is(#game-board,#preview-board) .board-tile:focus-visible{outline:.25cqw solid #f0cf7c;outline-offset:.1cqw;z-index:4}
+:is(#game-board,#preview-board) .board-tile.selected{box-shadow:
     inset 0 0 0 .22cqw #d6ad55,inset 0 0 .9cqw #e6c06a66,
     0 0 0 1px #2e1d0b99,.16cqw .26cqw 0 0 #a58e5c,.4cqw .6cqw .8cqw #000000a6,0 0 1.2cqw #f0cf7c80}
-#game-board .board-tile.corner{background-image:var(--card-grain),radial-gradient(120% 120% at 25% 15%,#fffcf1 0%,#f3e8cc 50%,#e2d0a6 100%)}
-#game-board .board-tile.mortgaged{filter:saturate(.45) brightness(.94)}
-#game-board .board-tile.mortgaged::after{
+:is(#game-board,#preview-board) .board-tile.corner{background-image:var(--card-grain),radial-gradient(120% 120% at 25% 15%,#fffcf1 0%,#f3e8cc 50%,#e2d0a6 100%)}
+:is(#game-board,#preview-board) .board-tile.mortgaged{filter:saturate(.45) brightness(.94)}
+:is(#game-board,#preview-board) .board-tile.mortgaged::after{
   content:'MORTGAGED';position:absolute;left:50%;top:50%;z-index:2;pointer-events:none;
   transform:translate(-50%,-50%) rotate(-24deg);padding:.1cqw .5cqw;
   font:700 .95cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.12em;color:#8e2f24;
@@ -95,27 +95,27 @@
 }
 
 /* Colour band: a printed, varnished strip on the inner edge with its own edge shading. */
-#game-board .tile-strip{
+:is(#game-board,#preview-board) .tile-strip{
   border:0;z-index:1;
   background:linear-gradient(180deg,#ffffff59 0%,#ffffff14 38%,#0000 62%,#00000038 100%),var(--group-color);
   box-shadow:inset 0 0 0 1px #0000002e;
 }
-#game-board .edge-south .tile-strip{inset:0 0 auto 0;height:var(--band);width:auto;box-shadow:inset 0 -1px 0 #00000059,inset 0 1px 0 #ffffff66}
-#game-board .edge-north .tile-strip{inset:auto 0 0 0;height:var(--band);width:auto;box-shadow:inset 0 1px 0 #00000059,inset 0 1px 0 1px #ffffff26}
-#game-board .edge-west .tile-strip{inset:0 0 0 auto;width:var(--band);height:auto;background:linear-gradient(90deg,#00000038 0%,#0000 30%,#ffffff26 60%,#ffffff59 100%),var(--group-color);box-shadow:inset 1px 0 0 #00000059}
-#game-board .edge-east .tile-strip{inset:0 auto 0 0;width:var(--band);height:auto;background:linear-gradient(90deg,#ffffff59 0%,#ffffff1f 40%,#0000 65%,#00000038 100%),var(--group-color);box-shadow:inset -1px 0 0 #00000059}
+:is(#game-board,#preview-board) .edge-south .tile-strip{inset:0 0 auto 0;height:var(--band);width:auto;box-shadow:inset 0 -1px 0 #00000059,inset 0 1px 0 #ffffff66}
+:is(#game-board,#preview-board) .edge-north .tile-strip{inset:auto 0 0 0;height:var(--band);width:auto;box-shadow:inset 0 1px 0 #00000059,inset 0 1px 0 1px #ffffff26}
+:is(#game-board,#preview-board) .edge-west .tile-strip{inset:0 0 0 auto;width:var(--band);height:auto;background:linear-gradient(90deg,#00000038 0%,#0000 30%,#ffffff26 60%,#ffffff59 100%),var(--group-color);box-shadow:inset 1px 0 0 #00000059}
+:is(#game-board,#preview-board) .edge-east .tile-strip{inset:0 auto 0 0;width:var(--band);height:auto;background:linear-gradient(90deg,#ffffff59 0%,#ffffff1f 40%,#0000 65%,#00000038 100%),var(--group-color);box-shadow:inset -1px 0 0 #00000059}
 
 /* Card typography: condensed, high-contrast, title dominant, price secondary. */
-#game-board .tile-face{
+:is(#game-board,#preview-board) .tile-face{
   position:relative;left:auto;top:auto;transform:none;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35cqw;
   width:100%;height:100%;padding:.6cqw;
 }
-#game-board .edge-south .tile-face{padding:calc(var(--band) + var(--zone) + .3cqw) .45cqw .5cqw}
-#game-board .edge-north .tile-face{padding:.5cqw .45cqw calc(var(--band) + var(--zone) + .3cqw)}
-#game-board .edge-west .tile-face{padding:.5cqw calc(var(--side-zone) + .3cqw) .5cqw .5cqw}
-#game-board .edge-east .tile-face{padding:.5cqw .5cqw .5cqw calc(var(--side-zone) + .3cqw)}
-#game-board .tile-name{
+:is(#game-board,#preview-board) .edge-south .tile-face{padding:calc(var(--band) + var(--zone) + .3cqw) .45cqw .5cqw}
+:is(#game-board,#preview-board) .edge-north .tile-face{padding:.5cqw .45cqw calc(var(--band) + var(--zone) + .3cqw)}
+:is(#game-board,#preview-board) .edge-west .tile-face{padding:.5cqw calc(var(--side-zone) + .3cqw) .5cqw .5cqw}
+:is(#game-board,#preview-board) .edge-east .tile-face{padding:.5cqw .5cqw .5cqw calc(var(--side-zone) + .3cqw)}
+:is(#game-board,#preview-board) .tile-name{
   --name-size:1.55cqw;
   display:block;width:100%;margin:0;
   font:700 calc(var(--name-size) * var(--name-fit,1))/1 'Barlow Condensed',system-ui,sans-serif;
@@ -123,44 +123,44 @@
   overflow-wrap:normal;word-break:normal;hyphens:none;text-wrap:balance;
   text-shadow:0 1px 0 #fffbea99;
 }
-#game-board .tile-price{font:600 1.28cqw/1 'Barlow Condensed',system-ui,sans-serif;color:#3a3221;margin:0;letter-spacing:.02em}
-#game-board .tile-kind{font:600 .86cqw/1.1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.1em;color:#5d5340;text-transform:uppercase;text-align:center;max-width:100%}
-#game-board .tile-owner,#game-board .tile-buildings,#game-board .owner-mark{display:none}
+:is(#game-board,#preview-board) .tile-price{font:600 1.28cqw/1 'Barlow Condensed',system-ui,sans-serif;color:#3a3221;margin:0;letter-spacing:.02em}
+:is(#game-board,#preview-board) .tile-kind{font:600 .86cqw/1.1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.1em;color:#5d5340;text-transform:uppercase;text-align:center;max-width:100%}
+:is(#game-board,#preview-board) .tile-owner,:is(#game-board,#preview-board) .tile-buildings,:is(#game-board,#preview-board) .owner-mark{display:none}
 
 /* Special-space icons and the larger corner compositions. */
-#game-board .tile-symbol{display:block;line-height:0;opacity:1;margin:0}
-#game-board .space-icon{width:3.3cqw;height:3.3cqw;overflow:visible;filter:drop-shadow(.06cqw .1cqw 0 #ffffffb3)}
-#game-board .space-icon .icon-line{fill:none;stroke:#1d211d;stroke-linecap:round;stroke-linejoin:round}
-#game-board .space-icon .icon-rim{fill:#c99a40;stroke:#6e4c16;stroke-width:1}
-#game-board .space-icon .icon-enamel{fill:#1d3550}
-#game-board .space-icon .icon-gold-fill{fill:#f0cf7c}
-#game-board .board-tile.corner .tile-face{gap:.45cqw;padding:.7cqw}
-#game-board .board-tile.corner .space-icon{width:4.7cqw;height:4.7cqw;filter:drop-shadow(var(--sx) var(--sy) .2cqw #0000005c)}
-#game-board .board-tile.corner .tile-name{--name-size:1.95cqw;font-weight:800;letter-spacing:.04em}
-#game-board .board-tile.corner .tile-kind{font-size:.9cqw}
-#game-board .board-tile.special:not(.corner) .tile-name{--name-size:1.45cqw}
+:is(#game-board,#preview-board) .tile-symbol{display:block;line-height:0;opacity:1;margin:0}
+:is(#game-board,#preview-board) .space-icon{width:3.3cqw;height:3.3cqw;overflow:visible;filter:drop-shadow(.06cqw .1cqw 0 #ffffffb3)}
+:is(#game-board,#preview-board) .space-icon .icon-line{fill:none;stroke:#1d211d;stroke-linecap:round;stroke-linejoin:round}
+:is(#game-board,#preview-board) .space-icon .icon-rim{fill:#c99a40;stroke:#6e4c16;stroke-width:1}
+:is(#game-board,#preview-board) .space-icon .icon-enamel{fill:#1d3550}
+:is(#game-board,#preview-board) .space-icon .icon-gold-fill{fill:#f0cf7c}
+:is(#game-board,#preview-board) .board-tile.corner .tile-face{gap:.45cqw;padding:.7cqw}
+:is(#game-board,#preview-board) .board-tile.corner .space-icon{width:4.7cqw;height:4.7cqw;filter:drop-shadow(var(--sx) var(--sy) .2cqw #0000005c)}
+:is(#game-board,#preview-board) .board-tile.corner .tile-name{--name-size:1.95cqw;font-weight:800;letter-spacing:.04em}
+:is(#game-board,#preview-board) .board-tile.corner .tile-kind{font-size:.9cqw}
+:is(#game-board,#preview-board) .board-tile.special:not(.corner) .tile-name{--name-size:1.45cqw}
 
 /* ── Centre: deep teal leather, recessed under the ring of cards ── */
-#game-board .board-center{
+:is(#game-board,#preview-board) .board-center{
   position:relative;z-index:1;isolation:isolate;overflow:hidden;border-radius:.4cqw;color:#f4ead2;
   padding:3cqw 4cqw;gap:0;
   background-color:#123a3c;
   background-image:var(--leather),var(--mottle),radial-gradient(120% 100% at 30% 22%,#2a6766 0%,#18494a 38%,#103133 78%,#0b2426 100%);
   box-shadow:inset .7cqw .9cqw 1.4cqw #000000a6,inset -.3cqw -.3cqw .8cqw #0000004d,inset 0 0 0 1px #000000b3;
 }
-#game-board .board-center::before{
+:is(#game-board,#preview-board) .board-center::before{
   content:'';display:block;position:absolute;inset:2.7cqw;z-index:0;pointer-events:none;background:none;
   border:.16cqw solid #d6b0607a;border-radius:.2cqw;
   box-shadow:0 0 0 .35cqw #d6b0600f,inset 0 0 0 1px #00000033,.06cqw .08cqw 0 #00000059;
 }
-#game-board .board-center::after{
+:is(#game-board,#preview-board) .board-center::after{
   content:'';position:absolute;z-index:0;pointer-events:none;left:18%;right:18%;bottom:3.6cqw;height:17%;opacity:.42;
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 90' preserveAspectRatio='xMidYMax meet'%3E%3Cdefs%3E%3ClinearGradient id='r' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23e3bf6a' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23e3bf6a' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='none' stroke='%23e3bf6a' stroke-width='.85'%3E%3Cpath d='M4 60H236'/%3E%3Cpath d='M22 60V46h10v14M36 60V38h10v22M50 60V50h8v10M62 60V30h6v-6h6v6h6v30M84 60V42h10v18M98 60V20h8V12h4v8h8v40M122 60V34h8v-6h6v32M140 60V14h4V5h4v9h4v46M156 60V40h10v20M170 60V26h8v34M182 60V46h10v14M196 60V32h6v28M206 60V48h10v12'/%3E%3Cpath d='M102 26h12M102 32h12M102 38h12M102 44h12M102 50h12M142 20h8M142 28h8M142 36h8M142 44h8M142 52h8M64 36h14M64 44h14M64 52h14' stroke-opacity='.6'/%3E%3C/g%3E%3Cg stroke='url(%23r)' stroke-width='.85' fill='none'%3E%3Cpath d='M98 62v18M106 62v26M114 62v18M140 62v28M148 62v20M152 62v14M62 62v12M80 62v14M170 62v16M178 62v16M36 62v10M46 62v10'/%3E%3C/g%3E%3C/svg%3E") center bottom/contain no-repeat;
 }
-#game-board .board-center>*{position:relative;z-index:1}
+:is(#game-board,#preview-board) .board-center>*{position:relative;z-index:1}
 
 /* MARKET WARS: a gold-on-teal plate with embossed metallic lettering. */
-#game-board .board-center .board-wordmark{
+:is(#game-board,#preview-board) .board-center .board-wordmark{
   isolation:isolate;transform:rotate(-7deg);margin:0 0 2.2cqw;padding:1.3cqw 3.2cqw 1.1cqw;
   font:800 5cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap;
   color:transparent;-webkit-text-stroke:.02em #5a3d1080;
@@ -169,75 +169,75 @@
   box-shadow:none;border:0;text-shadow:none;
   filter:drop-shadow(.25cqw .4cqw .35cqw #000000b3);
 }
-#game-board .board-center .board-wordmark::before{
+:is(#game-board,#preview-board) .board-center .board-wordmark::before{
   content:'';position:absolute;inset:0;z-index:-1;
   background:none;
   border:.34cqw solid #c99a40;border-image:var(--gold-edge) 1;
   box-shadow:inset 0 0 0 .45cqw #0000,inset 0 0 0 .58cqw #d6b060b3;
 }
-#game-board .board-center .board-wordmark span{color:transparent;margin-left:.3em}
+:is(#game-board,#preview-board) .board-center .board-wordmark span{color:transparent;margin-left:.3em}
 /* The eyebrow becomes the engraved divider under the plate. */
-#game-board .board-center .eyebrow{
+:is(#game-board,#preview-board) .board-center .eyebrow{
   font-size:0;width:26cqw;height:1.2cqw;margin:0 0 1.6cqw;
   background:linear-gradient(90deg,#0000,#d6b060 30%,#d6b060 46%,#0000 46% 54%,#d6b060 54%,#d6b060 70%,#0000) center/100% .14cqw no-repeat;
 }
-#game-board .board-center .eyebrow::after{content:'';position:absolute;left:50%;top:50%;width:.8cqw;height:.8cqw;transform:translate(-50%,-50%) rotate(45deg);background:#e6c06a;box-shadow:.06cqw .08cqw 0 #00000066}
-#game-board .center-role{font:600 1.15cqw/1.2 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.2em;color:#e6c06a!important;margin:0 0 .5cqw;opacity:1}
-#game-board .center-player{font-size:3.3cqw;line-height:1.1;color:#fbf3df!important;text-shadow:.12cqw .2cqw .3cqw #000000a6}
-#game-board .center-player *{color:#fbf3df!important}
-#game-board .center-player>span{opacity:.72;font-size:.78em}
-#game-board .center-status{font-size:1.4cqw;color:#e9e0c8;margin:1cqw 0 0;max-width:80%}
-#game-board .board-center .dice{gap:2cqw;margin:2.2cqw 0 0}
-#game-board .board-center .die{
+:is(#game-board,#preview-board) .board-center .eyebrow::after{content:'';position:absolute;left:50%;top:50%;width:.8cqw;height:.8cqw;transform:translate(-50%,-50%) rotate(45deg);background:#e6c06a;box-shadow:.06cqw .08cqw 0 #00000066}
+:is(#game-board,#preview-board) .center-role{font:600 1.15cqw/1.2 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.2em;color:#e6c06a!important;margin:0 0 .5cqw;opacity:1}
+:is(#game-board,#preview-board) .center-player{font-size:3.3cqw;line-height:1.1;color:#fbf3df!important;text-shadow:.12cqw .2cqw .3cqw #000000a6}
+:is(#game-board,#preview-board) .center-player *{color:#fbf3df!important}
+:is(#game-board,#preview-board) .center-player>span{opacity:.72;font-size:.78em}
+:is(#game-board,#preview-board) .center-status{font-size:1.4cqw;color:#e9e0c8;margin:1cqw 0 0;max-width:80%}
+:is(#game-board,#preview-board) .board-center .dice{gap:2cqw;margin:2.2cqw 0 0}
+:is(#game-board,#preview-board) .board-center .die{
   width:5.4cqw;height:5.4cqw;padding:1cqw;border-radius:1cqw;border:0;
   background:radial-gradient(120% 120% at 25% 18%,#ffffff 0%,#f6f1e4 45%,#ddd3bd 100%);
   box-shadow:inset .1cqw .1cqw 0 #fff,inset -.15cqw -.2cqw .3cqw #8a7a5a59,var(--sx) var(--sy) .5cqw #000000a6,.08cqw .14cqw 0 #b9ad92;
 }
-#game-board .board-center .pip{width:1cqw;height:1cqw;background:radial-gradient(circle at 40% 35%,#4a4a44,#111 70%)}
-#game-board .board-center .dice-total{font:600 1cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.18em;color:#e6c06a;margin-top:1.1cqw}
+:is(#game-board,#preview-board) .board-center .pip{width:1cqw;height:1cqw;background:radial-gradient(circle at 40% 35%,#4a4a44,#111 70%)}
+:is(#game-board,#preview-board) .board-center .dice-total{font:600 1cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.18em;color:#e6c06a;margin-top:1.1cqw}
 /* Centre controls keep their behaviour; they are restyled to sit on the leather. */
-#game-board .board-center .center-controls{gap:1.4cqw;margin-top:2.4cqw}
-#game-board .board-center .center-controls button{
+:is(#game-board,#preview-board) .board-center .center-controls{gap:1.4cqw;margin-top:2.4cqw}
+:is(#game-board,#preview-board) .board-center .center-controls button{
   font:700 1.4cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;
   min-height:4.4cqw;padding:0 2.4cqw;border-radius:.45cqw;border:.18cqw solid #d6b060;color:#fff6e4;
   box-shadow:inset 0 .12cqw 0 #ffffff59,0 .3cqw 0 #00000080,var(--sx) var(--sy) .8cqw #00000099;
 }
-#game-board .board-center .center-controls button.primary{background:linear-gradient(180deg,#d4574a,#a8382c 55%,#8a2b21)}
-#game-board .board-center .center-controls button.secondary{background:linear-gradient(180deg,#2f6766,#1b4344 60%,#143536)}
-#game-board .board-center .center-controls button:disabled{opacity:1;filter:saturate(.25) brightness(.62);cursor:not-allowed}
-#game-board .board-center .center-controls button:not(:disabled):hover{filter:brightness(1.08)}
+:is(#game-board,#preview-board) .board-center .center-controls button.primary{background:linear-gradient(180deg,#d4574a,#a8382c 55%,#8a2b21)}
+:is(#game-board,#preview-board) .board-center .center-controls button.secondary{background:linear-gradient(180deg,#2f6766,#1b4344 60%,#143536)}
+:is(#game-board,#preview-board) .board-center .center-controls button:disabled{opacity:1;filter:saturate(.25) brightness(.62);cursor:not-allowed}
+:is(#game-board,#preview-board) .board-center .center-controls button:not(:disabled):hover{filter:brightness(1.08)}
 
 /* ── Miniatures: each property's anchor shares its card's grid cell ── */
-#game-board .tile-pieces{position:relative;z-index:2;pointer-events:none;min-width:0;min-height:0}
-#game-board .tile-pieces svg{display:block;width:100%;height:100%;overflow:visible;position:relative}
+:is(#game-board,#preview-board) .tile-pieces{position:relative;z-index:2;pointer-events:none;min-width:0;min-height:0}
+:is(#game-board,#preview-board) .tile-pieces svg{display:block;width:100%;height:100%;overflow:visible;position:relative}
 .piece-contact{position:absolute;pointer-events:none;border-radius:50%;background:radial-gradient(closest-side,#000000a6,#0000)}
 
 /* Ownership shield: in the building zone at the band's end (top/bottom rows) or above the houses (side rows). */
 .piece-badge{position:absolute;width:var(--shield-w);height:var(--shield-h);filter:var(--shadow)}
 .piece-badge .piece-contact{display:none}
-#game-board .edge-south>.piece-badge{right:var(--piece-margin);top:calc(var(--band) + (var(--zone) - var(--shield-h)) / 2)}
-#game-board .edge-north>.piece-badge{right:var(--piece-margin);bottom:calc(var(--band) + (var(--zone) - var(--shield-h)) / 2)}
-#game-board .edge-west>.piece-badge{right:calc((var(--side-zone) - var(--shield-w)) / 2);top:var(--piece-margin)}
-#game-board .edge-east>.piece-badge{left:calc((var(--side-zone) - var(--shield-w)) / 2);top:var(--piece-margin)}
-#game-board .tile-pieces.is-mortgaged>.piece-badge{filter:grayscale(.85) brightness(.85) var(--shadow)}
+:is(#game-board,#preview-board) .edge-south>.piece-badge{right:var(--piece-margin);top:calc(var(--band) + (var(--zone) - var(--shield-h)) / 2)}
+:is(#game-board,#preview-board) .edge-north>.piece-badge{right:var(--piece-margin);bottom:calc(var(--band) + (var(--zone) - var(--shield-h)) / 2)}
+:is(#game-board,#preview-board) .edge-west>.piece-badge{right:calc((var(--side-zone) - var(--shield-w)) / 2);top:var(--piece-margin)}
+:is(#game-board,#preview-board) .edge-east>.piece-badge{left:calc((var(--side-zone) - var(--shield-w)) / 2);top:var(--piece-margin)}
+:is(#game-board,#preview-board) .tile-pieces.is-mortgaged>.piece-badge{filter:grayscale(.85) brightness(.85) var(--shadow)}
 
 /* Houses: painted miniatures in the building zone, beside the shield, inside the card.
    One to three stand in a row; four form a 2×2 block with the back pair behind the front pair. */
 .piece-buildings{position:absolute;display:flex;align-items:flex-end;justify-content:center;--house:2cqw}
-#game-board .edge-south>.piece-buildings,#game-board .edge-north>.piece-buildings{left:var(--piece-margin);right:calc(var(--piece-margin) + var(--shield-w) + .2cqw);height:var(--zone)}
-#game-board .edge-south>.piece-buildings{top:var(--band)}
-#game-board .edge-north>.piece-buildings{bottom:var(--band)}
-#game-board .edge-west>.piece-buildings,#game-board .edge-east>.piece-buildings{flex-direction:column;align-items:center;justify-content:flex-end;top:calc(var(--piece-margin) + var(--shield-h) + .2cqw);bottom:var(--piece-margin);width:var(--side-zone)}
-#game-board .edge-west>.piece-buildings{right:0}
-#game-board .edge-east>.piece-buildings{left:0}
+:is(#game-board,#preview-board) .edge-south>.piece-buildings,:is(#game-board,#preview-board) .edge-north>.piece-buildings{left:var(--piece-margin);right:calc(var(--piece-margin) + var(--shield-w) + .2cqw);height:var(--zone)}
+:is(#game-board,#preview-board) .edge-south>.piece-buildings{top:var(--band)}
+:is(#game-board,#preview-board) .edge-north>.piece-buildings{bottom:var(--band)}
+:is(#game-board,#preview-board) .edge-west>.piece-buildings,:is(#game-board,#preview-board) .edge-east>.piece-buildings{flex-direction:column;align-items:center;justify-content:flex-end;top:calc(var(--piece-margin) + var(--shield-h) + .2cqw);bottom:var(--piece-margin);width:var(--side-zone)}
+:is(#game-board,#preview-board) .edge-west>.piece-buildings{right:0}
+:is(#game-board,#preview-board) .edge-east>.piece-buildings{left:0}
 .piece-house{position:relative;flex:none;width:var(--house);height:var(--house);filter:var(--shadow)}
-#game-board .edge-south>.piece-buildings .piece-house+.piece-house,#game-board .edge-north>.piece-buildings .piece-house+.piece-house{margin-left:calc(var(--house) * -.25)}
-#game-board .edge-west .piece-house+.piece-house,#game-board .edge-east .piece-house+.piece-house{margin-top:calc(var(--house) * -.55)}
-#game-board .edge-south>.piece-buildings[data-count="4"],#game-board .edge-north>.piece-buildings[data-count="4"]{flex-wrap:wrap;align-content:flex-end;right:auto;width:calc(var(--house) * 1.8);left:calc(var(--piece-margin) + (100% - 2 * var(--piece-margin) - var(--shield-w) - .2cqw - var(--house) * 1.8) / 2)}
-#game-board .edge-south>.piece-buildings[data-count="4"]>.piece-house,#game-board .edge-north>.piece-buildings[data-count="4"]>.piece-house{margin-left:0}
-#game-board .piece-buildings[data-count="4"]>.piece-house:nth-child(even){margin-left:calc(var(--house) * -.28)!important}
-#game-board .edge-south>.piece-buildings[data-count="4"]>.piece-house:nth-child(n+3),#game-board .edge-north>.piece-buildings[data-count="4"]>.piece-house:nth-child(n+3){margin-top:calc(var(--house) * -.5)}
-#game-board .edge-west>.piece-buildings[data-count="4"]>.piece-house:nth-child(even),#game-board .edge-east>.piece-buildings[data-count="4"]>.piece-house:nth-child(even){margin-left:0!important}
+:is(#game-board,#preview-board) .edge-south>.piece-buildings .piece-house+.piece-house,:is(#game-board,#preview-board) .edge-north>.piece-buildings .piece-house+.piece-house{margin-left:calc(var(--house) * -.25)}
+:is(#game-board,#preview-board) .edge-west .piece-house+.piece-house,:is(#game-board,#preview-board) .edge-east .piece-house+.piece-house{margin-top:calc(var(--house) * -.55)}
+:is(#game-board,#preview-board) .edge-south>.piece-buildings[data-count="4"],:is(#game-board,#preview-board) .edge-north>.piece-buildings[data-count="4"]{flex-wrap:wrap;align-content:flex-end;right:auto;width:calc(var(--house) * 1.8);left:calc(var(--piece-margin) + (100% - 2 * var(--piece-margin) - var(--shield-w) - .2cqw - var(--house) * 1.8) / 2)}
+:is(#game-board,#preview-board) .edge-south>.piece-buildings[data-count="4"]>.piece-house,:is(#game-board,#preview-board) .edge-north>.piece-buildings[data-count="4"]>.piece-house{margin-left:0}
+:is(#game-board,#preview-board) .piece-buildings[data-count="4"]>.piece-house:nth-child(even){margin-left:calc(var(--house) * -.28)!important}
+:is(#game-board,#preview-board) .edge-south>.piece-buildings[data-count="4"]>.piece-house:nth-child(n+3),:is(#game-board,#preview-board) .edge-north>.piece-buildings[data-count="4"]>.piece-house:nth-child(n+3){margin-top:calc(var(--house) * -.5)}
+:is(#game-board,#preview-board) .edge-west>.piece-buildings[data-count="4"]>.piece-house:nth-child(even),:is(#game-board,#preview-board) .edge-east>.piece-buildings[data-count="4"]>.piece-house:nth-child(even){margin-left:0!important}
 .piece-house .house-front{fill:color-mix(in oklch,var(--piece-color) 88%,white)}
 .piece-house .house-side{fill:color-mix(in oklch,var(--piece-color) 58%,black)}
 .piece-house .house-roof{fill:color-mix(in oklch,var(--piece-color) 66%,white)}
@@ -255,16 +255,16 @@
 /* Tower: replaces the houses in the band and building zone, inside the card. Only its plinth carries the owner's colour. */
 .piece-tower{position:absolute;filter:var(--shadow)}
 .piece-tower .tower-contact{left:-10%;right:-40%;bottom:-3%;height:16%}
-#game-board .edge-south>.piece-tower,#game-board .edge-north>.piece-tower{height:calc(var(--band) + var(--zone) - .25cqw);width:calc((var(--band) + var(--zone) - .25cqw) * .4667);left:calc(50% - (var(--band) + var(--zone) - .25cqw) * .2333 - (var(--shield-w) + .2cqw) / 2)}
-#game-board .edge-south>.piece-tower{top:.1cqw}
-#game-board .edge-north>.piece-tower{bottom:.15cqw}
-#game-board .edge-west>.piece-tower,#game-board .edge-east>.piece-tower{top:calc(var(--piece-margin) + var(--shield-h) + .2cqw);bottom:var(--piece-margin);width:var(--side-zone)}
-#game-board .edge-west>.piece-tower{right:0}
-#game-board .edge-east>.piece-tower{left:0}
+:is(#game-board,#preview-board) .edge-south>.piece-tower,:is(#game-board,#preview-board) .edge-north>.piece-tower{height:calc(var(--band) + var(--zone) - .25cqw);width:calc((var(--band) + var(--zone) - .25cqw) * .4667);left:calc(50% - (var(--band) + var(--zone) - .25cqw) * .2333 - (var(--shield-w) + .2cqw) / 2)}
+:is(#game-board,#preview-board) .edge-south>.piece-tower{top:.1cqw}
+:is(#game-board,#preview-board) .edge-north>.piece-tower{bottom:.15cqw}
+:is(#game-board,#preview-board) .edge-west>.piece-tower,:is(#game-board,#preview-board) .edge-east>.piece-tower{top:calc(var(--piece-margin) + var(--shield-h) + .2cqw);bottom:var(--piece-margin);width:var(--side-zone)}
+:is(#game-board,#preview-board) .edge-west>.piece-tower{right:0}
+:is(#game-board,#preview-board) .edge-east>.piece-tower{left:0}
 
 /* ── Pawns (positioned by game-ui from each player's space) ── */
-#game-board .token-layer{inset:0;z-index:3;pointer-events:none}
-#game-board .token-layer .player-token{
+:is(#game-board,#preview-board) .token-layer{inset:0;z-index:3;pointer-events:none}
+:is(#game-board,#preview-board) .token-layer .player-token{
   position:absolute;left:0;top:0;display:block;width:4.9cqw;height:6.95cqw;
   background:none;border:0;border-radius:0;box-shadow:none;font-size:0;
   transform-origin:50% 94%;
@@ -293,15 +293,20 @@
 @keyframes piece-out{to{transform:translateY(.6cqw) scale(.25);opacity:0}}
 
 @media(prefers-reduced-motion:reduce){
-  #game-board .token-layer .player-token,#game-board .board-tile{transition:none}
+  :is(#game-board,#preview-board) .token-layer .player-token,:is(#game-board,#preview-board) .board-tile{transition:none}
   .piece-badge.enter,.piece-house.enter,.piece-tower.rise,.piece-tower.rise .tower-contact,.player-token.hop .pawn-body,.player-token.hop .pawn-shadow,.piece-house.leave,.piece-badge.leave,.piece-tower.leave{animation:none}
 }
 
 /* Stations and utilities: no colour band (they can never be built on). A steel-grey
    card with a fine engraved hatch and a line icon sets them apart from colour groups. */
-#game-board .board-tile.service{
+:is(#game-board,#preview-board) .board-tile.service{
   background-image:var(--card-grain),repeating-linear-gradient(135deg,#0000 0 .5cqw,#1d2a2a0d .5cqw .6cqw),linear-gradient(160deg,#eef0ea 0%,#dde2dc 55%,#cbd2cc 100%);
 }
-#game-board .board-tile.service .space-icon{width:2.5cqw;height:2.5cqw}
-#game-board .board-tile.service .tile-name{--name-size:1.35cqw}
-#game-board .board-tile.service .tile-face{gap:.25cqw}
+:is(#game-board,#preview-board) .board-tile.service .space-icon{width:2.5cqw;height:2.5cqw}
+:is(#game-board,#preview-board) .board-tile.service .tile-name{--name-size:1.35cqw}
+:is(#game-board,#preview-board) .board-tile.service .tile-face{gap:.25cqw}
+
+/* Landing page: the same tabletop board, framed and tilted slightly. */
+.preview-board-view{transform:rotate(-2deg);max-width:760px;margin:auto}
+.preview-board-view #preview-board{transform:none;box-shadow:0 0 0 1px #00000099;min-width:0}
+.preview-board-view .skyline-edge{display:none}

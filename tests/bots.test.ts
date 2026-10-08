@@ -10,7 +10,7 @@ import {profile} from '../lib/validation';
 import type {Room} from '../lib/types';
 
 function lobby():Room {
-  const host={name:'Human',token:'briefcase' as const,user_id:randomUUID(),seat:0};
+  const host={name:'Human',token:'black' as const,user_id:randomUUID(),seat:0};
   return {code:'BOT123',host_id:host.user_id,members:[host],member_ids:[host.user_id],status:'lobby',revision:0,state:null,transition:null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
 }
 function add(room:Room) {
@@ -34,7 +34,7 @@ test('Host adds up to three distinct bots; humans cannot submit bot profiles or 
 });
 test('Removing bots preserves humans and seat order, and host transfer always chooses a human',()=>{
   const room=lobby();add(room);
-  const human={...room.members[0],name:'Friend',token:'rocket' as const,user_id:randomUUID(),seat:2};room.members.push(human);room.member_ids.push(human.user_id);
+  const human={...room.members[0],name:'Friend',token:'blue' as const,user_id:randomUUID(),seat:2};room.members.push(human);room.member_ids.push(human.user_id);
   assert.throws(()=>removeBotMembers(room,room.host_id,room.revision,human.user_id),/Human players/);
   assert.throws(()=>removeBotMembers(room,room.host_id,room.revision-1,room.members[1].user_id),/room changed/);
   const next=membersAfterLeaving(room,room.host_id);assert.equal(next.host_id,human.user_id);assert.deepEqual(next.members.map(m=>m.seat),[0,1]);

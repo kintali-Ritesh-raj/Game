@@ -14,7 +14,7 @@ export function addBotMembers(room:Room, actor:string, expected:number):Member[]
   hostLobby(room,actor,expected);
   if (room.members.length >= 4) throw new ApiError(409,'This room is full. Bots count toward the 4-player limit.');
   const name = ['Bot Ada','Bot Atlas','Bot Nova','Bot Quinn','Bot Echo'].find(name => !room.members.some(m => m.name.toLowerCase() === name.toLowerCase()))!;
-  const token = (['laptop','factory','car','crown','coin','building','rocket','briefcase'] as Token[]).find(token => !room.members.some(m => m.token === token))!;
+  const token = (['lime','magenta','blue','black'] as Token[]).find(token => !room.members.some(m => m.token === token))!;
   // This identifier is a game seat, never a Supabase Auth account or credential.
   return [...room.members,{name,token,user_id:randomUUID(),seat:room.members.length,type:'bot'}];
 }

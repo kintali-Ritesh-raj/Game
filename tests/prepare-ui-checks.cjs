@@ -3,7 +3,7 @@
 const fs=require('node:fs');
 const {Game}=require('../lib/game-engine.cjs');
 (async()=>{
-  const members=[{name:'Host',token:'briefcase',user_id:'10000000-0000-4000-8000-000000000001',seat:0},{name:'Guest',token:'rocket',user_id:'10000000-0000-4000-8000-000000000002',seat:1}];
+  const members=[{name:'Host',token:'black',user_id:'10000000-0000-4000-8000-000000000001',seat:0},{name:'Guest',token:'blue',user_id:'10000000-0000-4000-8000-000000000002',seat:1}];
   const game=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
   // Roll 1 + 3 = 4 (not doubles, so the landing resolves) onto Lockside Walk.
   let face=0;game.random=()=>[0,.4][face++%2];
@@ -29,7 +29,7 @@ const {Game}=require('../lib/game-engine.cjs');
   const debt=JSON.parse(debtor.serialize());
   const debtReady=JSON.parse(debtor.serialize());debtReady.players[0].cash=160;
   const extras={developed,auction,resold,event,debt,debtReady};
-  const botMember={name:'Bot Ada',token:'laptop',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
+  const botMember={name:'Bot Ada',token:'lime',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{}});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];
   const botStates=[JSON.parse(botGame.serialize())];

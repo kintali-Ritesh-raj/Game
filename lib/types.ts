@@ -1,4 +1,4 @@
-export type Token = 'briefcase' | 'rocket' | 'building' | 'car' | 'coin' | 'crown' | 'factory' | 'laptop';
+export type Token = 'black' | 'blue' | 'magenta' | 'lime';
 export type Profile = { name: string; token: Token };
 export type Member = Profile & { user_id: string; seat: number; type?: 'human' | 'bot' };
 export type Stats = Record<'propertiesPurchased' | 'rentEarned' | 'rentPaid' | 'buildingsBuilt' | 'taxesPaid' | 'startBonuses' | 'auctionWins' | 'cardsDrawn' | 'turnsPlayed' | 'bonusIncome', number>;

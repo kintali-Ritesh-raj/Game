@@ -6,8 +6,8 @@ import MarketWars from '../lib/game-engine.cjs';
 import type { GameState, Room } from '../lib/types';
 
 const members = [
-  { name: 'Host', user_id: 'host', seat: 0, token: 'briefcase' as const },
-  { name: 'Guest', user_id: 'guest', seat: 1, token: 'rocket' as const },
+  { name: 'Host', user_id: 'host', seat: 0, token: 'black' as const },
+  { name: 'Guest', user_id: 'guest', seat: 1, token: 'blue' as const },
 ];
 const lobby = (): Room => ({ code: 'AB12CD', host_id: 'host', members: structuredClone(members), member_ids: ['host', 'guest'], status: 'lobby', revision: 1, state: null, transition: null, created_at: '', updated_at: '' });
 const playing = (): Room => { const room = lobby(); room.state = startGame(room, 'host'); room.status = 'playing'; return room; };
@@ -142,6 +142,6 @@ test('Revision and input validation reject stale or malformed requests', () => {
   assert.throws(() => command({ action: 'build', id: 100 }), /property/);
   assert.throws(() => command({ action: 'bid', increment: 10.5 }), /whole amount/);
   assert.throws(() => command({ action: 'replace-state' }), /Unknown/);
-  assert.throws(() => profile({ name: 'A', token: 'admin' }), /token/);
-  assert.deepEqual(profile({ name: ' A ', role: 'monopolist', token: 'rocket' }), { name: 'A', token: 'rocket' }, 'Legacy role fields are dropped');
+  assert.throws(() => profile({ name: 'A', token: 'admin' }), /color/);
+  assert.deepEqual(profile({ name: ' A ', role: 'monopolist', token: 'blue' }), { name: 'A', token: 'blue' }, 'Legacy role fields are dropped');
 });

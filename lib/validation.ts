@@ -10,7 +10,7 @@ export function roomCode(value: string) {
 }
 export function profile(value: Record<string, unknown>): Profile {
   if (typeof value.name !== 'string' || !value.name.trim() || value.name.trim().length > 20) throw new ApiError(400, 'Choose a name of 1–20 characters.');
-  if (!['briefcase', 'rocket', 'building', 'car', 'coin', 'crown', 'factory', 'laptop'].includes(String(value.token))) throw new ApiError(400, 'Choose a valid token.');
+  if (!['black', 'blue', 'magenta', 'lime'].includes(String(value.token))) throw new ApiError(400, 'Choose a player color.');
   return { name: value.name.trim(), token: value.token } as Profile;
 }
 export function requestId(value: unknown) {

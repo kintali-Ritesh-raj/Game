@@ -23,7 +23,7 @@ async function request(index,path,body){
   catch(error){throw Error((body?.operation||(!body?'restore':'create'))+' request failed: '+error.message);}
   return {status:res.status,data:await res.json()};
 }
-const profile=(i)=>({name:'Live Test '+(i+1),token:['briefcase','rocket','building','car','coin'][i]});
+const profile=(i)=>({name:'Live Test '+(i+1),token:['black','blue','magenta','lime','black'][i]});
 (async()=>{
   // Verify cleanup access before creating any persistent test data.
   const authAccess=await admin.auth.admin.listUsers({page:1,perPage:1});if(authAccess.error)throw authAccess.error;

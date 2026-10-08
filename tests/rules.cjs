@@ -8,10 +8,10 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'lib', 'game-engine.cjs'), 'utf8'), context);
 const { Game, BOARD, DECKS, validatePlayers } = context.MarketWars;
 const players = [
-  { name: 'Ritesh', token: 'briefcase' },
-  { name: 'Manish', token: 'rocket' },
-  { name: 'Asha', token: 'building' },
-  { name: 'Dev', token: 'car' }
+  { name: 'Ritesh', token: 'black' },
+  { name: 'Manish', token: 'blue' },
+  { name: 'Asha', token: 'magenta' },
+  { name: 'Dev', token: 'lime' }
 ];
 const testCases = [];
 const test = (name, run) => testCases.push({ name, run });
@@ -34,10 +34,19 @@ test('2, 3 and 4 players start with valid state and $1,500 each', () => {
 });
 test('setup rejects repeated names, repeated tokens and blank names; no roles are needed', () => {
   assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], name: ' ritesh ' }]));
-  assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], token: 'briefcase' }]));
+  assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], token: 'black' }]));
   assert.ok(validatePlayers([{ ...players[0] }, { ...players[1], name: '  ' }]));
   assert.equal(validatePlayers(players.slice(0, 2)), '');
   assert.ok(create(2).state.players.every(player => !('role' in player)));
+});
+test('each player marker is one of four colours, and older emoji tokens map onto free colours', () => {
+  const game = create(4);
+  assert.deepEqual(game.state.players.map(player => player.color), ['#17171c', '#1e40e6', '#e3008c', '#7ed321']);
+  const legacy = new Game([{ name: 'Old', token: 'briefcase' }, { name: 'New', token: 'black' }, { name: 'Odd', token: 'rocket' }], {}, { wait: async () => {} });
+  assert.deepEqual(legacy.state.players.map(player => player.token).join(), 'blue,black,magenta');
+  const saved = JSON.parse(create().serialize()); saved.players[0].token = 'laptop'; saved.players[1].token = 'crown';
+  const restored = Game.restore(JSON.stringify(saved));
+  assert.equal(restored.state.players.map(p => p.token + p.color).join(), 'black#17171c,blue#1e40e6');
 });
 test('dice stay within 1–6, illegal rolls are rejected, turns switch correctly', async () => {
   for (const value of [0, .1, .4, .7, .999999]) {

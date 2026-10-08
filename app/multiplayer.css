@@ -172,3 +172,15 @@
 .debt-meter-status{font-size:12px!important;margin:0!important;color:var(--muted)}
 .debt-meter-status b{color:var(--text)}
 @media(prefers-reduced-motion:reduce){.debt-bar i{transition:none}}
+/* Colour markers */
+.token-dot{display:inline-block;width:1em;height:1em;border-radius:50%;background:radial-gradient(circle at 35% 30%,color-mix(in oklch,var(--token-color) 55%,white) 0 18%,var(--token-color) 60%,color-mix(in oklch,var(--token-color) 70%,black) 100%);box-shadow:0 0 0 2px #fff9,0 0 0 3px #0006,0 2px 4px #0005;vertical-align:-.15em;flex:none}
+.token-picker{border:0;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.token-picker legend{padding:0;margin-bottom:8px;font-size:12px;color:var(--muted)}
+.token-option{display:flex;flex-direction:column;align-items:center;gap:8px;margin:0;padding:12px 6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);cursor:pointer;font-size:12px;text-align:center}
+.token-option .token-dot{font-size:30px}
+.token-option input{position:absolute;opacity:0;pointer-events:none}
+.token-option.selected{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.token-option:has(input:focus-visible){outline:2px solid var(--cyan);outline-offset:2px}
+.token-option.taken{opacity:.4;cursor:not-allowed}
+.lobby-token .token-dot{font-size:30px}
+@media(max-width:420px){.token-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
