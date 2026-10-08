@@ -4,7 +4,11 @@ import type { Command, GameState, TradeOffer } from './types';
 
 type Engine = InstanceType<typeof MarketWars.Game>;
 type Seat = GameState['players'][number];
-const TRADE_COOLDOWN = 6;
+// Offer limits, in rounds (one round = every active player takes a turn). Human players get far fewer
+// offers: only ones that would finish the bot's colour set, at most one per bot every 8 rounds, and a
+// declined property is not offered again for 20 rounds. Bots trade with each other more freely.
+const BOT_PAIR_ROUNDS = 0, BOT_REPEAT_ROUNDS = 3;
+const HUMAN_PAIR_ROUNDS = 8, HUMAN_REPEAT_ROUNDS = 20;
 
 // Would `seat` own the whole color group of `id` if it held `extra` too?
 function completesWith(game:Engine, seat:number, id:number, extra:number[] = []) {
@@ -27,7 +31,12 @@ export function acceptsTrade(game:Engine, trade:TradeOffer & { from:number }) {
 /** Offer cash for a rival's property in a color where the bot holds at least as many. */
 function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
   if ((state.tradesThisTurn || 0) > 0) return null;
-  const recent = (to:number, id:number) => (state.tradeHistory || []).some(item => item.from === bot.id && item.to === to && item.properties.includes(id) && state.turn - item.turn < TRADE_COOLDOWN);
+  const round = Math.max(1, game.state.players.filter(player => !player.bankrupt).length);
+  const human = (id:number) => game.player(id).type !== 'bot';
+  const history = (state.tradeHistory || []).filter(item => item.from === bot.id);
+  const recent = (to:number, id:number) => history.some(item => item.to === to && (
+    state.turn - item.turn < (human(to) ? HUMAN_PAIR_ROUNDS : BOT_PAIR_ROUNDS) * round ||
+    (item.properties.includes(id) && state.turn - item.turn < (human(to) ? HUMAN_REPEAT_ROUNDS : BOT_REPEAT_ROUNDS) * round)));
   const offers = MarketWars.BOARD.filter(space => space.type === 'property').flatMap(space => {
     const owner = game.asset(space.id).owner;
     if (owner === null || owner === bot.id || game.player(owner).bankrupt || recent(owner, space.id)) return [];
@@ -35,6 +44,7 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
     const theirs = game.groupSpaces(space.group).filter(item => game.asset(item.id).owner === owner).length;
     if (!mine || mine < theirs) return [];
     const completes = completesWith(game, bot.id, space.id);
+    if (human(owner) && !completes) return [];
     const cash = Math.ceil(space.price * (completes ? 2 : 1.5) / 10) * 10 + 10;
     if (bot.cash < cash + 150) return [];
     const offer = { to: owner, give: { cash, properties: [] }, get: { cash: 0, properties: [space.id] } };

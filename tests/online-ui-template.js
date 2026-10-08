@@ -67,19 +67,22 @@ async (page) => {
     });
     // Test cookies remain in the browser, while server rendering is anonymous.
     await context.route('**/game/**',route=>{const headers={...route.request().headers()};delete headers.cookie;return route.continue({headers});});
-    await context.addInitScript(runId=>{
-      // These checks exercise the 2D board; start each browser on it once per run (the 3D view has its own checks).
-      try{if(sessionStorage.getItem('mw-board-pinned')!==runId){localStorage.setItem('market-wars-board-view','2d');sessionStorage.setItem('mw-board-pinned',runId);}}catch{}
+    await context.addInitScript(()=>{
+      // These checks exercise the 2D board; start each tab on it once (the 3D view has its own checks).
+      try{if(!sessionStorage.getItem('mw-board-pinned')){localStorage.setItem('market-wars-board-view','2d');sessionStorage.setItem('mw-board-pinned','1');}}catch{}
       window.__audioCalls=[];const play=HTMLMediaElement.prototype.play;
       HTMLMediaElement.prototype.play=function(){window.__audioCalls.push(this.src);return play.call(this);};
-    },String(Date.now()));
+    });
   }
   await page.setViewportSize({width:1366,height:900});
   const hostContext=page.context();await hostContext.clearCookies();await setup(hostContext,0);
   const guestContext=await hostContext.browser().newContext({viewport:{width:390,height:844}});await setup(guestContext,1);
   const guest=await guestContext.newPage();
   page.on('pageerror',e=>errors.push(e.message));guest.on('pageerror',e=>errors.push(e.message));
-  await page.goto('http://localhost:3000');await page.getByRole('button',{name:'Create Game',exact:true}).click();
+  await page.goto('http://localhost:3000');
+  // A reused browser session may remember an earlier run: start this run on the 2D board.
+  await page.evaluate(()=>{sessionStorage.setItem('mw-board-pinned','1');localStorage.setItem('market-wars-board-view','2d');});
+  await page.getByRole('button',{name:'Create Game',exact:true}).click();
   await page.locator('#online-name').fill('Host');await page.getByRole('button',{name:'Create Game',exact:true}).click();
   await page.locator('#room-code-display').waitFor();
   await page.getByRole('button',{name:'Add bot +',exact:true}).click();

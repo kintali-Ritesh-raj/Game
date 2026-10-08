@@ -17,14 +17,16 @@ const {Game}=require('../lib/game-engine.cjs');
   game.state.currentPlayer=0;game.state.phase='end';game.state.hasRolled=true;game.state.extraRoll=false;
   const group=require('../lib/game-engine.cjs').BOARD[4].group;
   for(const space of game.groupSpaces(group))game.asset(space.id).owner=0;
-  for(const id of [4,6,7,4])game.buildStructure(id);
+  // Fixture shortcut for "landed on it again": stand on each space, build one level, step back.
+  const landBuild=(g,id)=>{const from=g.active.position;Object.assign(g.state,{phase:'end',hasRolled:true,extraRoll:false});g.active.position=id;g.asset(id).ready=true;g.buildStructure(id);delete g.asset(id).builtTurn;g.active.position=from;};
+  for(const id of [4,6,7,4])landBuild(game,id);
   const developed=JSON.parse(game.serialize());
   game.startAuction(4);const auction=JSON.parse(game.serialize());
   game.auctionBid(20);const resold=JSON.parse(game.serialize());
   game.drawCard('market');const event=JSON.parse(game.serialize());
   // Host owes $150 rent with only $20 cash, holding a developed Tidehaven pair to liquidate.
   const debtor=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
-  debtor.asset(1).owner=0;debtor.asset(2).owner=0;debtor.buildStructure(1);debtor.buildStructure(2);debtor.active.cash=20;
+  debtor.asset(1).owner=0;debtor.asset(2).owner=0;landBuild(debtor,1);landBuild(debtor,2);debtor.active.cash=20;
   debtor.beginPayments([{payer:0,creditor:1,amount:150,reason:'Beacon Wharf rent',category:'rent'}]);
   const debt=JSON.parse(debtor.serialize());
   const debtReady=JSON.parse(debtor.serialize());debtReady.players[0].cash=160;

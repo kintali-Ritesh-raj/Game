@@ -19,6 +19,8 @@ const create = (count = 2, random = () => .4) => new Game(players.slice(0, count
 const land = (game, position) => { game.active.position = position; game.state.phase = 'moving'; game.resolveSpace(); };
 const own = (game, id, owner = 0) => { game.asset(id).owner = owner; };
 const stand = (game, id) => { game.active.position = id; game.state.hasRolled = true; };
+// Build the way a turn does: land on the property (a new turn each time), then build once.
+const build = (game, id) => { Object.assign(game.state, { phase: 'end', hasRolled: true, extraRoll: false, turn: game.state.turn + 1 }); game.active.position = id; return game.buildStructure(id); };
 const drain = async game => { for (let i = 0; i < 200 && game.busy; i++) await Promise.resolve(); assert.ok(!game.busy, 'movement completed'); };
 function randomSeed(seed) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
 
@@ -93,58 +95,65 @@ test('the supplied visitor sound triggers on another owner’s space, even when 
 });
 test('building needs at least 2 unmortgaged properties of a color and costs the district price per level', () => {
   const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 8);
-  assert.throws(() => game.buildStructure(1), /at least 2 unmortgaged Tidehaven/);
+  assert.throws(() => build(game, 1), /at least 2 unmortgaged Tidehaven/);
   own(game, 2); assert.equal(game.calculateRent(1), 16, 'owning 2 of a color doubles undeveloped rent');
-  game.buildStructure(1); assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
-  const canal = create(); own(canal, 4); assert.throws(() => canal.buildStructure(4), /at least 2/);
-  own(canal, 6, 1); assert.throws(() => canal.buildStructure(4), /at least 2/, 'a rival property does not count');
+  build(game, 1); assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
+  const canal = create(); own(canal, 4); assert.throws(() => build(canal, 4), /at least 2/);
+  own(canal, 6, 1); assert.throws(() => build(canal, 4), /at least 2/, 'a rival property does not count');
   assert.equal(canal.calculateRent(4), 12, 'one of a color earns base rent');
   own(canal, 7); assert.equal(canal.calculateRent(4), 24, 'two of three already doubles undeveloped rent');
-  canal.buildStructure(4); assert.equal(canal.active.cash, 1440); assert.equal(canal.calculateRent(4), 48);
-  canal.buildStructure(7); canal.buildStructure(4); assert.equal(canal.asset(4).buildings, 2, 'even building counts only your own properties');
+  build(canal, 4); assert.equal(canal.active.cash, 1440); assert.equal(canal.calculateRent(4), 48);
+  build(canal, 7); build(canal, 4); assert.equal(canal.asset(4).buildings, 2, 'even building counts only your own properties');
 });
 test('building and selling must stay even across a color set', () => {
   const game = create(); own(game, 1); own(game, 2);
-  game.buildStructure(1); assert.throws(() => game.buildStructure(1), /evenly/);
-  game.buildStructure(2); game.buildStructure(1); assert.equal(game.asset(1).buildings, 2);
+  build(game, 1); assert.throws(() => build(game, 1), /evenly/);
+  build(game, 2); build(game, 1); assert.equal(game.asset(1).buildings, 2);
   assert.throws(() => game.sellBuilding(2), /Sell evenly/);
   game.sellBuilding(1); assert.equal(game.asset(1).buildings, 1); assert.equal(game.active.cash, 1500 - 150 + 25);
 });
-test('every player builds on their turn without landing on the property', () => {
-  const game = create(); game.state.currentPlayer = 1; own(game, 1, 1); own(game, 2, 1);
-  game.active.position = 20; game.state.hasRolled = false;
-  game.buildStructure(1); game.buildStructure(2); assert.equal(game.asset(1).buildings, 1); assert.equal(game.asset(2).buildings, 1);
-  assert.throws(() => game.buildStructure(4), /owner/);
+test('building happens only on the property you landed on, one level per landing', () => {
+  const game = create(); own(game, 1); own(game, 2);
+  Object.assign(game.state, { phase: 'end', hasRolled: true, extraRoll: false }); game.active.position = 20;
+  assert.throws(() => game.buildStructure(1), /Land on Beacon Wharf to build/, 'not while standing elsewhere');
+  game.active.position = 1; game.state.phase = 'ready'; game.state.hasRolled = false;
+  assert.throws(() => game.buildStructure(1), /Land on/, 'not before rolling');
+  game.state.phase = 'end'; game.state.hasRolled = true; game.state.extraRoll = true;
+  assert.throws(() => game.buildStructure(1), /Land on/, 'not on a doubles waypoint');
+  game.state.extraRoll = false; game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
+  assert.throws(() => game.buildStructure(1), /built here this turn/, 'one building per landing');
+  assert.throws(() => game.buildStructure(2), /Land on Sailmaker Lane/, 'other properties need their own landing');
+  build(game, 2); assert.equal(game.asset(2).buildings, 1);
 });
 test('newly acquired land must be landed on again before its first build; 2 of a color still required', () => {
   const game = create(); own(game, 2); land(game, 1); game.purchaseProperty();
-  assert.equal(game.asset(1).ready, false); assert.throws(() => game.buildStructure(1), /Land on Beacon Wharf again/);
-  game.buildStructure(2); assert.equal(game.asset(2).buildings, 1);
-  game.buildStructure(2); assert.equal(game.asset(2).buildings, 2, 'land not yet revisited does not hold back even building elsewhere');
+  assert.equal(game.asset(1).ready, false); assert.throws(() => build(game, 1), /Land on Beacon Wharf again/, 'not on the landing where it was bought');
+  build(game, 2); assert.equal(game.asset(2).buildings, 1);
+  assert.throws(() => build(game, 2), /evenly/, 'every property of the colour needs a building before any gets a second');
   game.state.phase = 'moving'; game.active.position = 1; game.resolveSpace(); assert.equal(game.asset(1).ready, true);
-  game.buildStructure(1); game.buildStructure(1); assert.equal(game.asset(1).buildings, 2);
-  game.buildStructure(1); assert.throws(() => game.buildStructure(1), /evenly/, 'once unlocked it joins the even-building rule');
+  game.buildStructure(1); assert.equal(game.asset(1).buildings, 1, 'landing again unlocks building there, on that same landing');
+  build(game, 2); build(game, 1); assert.equal(game.asset(1).buildings, 2); assert.equal(game.asset(2).buildings, 2);
   const lone = create(); land(lone, 4); lone.purchaseProperty(); lone.state.phase = 'moving'; lone.active.position = 4; lone.resolveSpace();
-  assert.equal(lone.asset(4).ready, true); assert.throws(() => lone.buildStructure(4), /at least 2/, 'landing again does not lift the color rule');
+  assert.equal(lone.asset(4).ready, true); assert.throws(() => build(lone, 4), /at least 2/, 'landing again does not lift the color rule');
   const traded = create(); own(traded, 1); own(traded, 2, 1); traded.proposeTrade({ to: 1, give: { cash: 200, properties: [] }, get: { cash: 0, properties: [2] } }); traded.acceptTrade();
-  assert.throws(() => traded.buildStructure(2), /again/, 'traded land must also be landed on first');
+  assert.throws(() => build(traded, 2), /again/, 'traded land must also be landed on first');
 });
 test('all five development levels, sale, cost and tower rent work', () => {
   const game = create(); own(game, 1); own(game, 2);
-  for (let i = 0; i < 5; i++) { game.buildStructure(1); game.buildStructure(2); }
-  assert.equal(game.asset(1).buildings, 5); assert.equal(game.calculateRent(1), 400); assert.throws(() => game.buildStructure(1), /tower/);
+  for (let i = 0; i < 5; i++) { build(game, 1); build(game, 2); }
+  assert.equal(game.asset(1).buildings, 5); assert.equal(game.calculateRent(1), 400); assert.throws(() => build(game, 1), /tower/);
   assert.equal(game.active.cash, 1000);
   game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1025); assert.equal(game.calculateRent(1), 288);
 });
 test('mortgaged groups prohibit building; buildings in the color block mortgages', () => {
-  const game = create(); own(game, 1); own(game, 2); game.buildStructure(1);
+  const game = create(); own(game, 1); own(game, 2); build(game, 1);
   assert.throws(() => game.mortgageProperty(2), /district/);
-  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => game.buildStructure(1), /unmortgaged/);
-  game.unmortgageProperty(2); game.buildStructure(1); assert.equal(game.asset(1).buildings, 1);
+  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => build(game, 1), /unmortgaged/);
+  game.unmortgageProperty(2); build(game, 1); assert.equal(game.asset(1).buildings, 1);
 });
 test('mortgage disables rent and development; 10% fee restores rent', () => {
   const game = create(); own(game, 1); game.mortgageProperty(1);
-  assert.equal(game.active.cash, 1550); assert.equal(game.calculateRent(1), 0); assert.throws(() => game.buildStructure(1), /Unmortgage/);
+  assert.equal(game.active.cash, 1550); assert.equal(game.calculateRent(1), 0); assert.throws(() => build(game, 1), /Unmortgage/);
   game.unmortgageProperty(1); assert.equal(game.active.cash, 1495); assert.equal(game.calculateRent(1), 8);
   assert.throws(() => game.mortgageProperty(4), /owner/); assert.throws(() => game.sellBuilding(1), /no buildings/);
 });
@@ -153,7 +162,7 @@ test('transport and utility rents count only active stations, buildings are proh
   assert.equal(game.calculateRent(8), 50); assert.equal(game.calculateRent(15, 7), 70);
   game.mortgageProperty(23); game.mortgageProperty(29);
   assert.equal(game.calculateRent(8), 25); assert.equal(game.calculateRent(15, 7), 28);
-  assert.throws(() => game.buildStructure(8), /cannot be developed/);
+  assert.throws(() => build(game, 8), /cannot be developed/);
 });
 test('auction cycles bidders, awards highest bid, and handles no bids', () => {
   const game = create(4); land(game, 1); game.purchaseProperty(); game.asset(1).buildings = 2; game.startAuction(1);
@@ -254,7 +263,7 @@ test('trades swap properties and cash once the other player accepts', () => {
   assert.throws(() => game.buildStructure(1)); assert.throws(() => game.proposeTrade(offer), /before rolling/);
   game.acceptTrade(); assert.equal(game.asset(2).owner, 0); assert.equal(game.player(0).cash, 1380); assert.equal(game.player(1).cash, 1620);
   assert.equal(game.state.phase, 'ready'); assert.equal(game.state.trade, null);
-  game.buildStructure(1); assert.equal(game.asset(1).buildings, 1, 'the traded property completes the set');
+  build(game, 1); assert.equal(game.asset(1).buildings, 1, 'the traded property completes the set');
   const swap = create(); own(swap, 1); own(swap, 4, 1); swap.asset(4).mortgaged = true;
   swap.proposeTrade({ to: 1, give: { cash: 0, properties: [1] }, get: { cash: 30, properties: [4] } }); swap.acceptTrade();
   assert.equal(swap.asset(1).owner, 1); assert.equal(swap.asset(4).owner, 0); assert.ok(swap.asset(4).mortgaged, 'mortgages travel with the property');

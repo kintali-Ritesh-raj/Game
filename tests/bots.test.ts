@@ -80,7 +80,7 @@ test('Bots accept fair trades, refuse to hand over a set cheaply, and offer cash
   const proposer=playing();proposer.state!.currentPlayer=1;proposer.state!.phase='end';proposer.state!.properties[1].owner=1;proposer.state!.properties[2].owner=0;
   const offer=await step(proposer);assert.equal(offer.action,'trade');assert.deepEqual(offer.trade!.get.properties,[2]);assert.ok(offer.trade!.give.cash>=240);
   assert.equal(proposer.state!.phase,'trade');assert.equal((await step(proposer)).action,'accept-trade');assert.equal(proposer.state!.properties[2].owner,1);
-  assert.equal((await step(proposer)).action,'build','the completed set is developed at once');
+  assert.notEqual(chooseBotAction(proposer.state!)!.action,'build','traded land must be landed on before the bot can build there');
   proposer.state!.phase='end';proposer.state!.tradesThisTurn=0;proposer.state!.properties[2].owner=0;proposer.state!.properties[1].buildings=0;
   assert.notEqual(chooseBotAction(proposer.state!)!.action,'trade','the same offer is not repeated straight away');
 });
@@ -98,6 +98,20 @@ test('A timed-out Prison turn pays the $50 fine, mortgaging the lowest-rent land
   assert.equal(room.state!.players[0].penalty,null);
   const broke=playing();broke.state!.players[0].penalty={kind:'prison',attempts:0};broke.state!.players[0].cash=20;room.state=broke.state;
   assert.equal((await forced()).action,'release');assert.equal((await forced()).action,'bankrupt');assert.equal(room.state!.phase,'victory');
+});
+test('Bots do not spam human players with trade offers',async()=>{
+  const room=playing();const s=room.state!;s.properties[1].owner=1;s.properties[2].owner=0; // the bot needs Sailmaker Lane to finish Tidehaven
+  s.properties[4].owner=1;s.properties[6].owner=0; // Canal Quarter is split 1-1 with one unowned: no set to finish, so no offer
+  let offers=0;
+  for(let turn=1;turn<=40;turn++){
+    Object.assign(room.state!,{turn,currentPlayer:1,phase:'end',hasRolled:true,extraRoll:false,tradesThisTurn:0,trade:null});
+    const command=chooseBotAction(room.state!)!;
+    if(command.action!=='trade')continue;
+    offers++;assert.deepEqual(command.trade!.get.properties,[2],'only the property that completes the bot set is requested');
+    room.state=(await applyGameAction(room,room.members[1].user_id,command)).state;
+    room.state=(await applyGameAction(room,room.members[0].user_id,{action:'reject-trade'})).state;
+  }
+  assert.ok(offers>=1&&offers<=2,'40 turns (20 rounds) bring at most 2 offers to a human, got '+offers);
 });
 test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolvent bots go bankrupt',async()=>{
   const room=playing();
