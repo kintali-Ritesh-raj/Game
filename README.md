@@ -156,7 +156,7 @@ Before inviting friends, also open the deployed link on two different devices/ne
 Everyone begins with $1,500 and the last financially active player wins. All players follow one classic rule set; there are no roles. The in-game **How to play** dialog has the full rules.
 
 - **Buying:** unowned property costs its listed price. Landing on it offers only **Buy** or **Skip**; a skipped property stays with the bank.
-- **Rent:** undeveloped land charges base rent, doubled when the owner holds the whole color group. Houses and the tower use the rent table on each deed. Transit stations charge $25 with one and $50 with both; utilities charge the dice total ×4, or ×10 with both. Mortgaged property collects no rent. Rent is still collected while in Prison.
+- **Rent:** undeveloped land charges base rent, doubled when the owner holds at least 2 properties of that color. Houses and the tower use the rent table on each deed. Transit stations charge $25 with one and $50 with both; utilities charge the dice total ×4, or ×10 with both. Mortgaged property collects no rent. Rent is still collected while in Prison.
 - **Building:** own at least 2 unmortgaged properties of a color. Build at any point in your turn (no need to land on it), evenly across the ones you own, at the district price per level. Sell evenly for half the cost.
 - **Mortgages:** half the price; sell every building in the color first. Unmortgage for the value plus 10%.
 - **Trading:** properties and cash between players, as described above.

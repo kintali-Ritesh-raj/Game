@@ -85,11 +85,12 @@ test('the supplied visitor sound triggers on another owner’s space, even when 
 test('building needs at least 2 unmortgaged properties of a color and costs the district price per level', () => {
   const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 8);
   assert.throws(() => game.buildStructure(1), /at least 2 unmortgaged Tidehaven/);
-  own(game, 2); assert.equal(game.calculateRent(1), 16, 'a full set doubles undeveloped rent');
+  own(game, 2); assert.equal(game.calculateRent(1), 16, 'owning 2 of a color doubles undeveloped rent');
   game.buildStructure(1); assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
   const canal = create(); own(canal, 4); assert.throws(() => canal.buildStructure(4), /at least 2/);
   own(canal, 6, 1); assert.throws(() => canal.buildStructure(4), /at least 2/, 'a rival property does not count');
-  own(canal, 7); assert.equal(canal.calculateRent(4), 12, 'two of three is not a full set, so rent is not doubled');
+  assert.equal(canal.calculateRent(4), 12, 'one of a color earns base rent');
+  own(canal, 7); assert.equal(canal.calculateRent(4), 24, 'two of three already doubles undeveloped rent');
   canal.buildStructure(4); assert.equal(canal.active.cash, 1440); assert.equal(canal.calculateRent(4), 48);
   canal.buildStructure(7); canal.buildStructure(4); assert.equal(canal.asset(4).buildings, 2, 'even building counts only your own properties');
 });
