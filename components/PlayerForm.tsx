@@ -23,7 +23,7 @@ export default function PlayerForm({ initial, members = [], busy, label, onSubmi
         {Object.entries(TOKENS).map(([token, emoji]) => <option key={token} value={token} disabled={members.some(member => member.token === token)}>{emoji} {token.charAt(0).toUpperCase() + token.slice(1)}</option>)}
       </select></div>
     </div>
-    <p className="setup-role-note">Everyone plays by the same classic rules. Collect a full color set to start building.</p>
+    <p className="setup-role-note">Everyone plays by the same classic rules. Own 2 properties of a color to start building.</p>
     <button className="primary full" type="submit" disabled={busy}>{busy ? 'Connecting…' : label}</button>
   </form>;
 }

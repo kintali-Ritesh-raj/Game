@@ -126,7 +126,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs 41 rule checks, 18 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, full-set and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
+`npm test` runs 41 rule checks, 18 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, 2-of-a-color and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
 
 Deterministic two-browser UI checks use the Playwright CLI. Start the app with `npm run dev` first, then open it at `localhost` (the Next.js dev server rejects `127.0.0.1`):
 
@@ -157,7 +157,7 @@ Everyone begins with $1,500 and the last financially active player wins. All pla
 
 - **Buying:** unowned property costs its listed price. Landing on it offers only **Buy** or **Skip**; a skipped property stays with the bank.
 - **Rent:** undeveloped land charges base rent, doubled when the owner holds the whole color group. Houses and the tower use the rent table on each deed. Transit stations charge $25 with one and $50 with both; utilities charge the dice total ×4, or ×10 with both. Mortgaged property collects no rent. Rent is still collected while in Prison.
-- **Building:** own every property of a color, none mortgaged. Build at any point in your turn (no need to land on it), evenly across the set, at the district price per level. Sell evenly for half the cost.
+- **Building:** own at least 2 unmortgaged properties of a color. Build at any point in your turn (no need to land on it), evenly across the ones you own, at the district price per level. Sell evenly for half the cost.
 - **Mortgages:** half the price; sell every building in the color first. Unmortgage for the value plus 10%.
 - **Trading:** properties and cash between players, as described above.
 - **Taxes and spaces:** Business Tax $200, Wealth Tax $100, Free Market does nothing, City Bank pays $50, Open Auction offers a random unowned property.

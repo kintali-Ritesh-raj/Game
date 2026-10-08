@@ -82,13 +82,16 @@ test('the supplied visitor sound triggers on another owner’s space, even when 
   game.state.settings.sound = true; game.state.currentPlayer = 1; land(game, 1);
   assert.equal(played.filter(kind => kind === 'visitor').length, 2);
 });
-test('building needs the whole color set and costs the district price per level', () => {
+test('building needs at least 2 unmortgaged properties of a color and costs the district price per level', () => {
   const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 8);
-  assert.throws(() => game.buildStructure(1), /Own every Tidehaven/);
+  assert.throws(() => game.buildStructure(1), /at least 2 unmortgaged Tidehaven/);
   own(game, 2); assert.equal(game.calculateRent(1), 16, 'a full set doubles undeveloped rent');
   game.buildStructure(1); assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
-  const canal = create(); own(canal, 4); own(canal, 6); assert.throws(() => canal.buildStructure(4), /Own every Canal Quarter/);
-  own(canal, 7); canal.buildStructure(4); assert.equal(canal.active.cash, 1440); assert.equal(canal.calculateRent(4), 48);
+  const canal = create(); own(canal, 4); assert.throws(() => canal.buildStructure(4), /at least 2/);
+  own(canal, 6, 1); assert.throws(() => canal.buildStructure(4), /at least 2/, 'a rival property does not count');
+  own(canal, 7); assert.equal(canal.calculateRent(4), 12, 'two of three is not a full set, so rent is not doubled');
+  canal.buildStructure(4); assert.equal(canal.active.cash, 1440); assert.equal(canal.calculateRent(4), 48);
+  canal.buildStructure(7); canal.buildStructure(4); assert.equal(canal.asset(4).buildings, 2, 'even building counts only your own properties');
 });
 test('building and selling must stay even across a color set', () => {
   const game = create(); own(game, 1); own(game, 2);
