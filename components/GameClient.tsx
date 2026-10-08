@@ -6,6 +6,7 @@ import { initializeUI } from '@/lib/game-ui';
 import { useMultiplayer } from './useMultiplayer';
 import Lobby from './Lobby';
 import PlayerForm from './PlayerForm';
+import BoardView from './BoardView';
 
 export default function GameClient({ initialCode }: { initialCode?: string }) {
   const multiplayer = useMultiplayer(initialCode);
@@ -45,6 +46,7 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
   const showForm = multiplayer.screen === 'create' || multiplayer.screen === 'join';
   return <>
     <div dangerouslySetInnerHTML={{ __html: gameMarkup }} />
+    {ready && <BoardView />}
     {multiplayer.screen !== 'home' && <div className="online-notices" aria-live="polite">
       {inRoom && <p className={'network-status ' + (multiplayer.connection === 'connected' ? 'is-connected' : '')}>
         Room {multiplayer.code} · {multiplayer.connection === 'connected' ? 'Connected · Saved online' : 'Reconnecting… Your seat and game are saved.'}

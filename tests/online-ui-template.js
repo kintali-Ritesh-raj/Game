@@ -67,10 +67,12 @@ async (page) => {
     });
     // Test cookies remain in the browser, while server rendering is anonymous.
     await context.route('**/game/**',route=>{const headers={...route.request().headers()};delete headers.cookie;return route.continue({headers});});
-    await context.addInitScript(()=>{
+    await context.addInitScript(runId=>{
+      // These checks exercise the 2D board; start each browser on it once per run (the 3D view has its own checks).
+      try{if(sessionStorage.getItem('mw-board-pinned')!==runId){localStorage.setItem('market-wars-board-view','2d');sessionStorage.setItem('mw-board-pinned',runId);}}catch{}
       window.__audioCalls=[];const play=HTMLMediaElement.prototype.play;
       HTMLMediaElement.prototype.play=function(){window.__audioCalls.push(this.src);return play.call(this);};
-    });
+    },String(Date.now()));
   }
   await page.setViewportSize({width:1366,height:900});
   const hostContext=page.context();await hostContext.clearCookies();await setup(hostContext,0);
@@ -101,6 +103,16 @@ async (page) => {
   await page.getByRole('button',{name:'Start Game'}).click();await page.locator('#game-screen').waitFor({state:'visible'});await guest.locator('#game-screen').waitFor({state:'visible'});
   await page.locator('#turn-action-card [data-action=roll]').waitFor();
   assert(await page.locator('#classic-board-view').isVisible() && await page.locator('#game-board .board-tile').count()===40,'Original square board is the default and displays all 40 spaces');
+  const toggle3d=page.locator('.board-view-toggle button',{hasText:'3D board'}),toggle2d=page.locator('.board-view-toggle button',{hasText:'2D board'});
+  assert(await toggle2d.getAttribute('aria-pressed')==='true','The board offers a 2D / 3D switch with 2D selected');
+  if(await toggle3d.isEnabled()){
+    await toggle3d.click();await page.locator('.board-3d-stage canvas').waitFor({timeout:30000});
+    assert(!(await page.locator('#classic-board-view').isVisible())&&await page.evaluate(()=>localStorage.getItem('market-wars-board-view'))==='3d','3D board replaces the 2D board and the choice is saved');
+    await page.reload();await page.locator('.board-3d-stage canvas').waitFor({timeout:30000});
+    assert(await toggle3d.getAttribute('aria-pressed')==='true','The 3D choice survives a refresh');
+    await toggle2d.click();await page.locator('#classic-board-view').waitFor({state:'visible'});
+    assert(await page.locator('.board-3d-stage').count()===0&&await page.locator('#game-board .board-tile').count()===40,'Switching back restores the unchanged 2D board');
+  } else checks.push('3D unavailable in this browser: switch disabled, 2D kept');
   assert(await page.locator('#token-layer .player-token').count()===2,'Both players have visible tokens on the square board');
   const reveal=page.getByRole('button',{name:'Show rejoin code',exact:true});if(await reveal.count())await reveal.click();
   await page.locator('.rejoin-code',{hasText:'HSTA-2345'}).waitFor();
