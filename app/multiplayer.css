@@ -184,3 +184,5 @@
 .token-option.taken{opacity:.4;cursor:not-allowed}
 .lobby-token .token-dot{font-size:30px}
 @media(max-width:420px){.token-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.trade-item.blocked{opacity:.55;cursor:not-allowed}
+.trade-block{display:block;font-style:normal;font-size:10px;color:var(--muted);margin-top:2px;line-height:1.35}
