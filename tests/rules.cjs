@@ -234,6 +234,7 @@ test('rolled, gamble, catch-up and levy cards use the server dice and the game s
     await game.applyCard(); await drain(game);
   };
   let game = create(); game.random = () => .99; await apply(game, 'market', 'Lucky customer'); assert.equal(game.active.cash, 1500 + 6 * 30);
+  assert.ok(game.state.log.some(entry => /Card die for “Lucky customer”: Ritesh rolled a 6, so 6 × \$30 = \$180/.test(entry.message)), 'the log says the die belongs to the card');
   game = create(); game.random = () => 0; await apply(game, 'market', 'Storm damage'); assert.equal(game.active.cash, 1470); assert.equal(game.state.jackpot, 115, 'half of a card payment feeds the pot');
   for (const [roll, expected] of [[0, 1400], [.4, 1500], [.99, 1750]]) { game = create(); game.random = () => roll; await apply(game, 'market', 'Double or nothing'); assert.equal(game.active.cash, expected, 'gamble at ' + roll); }
   game = create(); game.state.round = 16; game.random = () => .99; await apply(game, 'market', 'Lucky customer'); assert.equal(game.active.cash, 1500 + 6 * 60, 'stage 2 doubles cash cards');
