@@ -144,9 +144,20 @@ test('newly acquired land must be landed on again before its first build', () =>
 test('all five development levels, sale, cost and tower rent work', () => {
   const game = create(); own(game, 1); own(game, 2);
   for (let i = 0; i < 5; i++) { build(game, 1); build(game, 2); }
-  assert.equal(game.asset(1).buildings, 5); assert.equal(game.calculateRent(1), 400); assert.throws(() => build(game, 1), /tower/);
+  assert.equal(game.asset(1).buildings, 5); assert.equal(game.calculateRent(1), 800, 'tower rent $400, doubled for owning the full harbor set'); assert.throws(() => build(game, 1), /tower/);
   assert.equal(game.active.cash, 1000);
-  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1025); assert.equal(game.calculateRent(1), 288);
+  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1025); assert.equal(game.calculateRent(1), 576, '4 houses $288, doubled for the full set');
+});
+test('owning every property of a color doubles all of its rents, houses and tower included', () => {
+  const game = create(); own(game, 4); own(game, 7);
+  game.asset(4).buildings = 1; assert.equal(game.calculateRent(4), 48, 'two of three: built rent is not doubled');
+  game.asset(4).buildings = 0; assert.equal(game.calculateRent(4), 24, 'two of three doubles undeveloped rent');
+  own(game, 6); assert.equal(game.calculateRent(4), 24, 'the full set does not stack on the undeveloped double');
+  [1, 2, 3, 4].forEach(level => { game.asset(4).buildings = level; assert.equal(game.calculateRent(4), [48, 120, 264, 432][level - 1] * 2, level + ' houses double with the full set'); });
+  game.asset(4).buildings = 5; assert.equal(game.calculateRent(4), 1200, 'tower rent doubles too');
+  game.asset(6).mortgaged = true; assert.equal(game.calculateRent(4), 1200, 'a mortgaged property still counts toward the full set');
+  game.asset(6).mortgaged = false; own(game, 6, 1); assert.equal(game.calculateRent(4), 600, 'a rival owning one property breaks the set');
+  own(game, 6); game.state.city.active = { kind: 'boom', until: 99 }; assert.equal(game.calculateRent(4), 1800, 'City Events apply on top of the full-set double');
 });
 test('a mortgaged property cannot be built on; buildings in the color block mortgages', () => {
   const game = create(); own(game, 1); own(game, 2); build(game, 1);

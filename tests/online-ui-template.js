@@ -228,6 +228,7 @@ async (page) => {
   assert((await page.locator('.player-property[data-id="4"]').textContent())==='2'&&(await page.locator('.player-property[data-id="4"]').getAttribute('title')).includes('2 houses'),'The player card chip for this property shows its 2 houses');
   await guest.locator('#game-board [data-id="4"]').click();
   assert(await guest.locator('#modal [data-buildings="2"] .house-icon').count()===2,'Property deed shows the owner and individual house icons');
+  assert((await guest.locator('#modal .rent-table thead').textContent()).includes('All 3 owned')&&(await guest.locator('#modal .rent-table tbody tr').nth(3).textContent()).includes('$120')&&(await guest.locator('#modal .rent-table tbody tr').nth(3).textContent()).includes('$240'),'The deed shows every rent doubled for owning the full color set');
   await guest.locator('#modal [data-action=close]').last().click();
   await page.locator('.player-property[data-id="4"]').click();await page.locator('#modal [data-action=manager]').click();
   await page.locator('#modal [data-action=auction][data-id="4"]').click();
