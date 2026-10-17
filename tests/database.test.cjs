@@ -104,13 +104,14 @@ test('RLS allows members to read, rejects outsiders and all browser writes/RPCs'
   } finally { await db.exec('reset role'); }
 });
 
-test('Future event order stays private and simultaneous revisions commit once', async () => {
+test('Card draws expose no future order, and simultaneous revisions commit once', async () => {
   let room=await create('DB0007');room=await joinRoom(room.code,guest,p('Guest'));
   const state=stateFor(room);
   room=await commit(room,host,state,randomUUID(),true);
-  assert.deepEqual(room.state.decks.market.order,[]);
+  // Draws are independent weighted picks, so there is no shuffled order to hide: a deck only remembers its last few draws.
+  assert.deepEqual(room.state.decks.market.recent,[]);assert.deepEqual(room.state.decks.market.order,[]);
   const secret=(await query('select state from public.mw_game_secrets where code=$1',[room.code]))[0].state;
-  assert.equal(secret.decks.market.order.length,15);
+  assert.deepEqual(secret.decks.market.recent,[]);assert.equal(secret.jackpot,100);assert.equal(secret.round,1);
   const a=structuredClone(secret);a.phase='end';a.players[0].cash=1450;
   const outcomes=await Promise.allSettled([commit(room,host,a),commit(room,host,a)]);
   assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1);

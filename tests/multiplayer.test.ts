@@ -94,6 +94,19 @@ test('Only the current player proposes a trade and only its recipient answers it
     assert.throws(() => command({ action: 'trade', trade: bad }), /Invalid trade/);
 });
 
+test('Only the current player can spin the Wheel of Fortune, and the spin is decided by the server', async () => {
+  const room = playing(), game = fixture();
+  game.state.phase = 'moving'; game.state.players[0].position = 30; game.resolveSpace(); room.state = saved(game);
+  assert.equal(room.state.phase, 'wheel');
+  await assert.rejects(applyGameAction(room, 'guest', { action: 'spin' }), /acting player/);
+  await assert.rejects(applyGameAction(room, 'host', { action: 'roll' }), /./, 'a roll cannot replace the spin');
+  assert.deepEqual(command({ action: 'spin', index: 7, outcome: 'cheat' }), { action: 'spin', id: undefined, increment: undefined });
+  const spun = await applyGameAction(room, 'host', { action: 'spin' });
+  assert.equal(spun.state.lastWheel?.player, 0); assert.ok(spun.state.lastWheel!.index >= 0 && spun.state.lastWheel!.index < 8);
+  assert.ok(['end', 'event', 'debt'].includes(spun.state.phase));
+  await assert.rejects(applyGameAction({ ...room, state: spun.state }, 'host', { action: 'spin' }), /no wheel/);
+});
+
 test('Only the off-turn debtor can liquidate, settle, or declare bankruptcy', async () => {
   const room = playing(), game = fixture();
   game.state.properties[1].owner = 1; game.state.players[1].cash = 20;

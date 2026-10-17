@@ -63,6 +63,7 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
       case 'bid': game.auctionBid(command.increment); break;
       case 'pass': game.auctionPass(); break;
       case 'apply-event': await game.applyCard(); break;
+      case 'spin': game.spinWheel(); break;
       case 'release': game.payPenalty(); break;
       case 'build': game.buildStructure(command.id); break;
       case 'sell': game.sellBuilding(command.id); break;

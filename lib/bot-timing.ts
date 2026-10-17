@@ -14,7 +14,7 @@ export function botSeat(room: Room): number | null {
 // Leave time for every client to replay the preceding accepted move.
 export function botReadyAt(room: Room) {
   const transition = room.transition;
-  const animation = (transition?.action === 'roll' ? 950 : 0) + (transition?.path.length || 0) * 150;
+  const animation = (transition?.action === 'roll' ? 950 : 0) + (transition?.action === 'spin' ? 4500 : 0) + (transition?.path.length || 0) * 150;
   return Date.parse(room.updated_at) + animation + (room.state?.phase === 'event' ? 4000 : 1100);
 }
 

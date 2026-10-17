@@ -30,7 +30,12 @@ const {Game}=require('../lib/game-engine.cjs');
   debtor.beginPayments([{payer:0,creditor:1,amount:150,reason:'Beacon Wharf rent',category:'rent'}]);
   const debt=JSON.parse(debtor.serialize());
   const debtReady=JSON.parse(debtor.serialize());debtReady.players[0].cash=160;
-  const extras={developed,auction,resold,event,debt,debtReady};
+  // Host stands on the Wheel of Fortune; the second state is after a spin that landed on the -$100 slice.
+  const wheelGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
+  wheelGame.state.phase='moving';wheelGame.active.position=30;wheelGame.resolveSpace();
+  const wheelState=JSON.parse(wheelGame.serialize());
+  wheelGame.random=()=>.63;wheelGame.spinWheel();const spun=JSON.parse(wheelGame.serialize());
+  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun};
   const botMember={name:'Bot Ada',token:'lime',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{}});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];

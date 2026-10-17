@@ -74,6 +74,7 @@ export function timeoutCommand(state: GameState): Command | { action: 'timeout' 
     return developed ? {action:'sell', id:developed.id} : {action:'bankrupt'};
   }
   if (state.phase === 'event') return {action:'apply-event'};
+  if (state.phase === 'wheel') return {action:'spin'};
   if (state.phase === 'ready' && player.penalty) return {action:'release'};
   return {action:'timeout'};
 }
@@ -100,6 +101,7 @@ export function chooseBotAction(state: GameState): Command | null {
       return auction.bid + 10 <= Math.min(value, player.cash - reserve) ? {action:'bid',increment:10} : {action:'pass'};
     }
     case 'event': return {action:'apply-event'};
+    case 'wheel': return {action:'spin'};
     case 'debt': {
       if (player.cash >= state.pending!.amount) return {action:'settle'};
       if (game.liquidatable(player) < state.pending!.amount) return {action:'bankrupt'};

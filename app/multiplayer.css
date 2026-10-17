@@ -186,3 +186,24 @@
 @media(max-width:420px){.token-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .trade-item.blocked{opacity:.55;cursor:not-allowed}
 .trade-block{display:block;font-style:normal;font-size:10px;color:var(--muted);margin-top:2px;line-height:1.35}
+/* Wheel of Fortune */
+.wheel-wrap{position:relative;width:min(300px,78vw);aspect-ratio:1;margin:8px auto 14px}
+.wheel-disc{width:100%;height:100%;border-radius:50%;filter:drop-shadow(0 8px 14px #0006);will-change:transform}
+.wheel-disc svg{width:100%;height:100%;display:block}
+.wheel-pointer{position:absolute;left:50%;top:-8px;width:0;height:0;margin-left:-13px;z-index:2;border-left:13px solid transparent;border-right:13px solid transparent;border-top:26px solid #c9a24a;filter:drop-shadow(0 2px 2px #0007)}
+.wheel-caption{text-align:center;font-size:14px;margin:0 0 8px}
+.wheel-outcome{text-align:center;font:700 26px var(--mono);margin:6px 0 2px;color:var(--gold)}
+.wheel-outcome[data-kind=pay]{color:var(--red)}
+.wheel-outcome[data-kind=build]{color:var(--cyan)}
+/* Event card rarity and the stored Prison pass */
+.event-card{position:relative}
+.rarity-tag{position:absolute;top:10px;right:12px;font:700 10px var(--mono);letter-spacing:.14em;padding:3px 8px;border-radius:999px;background:#0001;color:var(--muted)}
+.event-card.rarity-uncommon .rarity-tag{background:#2f7a5a;color:#fff}
+.event-card.rarity-rare{border-color:#c9a24a;box-shadow:0 0 0 2px #c9a24a66,0 0 26px #c9a24a55}
+.event-card.rarity-rare .rarity-tag{background:#c9a24a;color:#2a1f12}
+.pass-badge{display:inline-block;margin-top:8px;padding:3px 9px;border-radius:999px;font:700 10px var(--mono);letter-spacing:.06em;background:#c9a24a;color:#2a1f12}
+/* Jackpot, stage and City Event status */
+.city-status{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:12px;line-height:1.5}
+.city-status p{margin:0 0 4px}.city-status p:last-child{margin-bottom:0}
+.city-status .city-event{color:var(--gold);font-weight:600}
+@media(prefers-reduced-motion:reduce){.wheel-disc{transition:none!important}}

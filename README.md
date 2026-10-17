@@ -116,7 +116,7 @@ The API verifies the Supabase access token with `auth.getUser()`. It never trust
 
 Game commands read the room revision and private game state together in one database snapshot, so concurrent commands cannot combine an old revision with a newer state.
 
-Lobby joins, unique tokens/names, four-seat capacity, profile edits, and host transfers run inside database transactions. RLS blocks outsiders from reading a room. Browser roles cannot mutate any game table or execute privileged RPCs. Future event deck order is excluded from the public snapshot and Realtime stream.
+Lobby joins, unique tokens/names, four-seat capacity, profile edits, and host transfers run inside database transactions. RLS blocks outsiders from reading a room. Browser roles cannot mutate any game table or execute privileged RPCs. Event cards are independent weighted draws made on the server, so there is no hidden deck order to leak.
 
 Realtime delivers committed snapshots. A fetch after subscription, periodic reconciliation, and reconnect/visibility handlers recover missed messages. Client animations replay accepted moves without calculating new game outcomes. The server state is already durable if a tab closes mid-animation.
 
@@ -128,7 +128,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs 41 rule checks, 18 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, 2-of-a-color and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, private deck order, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
+`npm test` runs 50 rule checks, 22 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, 2-of-a-color and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, the Wheel of Fortune, the Free Market jackpot, City Events, 100-card decks and rarity, rolled and gamble cards, the Prison pass, old-save migration, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
 
 Deterministic two-browser UI checks use the Playwright CLI. Start the app with `npm run dev` first, then open it at `localhost` (the Next.js dev server rejects `127.0.0.1`):
 
@@ -139,7 +139,7 @@ npx playwright-cli -s=market-online run-code --filename=output/playwright/online
 npx playwright-cli -s=market-online close
 ```
 
-These 77 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
+These 85 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
 
 For a **real internet/Supabase smoke test**, configure a test Supabase project with anonymous sign-ins and the migration, start the Next app against it, and run:
 
@@ -162,8 +162,13 @@ Everyone begins with $1,500 and the last financially active player wins. All pla
 - **Building:** own at least 2 unmortgaged properties of a color. You build only on the property your token landed on this turn (not a doubles waypoint), one level per landing. A newly acquired property must be landed on again on a later turn before its first build. Build and sell evenly across every property you own in that color: each needs a building before any gets a second. Each level costs the district price; selling returns half.
 - **Mortgages:** half the price; sell every building in the color first. Unmortgage for the value plus 10%.
 - **Trading:** properties and cash between players, as described above.
-- **Taxes and spaces:** Business Tax $200, Wealth Tax $100, Free Market does nothing, City Bank pays $50, Open Auction offers a random unowned property.
-- **Prison:** the Go to Prison corner, some event cards, or three doubles in a row. Roll doubles, pay $50 before rolling, or pay $50 after three failed rolls. If a detained player's 90 seconds run out, the $50 fine is paid automatically; when cash is short, their lowest-rent property is mortgaged first. Landing on Prison normally is just a visit.
+- **Taxes:** Business Tax is the lesser of $200 and 10% of your cash. Wealth Tax is $15 per property and $25 per building level, so it is $0 if you own nothing. City Bank pays $50. Open Auction offers a random unowned property.
+- **Free Market jackpot:** half of every tax, fine and card payment to the bank goes into the Free Market pot (the other half leaves the economy, which keeps cash from inflating and games finishing). The pot starts at $100. Landing on Free Market wins all of it and resets it to $100.
+- **Wheel of Fortune** (top-right corner): spin for +$400, +$250, +$150, +$100, −$100, −$200, a free building level on your most under-built color (or +$100 if you cannot build), or a Market card. The server spins; the browser only animates the result.
+- **Prison:** landing on Prison locks you up, as do some event cards and three doubles in a row. Roll doubles, pay $50 before rolling, or pay $50 after three failed rolls. A **Get out of Prison free** card (from an event) is kept in your hand and used automatically whenever you would be jailed. If a detained player's 90 seconds run out, the $50 fine is paid automatically; when cash is short, their lowest-rent property is mortgaged first.
+- **Event cards:** Market and Economic decks have 50 cards each, drawn by rarity (common 70%, uncommon 25%, rare 5%) and never repeating within 12 draws. Types: fixed cash, rolled amounts (die × a unit), gambles (roll a die), everyone-gains or everyone-pays, movement, per-property and per-building formulas, catch-up cards (the poorest gets a big grant) and levy cards (the richest pays into the jackpot), jail, and the Prison pass.
+- **Game stage:** from round 16, cash on cards, the wheel and both taxes doubles; from round 31 it triples. A round is every active player taking one turn.
+- **City Events:** every 5th round, announced one round ahead: Property Boom (rents +50% for 2 rounds), Recession (building costs −30% for 2 rounds) or Tax Audit (the richest player pays up to $100 × stage to the poorest).
 - **Doubles:** a doubles landing is a waypoint with no purchase, rent, tax, or event. You must roll again; only the final landing resolves, and End turn stays disabled until then.
 - **Turn timer:** 90 seconds of inactivity passes the turn, as described above.
 

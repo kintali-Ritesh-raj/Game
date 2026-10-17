@@ -113,6 +113,12 @@ test('Bots do not spam human players with trade offers',async()=>{
   }
   assert.ok(offers>=1&&offers<=2,'40 turns (20 rounds) bring at most 2 offers to a human, got '+offers);
 });
+test('Bots spin the wheel, and a timed-out player spins it automatically',async()=>{
+  const room=playing();const game=MarketWars.Game.restore(JSON.stringify(room.state));
+  game.state.currentPlayer=1;game.state.phase='moving';game.active.position=30;game.resolveSpace();room.state=JSON.parse(game.serialize());
+  assert.equal(chooseBotAction(room.state!)!.action,'spin');assert.deepEqual(timeoutCommand(room.state!),{action:'spin'});
+  assert.equal((await step(room)).action,'spin');assert.notEqual(room.state!.phase,'wheel');assert.equal(room.state!.lastWheel!.player,1);
+});
 test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolvent bots go bankrupt',async()=>{
   const room=playing();
   const game=MarketWars.Game.restore(JSON.stringify(room.state));game.state.players[1].cash=0;game.asset(1).owner=1;game.asset(1).buildings=1;
