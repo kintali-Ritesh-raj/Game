@@ -247,6 +247,10 @@ async (page) => {
   await guest.emulateMedia({reducedMotion:'reduce'});await guest.reload();await guest.locator('#modal .event-card').waitFor();
   assert(await guest.locator('#modal .event-card').evaluate(el=>el.getAnimations().length===0),'Reduced motion suppresses card animation and preserves event state');
   assert(await page.locator('#modal .rarity-tag').count()===1&&/^(COMMON|UNCOMMON|RARE)$/.test(await page.locator('#modal .rarity-tag').textContent()),'The event card shows its rarity');
+  room.state=clone(fixture.extras.dieCard);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#modal [data-action=apply-event]:has-text("Roll the die")').waitFor();await guest.locator('#modal .event-card h3:has-text("Lucky customer")').waitFor();
+  assert((await page.locator('#modal [data-action=apply-event]').textContent()).includes('Roll the die')&&(await page.locator('#modal').textContent()).includes('Nothing is rolled until you press the button'),'A die card waits for the player to press Roll the die');
+  assert(await page.locator('#modal [data-action=apply-event]').isEnabled()&&await guest.locator('#modal [data-action=apply-event]').isDisabled()&&(await guest.locator('#modal').textContent()).includes('rolls the die'),'Only the drawing player can roll the card die; the others see who must roll');
   room.state=clone(fixture.extras.wheelState);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#modal [data-action=spin]').waitFor();await guest.locator('#modal [data-action=spin]').waitFor();
   assert(await page.locator('#modal [data-action=spin]').isEnabled()&&await guest.locator('#modal [data-action=spin]').isDisabled(),'Only the player standing on the Wheel of Fortune can spin it');

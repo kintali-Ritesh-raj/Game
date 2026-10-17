@@ -46,7 +46,11 @@ const {Game}=require('../lib/game-engine.cjs');
   Object.assign(buffGame.state,{round:5,city:{upcoming:{kind:'audit',round:10},active:{kind:'boom',until:6},last:'audit'}});
   Object.assign(buffGame.player(0).perks,{tailwind:2,shield:1,launch:2});
   const buffed=JSON.parse(buffGame.serialize());
-  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed};
+  // A die card waits for the player to roll: Lucky customer (roll one die, receive $30 x the number).
+  const dieGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
+  dieGame.state.event={deck:'market',index:require('../lib/game-engine.cjs').DECKS.market.findIndex(card=>card.title==='Lucky customer')};dieGame.state.phase='event';
+  const dieCard=JSON.parse(dieGame.serialize());
+  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed,dieCard};
   const botMember={name:'Bot Ada',token:'lime',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{}});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];
