@@ -176,9 +176,12 @@ test('transport and utility rents count only active stations, buildings are proh
   assert.equal(game.calculateRent(8), 150); assert.equal(game.calculateRent(15, 7), 105);
   game.mortgageProperty(23); game.mortgageProperty(29);
   assert.equal(game.calculateRent(8), 50); assert.equal(game.calculateRent(15, 7), 42);
-  // Service rents grow with the game stage: ×2 after round 15, ×3 after round 30.
+  // Service rents grow with the game stage: ×2 after round 15, ×3 after 30, ×4 after 80, ×5 after 130.
   game.state.round = 16; assert.equal(game.calculateRent(8), 100); assert.equal(game.calculateRent(15, 7), 84);
   game.state.round = 31; assert.equal(game.calculateRent(8), 150);
+  game.state.round = 80; assert.equal(game.calculateRent(8), 150, 'round 80 is still stage 3');
+  game.state.round = 81; assert.equal(game.stage(), 4); assert.equal(game.calculateRent(8), 200);
+  game.state.round = 130; assert.equal(game.stage(), 4); game.state.round = 131; assert.equal(game.stage(), 5); assert.equal(game.calculateRent(8), 250);
   assert.throws(() => build(game, 8), /cannot be developed/);
 });
 test('auction cycles bidders, awards highest bid, and handles no bids', () => {
@@ -255,6 +258,8 @@ test('rolled, gamble, catch-up and levy cards use the server dice and the game s
   for (const [roll, expected] of [[0, 1400], [.4, 1500], [.99, 1750]]) { game = create(); game.random = () => roll; await apply(game, 'market', 'Double or nothing'); assert.equal(game.active.cash, expected, 'gamble at ' + roll); }
   game = create(); game.state.round = 16; game.random = () => .99; await apply(game, 'market', 'Lucky customer'); assert.equal(game.active.cash, 1500 + 6 * 60, 'stage 2 doubles cash cards');
   game = create(); game.state.round = 31; await apply(game, 'economic', 'Small business fund'); assert.equal(game.active.cash, 1800, 'stage 3 triples cash cards');
+  game = create(); game.state.round = 81; await apply(game, 'economic', 'Small business fund'); assert.equal(game.active.cash, 1900, 'stage 4 quadruples cash cards');
+  game = create(); game.state.round = 131; await apply(game, 'economic', 'Small business fund'); assert.equal(game.active.cash, 2000, 'stage 5 multiplies cash cards by 5');
   game = create(); game.state.round = 16; assert.match(game.describeCard(DECKS.market[1]), /\$160/);
   game = create(); assert.match(game.describeCard(DECKS.market.find(card => card.title === 'Double or nothing')), /1–2 pay \$100, 3–4 nothing, 5–6 win \$250/);
   assert.match(game.describeCard(DECKS.market.find(card => card.title === 'Risky launch')), /1–3 pay \$150, 4–6 win \$300/);
