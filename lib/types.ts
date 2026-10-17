@@ -7,6 +7,7 @@ export type GameState = {
   version: number; players: Player[]; properties: Record<string, { owner: number | null; buildings: number; mortgaged: boolean; ready?: boolean }>;
   currentPlayer: number; turn: number; phase: 'ready' | 'end' | 'offer' | 'auction' | 'trade' | 'wheel' | 'freebuild' | 'event' | 'debt' | 'victory' | 'rolling' | 'moving';
   dice: number[]; offer: number | null; extraRoll: boolean; hasRolled: boolean; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
+  log: { id: number; turn: number; message: string; kind: string; tone?: 'gain' | 'loss' | 'power' | 'prison' | 'deal' | 'city'; player?: number }[];
   auction: { bidder: number; property: number; seller?: number | null; returnPhase?: 'ready' | 'end'; bid: number; leader: number | null; order: number[]; passed: number[] } | null;
   round?: number; jackpot?: number;
   city?: { upcoming: { kind: 'boom' | 'recession' | 'audit'; round: number } | null; active: { kind: 'boom' | 'recession' | 'audit'; until: number } | null; last?: 'boom' | 'recession' | 'audit' | null };
