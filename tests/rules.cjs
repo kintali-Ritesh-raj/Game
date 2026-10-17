@@ -6,7 +6,7 @@ const path = require('node:path');
 const context = { console, setTimeout, clearTimeout };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'lib', 'game-engine.cjs'), 'utf8'), context);
-const { Game, BOARD, DECKS, validatePlayers, RARITY_WEIGHTS } = context.MarketWars;
+const { Game, BOARD, GROUPS, DECKS, WHEEL, validatePlayers, RARITY_WEIGHTS } = context.MarketWars;
 const players = [
   { name: 'Ritesh', token: 'black' },
   { name: 'Manish', token: 'blue' },
@@ -17,6 +17,7 @@ const testCases = [];
 const test = (name, run) => testCases.push({ name, run });
 const create = (count = 2, random = () => .4) => new Game(players.slice(0, count), {}, { random, wait: async () => {} });
 const game0 = () => create();
+const playCard = async (game, deck, title) => { game.state.event = { deck, index: DECKS[deck].findIndex(card => card.title === title) }; game.state.phase = 'event'; await game.applyCard(); await drain(game); };
 const land = (game, position) => { game.active.position = position; game.state.phase = 'moving'; game.resolveSpace(); };
 const own = (game, id, owner = 0) => { game.asset(id).owner = owner; };
 const stand = (game, id) => { game.active.position = id; game.state.hasRolled = true; };
@@ -33,7 +34,7 @@ test('2, 3 and 4 players start with valid state and $1,500 each', () => {
     assert.equal(game.active.id, 0);
   }
   assert.equal(BOARD.length, 40);
-  assert.equal(DECKS.market.length, 50); assert.equal(DECKS.economic.length, 50);
+  assert.equal(DECKS.market.length, 52); assert.equal(DECKS.economic.length, 52);
   assert.equal(game0().state.jackpot, 100); assert.equal(game0().state.round, 1); assert.ok(game0().state.players.every(player => player.jailFree === 0));
 });
 test('setup rejects repeated names, repeated tokens and blank names; no roles are needed', () => {
@@ -214,15 +215,15 @@ test('every event resolves, and effects cannot apply twice', async () => {
     }
   }
 });
-test('50 cards per deck are drawn by rarity (70/25/5) and never repeat within 12 draws', () => {
+test('52 cards per deck are drawn by rarity (70/25/5) and never repeat within 12 draws', () => {
   for (const [name, cards] of Object.entries(DECKS)) {
-    assert.equal(cards.length, 50);
+    assert.equal(cards.length, 52);
     for (const tier of Object.keys(RARITY_WEIGHTS)) assert.ok(cards.some(card => card.rarity === tier), name + ' has ' + tier + ' cards');
     assert.ok(cards.every(card => card.title && card.text && card.effect));
     const game = create(2, randomSeed(7)), draws = [], tiers = { common: 0, uncommon: 0, rare: 0 };
     for (let i = 0; i < 3000; i++) { game.drawCard(name); draws.push(game.state.event.index); tiers[cards[draws.at(-1)].rarity]++; }
     draws.forEach((index, i) => assert.ok(!draws.slice(Math.max(0, i - 12), i).includes(index), 'repeat within 12 draws'));
-    assert.equal(new Set(draws).size, 50, 'every card turns up eventually');
+    assert.equal(new Set(draws).size, 52, 'every card turns up eventually');
     assert.ok(tiers.common / 3000 > .6 && tiers.common / 3000 < .8, 'common share ' + tiers.common / 3000);
     assert.ok(tiers.rare / 3000 > .02 && tiers.rare / 3000 < .09, 'rare share ' + tiers.rare / 3000);
   }
@@ -281,38 +282,145 @@ test('landing on Prison locks you up; a stored Get out of Prison free card is us
   for (let i = 0; i < 2; i++) { await doubles.rollDice(); if (doubles.state.phase === 'offer') doubles.purchaseProperty(); if (doubles.state.phase === 'event') await doubles.applyCard(); }
   await doubles.rollDice(); assert.equal(doubles.active.penalty, null); assert.equal(doubles.active.jailFree, 0, 'three doubles use the pass too');
 });
-test('Wheel of Fortune: the server spin pays, charges, builds free or draws a card, and scales with the stage', () => {
+test('Wheel of Fortune: weighted slices pay, charge, grant power-ups, give free spins and a chosen free house', () => {
+  // r picks a slice by weight: jackpot 3, bad 34, good 14, house 8, small 20, taxman 7, power 8, free 13 (of 107).
   const spin = (r, setup, round) => { const g = create(); if (round) g.state.round = round; setup?.(g); g.random = () => r; land(g, 30); assert.equal(g.state.phase, 'wheel'); g.spinWheel(); return g; };
   assert.equal(BOARD[30].type, 'wheel'); assert.equal(BOARD[30].name, 'Wheel of Fortune');
   let g = spin(.01); assert.equal(g.active.cash, 1900); assert.equal(g.state.lastWheel.index, 0); assert.equal(g.state.phase, 'end'); assert.match(g.state.lastWheel.outcome, /Won \$400/);
-  g = spin(.13); assert.equal(g.active.cash, 1750);
-  g = spin(.26); assert.equal(g.active.cash, 1650);
-  g = spin(.38); assert.equal(g.active.cash, 1600);
-  g = spin(.63); assert.equal(g.active.cash, 1400); assert.equal(g.state.jackpot, 150, 'wheel losses feed the jackpot');
-  g = spin(.76); assert.equal(g.active.cash, 1300);
-  g = spin(.9); assert.equal(g.state.phase, 'event'); assert.equal(g.state.event.deck, 'market');
-  g = spin(.51, x => { own(x, 1); own(x, 2); x.asset(1).buildings = 1; });
-  assert.equal(g.asset(2).buildings, 1); assert.equal(g.asset(1).buildings, 1); assert.equal(g.active.cash, 1500); assert.match(g.state.lastWheel.outcome, /Free building on Sailmaker Lane/);
-  g = spin(.51); assert.equal(g.active.cash, 1600); assert.match(g.state.lastWheel.outcome, /Nothing to build/);
+  g = spin(.2); assert.equal(g.active.cash, 1350); assert.equal(g.state.jackpot, 175, 'losses feed the jackpot');
+  g = spin(.42); assert.equal(g.active.cash, 1700);
+  g = spin(.65); assert.equal(g.active.cash, 1600);
+  g = spin(.78); assert.equal(g.active.cash, 1250);
+  g = spin(.84); assert.equal(g.state.phase, 'end'); assert.equal(g.active.perks.reversal, 3); assert.match(g.state.lastWheel.outcome, /Power-up: Rent Reversal/);
+  g = spin(.95); assert.equal(g.state.phase, 'wheel', 'a free spin keeps the wheel open'); assert.equal(g.state.wheelFree, 1); assert.match(g.state.lastWheel.outcome, /Free spin/);
+  g.random = () => .01; g.spinWheel(); assert.equal(g.active.cash, 1900); assert.equal(g.state.wheelFree, 0, 'a normal result ends the chain');
+  g = create(); land(g, 30); g.random = () => .95; for (let i = 0; i < 3; i++) g.spinWheel();
+  assert.equal(g.state.wheelFree, 3); assert.equal(g.state.phase, 'wheel'); g.spinWheel();
+  assert.notEqual(g.state.lastWheel.label, 'Free spin', 'after 3 free spins the next result is forced non-free'); assert.equal(g.state.wheelFree, 0);
+  // Free house: the player chooses; even building and the 2-of-a-colour rule apply, landing there does not.
+  g = spin(.53, x => { own(x, 1); own(x, 2); x.asset(1).buildings = 1; });
+  assert.equal(g.state.phase, 'freebuild'); assert.deepEqual([...g.freeBuildTargets(g.active).map(space => space.id)], [2]);
+  assert.throws(() => g.freeBuild(1), /Choose a property/); assert.throws(() => g.freeBuild(4), /Choose a property/); assert.throws(() => g.spinWheel(), /no wheel/);
+  g.freeBuild(2); assert.equal(g.asset(2).buildings, 1); assert.equal(g.active.cash, 1500); assert.equal(g.state.phase, 'end'); assert.throws(() => g.freeBuild(2), /no free house/);
+  g = spin(.53); assert.equal(g.active.cash, 1600); assert.match(g.state.lastWheel.outcome, /Nothing to build/);
   g = spin(.01, null, 16); assert.equal(g.active.cash, 2300); g = spin(.01, null, 31); assert.equal(g.active.cash, 2700);
-  assert.deepEqual([...create().wheelSegments().map(slice => slice.text)], ['+$400', '+$250', '+$150', '+$100', 'Free building', '−$100', '−$200', 'Market card']);
+  g = spin(.2, null, 16); assert.equal(g.active.cash, 1200); g = spin(.78, null, 31); assert.equal(g.active.cash, 750);
+  assert.deepEqual([...create().wheelSegments().map(slice => slice.text)], ['Jackpot +$400', 'Bad spin −$150', 'Good spin +$200', 'Free house', 'Small win +$100', 'Taxman −$250', 'Power-up', 'Free spin']);
   assert.throws(() => create().spinWheel(), /no wheel/);
-  const poor = create(); poor.active.cash = 50; poor.random = () => .76; land(poor, 30); poor.spinWheel(); assert.equal(poor.state.phase, 'debt', 'a wheel loss can become a debt');
+  const poor = create(); poor.active.cash = 50; poor.random = () => .78; land(poor, 30); poor.spinWheel(); assert.equal(poor.state.phase, 'debt', 'a wheel loss can become a debt');
 });
-test('City Events are announced a round ahead; Boom, Recession and Audit change the whole table', () => {
+test('the wheel averages about zero at every game stage, and rarer slices are less likely', () => {
+  const tier = { common: 3, uncommon: 2, rare: 1 }, weights = Object.fromEntries(WHEEL.map(slice => [slice.id, slice.weight]));
+  for (const a of WHEEL) for (const b of WHEEL) if (tier[a.tier] > tier[b.tier]) assert.ok(a.weight > b.weight, a.label + ' (' + a.tier + ') must be likelier than ' + b.label + ' (' + b.tier + ')');
+  const buildCost = [GROUPS.harbor, GROUPS.canal, GROUPS.garden, GROUPS.studio, GROUPS.metro, GROUPS.tech, GROUPS.ridge, GROUPS.premium].reduce((sum, group) => sum + group.cost, 0) / 8, powerUp = 100;
+  const open = WHEEL.filter(slice => slice.kind !== 'free'), total = open.reduce((sum, slice) => sum + slice.weight, 0); // a free spin just spins again
+  for (const stage of [1, 2, 3]) {
+    const ev = open.reduce((sum, slice) => sum + slice.weight * (slice.kind === 'cash' ? slice.amount * stage : slice.kind === 'pay' ? -slice.amount * stage : slice.kind === 'build' ? buildCost : powerUp), 0) / total;
+    assert.ok(Math.abs(ev) <= 15, 'wheel average at stage ' + stage + ' is ' + ev.toFixed(1) + ', outside ±$15');
+  }
+  // The engine really draws by these weights: 8,000 seeded spins land within 2.5 points of each slice's chance.
+  const game = create(2, randomSeed(31)), counts = {}; land(game, 30);
+  for (let i = 0; i < 8000; i++) { game.state.phase = 'wheel'; game.state.wheelFree = 0; game.active.cash = 1e6; game.state.pending = null; game.state.payments = []; game.spinWheel(); game.state.phase = 'wheel'; if (game.state.lastWheel) counts[WHEEL[game.state.lastWheel.index].id] = (counts[WHEEL[game.state.lastWheel.index].id] || 0) + 1; }
+  const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+  for (const slice of WHEEL) assert.ok(Math.abs((counts[slice.id] || 0) / 8000 - slice.weight / sum) < .025, slice.id + ' share ' + ((counts[slice.id] || 0) / 8000).toFixed(3));
+});
+test('Fire Sale: under $200 a mortgage pays 25% more, and unmortgaging costs 110% of what was received', () => {
+  const game = create(); own(game, 1); own(game, 4); own(game, 2);
+  game.mortgageProperty(1); assert.equal(game.active.cash, 1550); assert.equal(game.asset(1).mortgageReceived, 50); assert.equal(game.unmortgageCost(1), 55);
+  game.active.cash = 199; game.mortgageProperty(4);
+  assert.equal(game.active.cash, 199 + 87); assert.equal(game.asset(4).mortgageReceived, 87); assert.equal(game.unmortgageCost(4), 96, '110% of the $87 received, rounded up');
+  game.unmortgageProperty(4); assert.equal(game.active.cash, 190); assert.equal(game.asset(4).mortgageReceived, undefined);
+  game.active.cash = 150; game.mortgageProperty(4); game.unmortgageProperty(4); assert.ok(game.active.cash < 150, 'a Fire Sale mortgage and buy-back is never a profit');
+  game.active.cash = 200; game.mortgageProperty(2); assert.equal(game.active.cash, 260, 'exactly $200 is not under $200');
+  const poor = create(); own(poor, 1); own(poor, 2); poor.active.cash = 100; assert.equal(poor.liquidatable(poor.active), 100 + 75 + 62, 'liquidation value counts the bonus only while cash is under $200');
+  const legacy = create(); own(legacy, 1); legacy.asset(1).mortgaged = true; assert.equal(legacy.unmortgageCost(1), 55, 'older mortgages fall back to the standard value');
+});
+test('Launch Boost adds $150 to Launch money for 2 passes; Tailwind keeps the best two of three dice for 2 rolls', async () => {
+  const game = create(); game.active.perks.launch = 2; game.active.position = 38;
+  await game.movePlayer(3, { resolve: false }); assert.equal(game.active.cash, 1500 + 350); assert.equal(game.active.perks.launch, 1);
+  game.active.position = 39; await game.movePlayer(1, { resolve: false }); assert.equal(game.active.cash, 1500 + 700, 'landing on Launch counts as a pass'); assert.equal(game.active.perks.launch, 0);
+  assert.ok(game.state.log.some(entry => /Launch Boost has run out/.test(entry.message)));
+  game.active.position = 39; await game.movePlayer(1, { resolve: false }); assert.equal(game.active.cash, 1500 + 900, 'back to the normal $200');
+  const roller = create(); roller.active.perks.tailwind = 2; const draws = [.5, .34, 0, .4, .4, 0, .2, .2]; let k = 0; roller.random = () => draws[k++] ?? .3;
+  await roller.rollDice(); await drain(roller);
+  assert.deepEqual([...roller.state.dice], [4, 3], 'the best two of 4, 3, 1'); assert.equal(roller.active.perks.tailwind, 1); assert.ok(roller.state.log.some(entry => /drops the lowest \(1\)/.test(entry.message)));
+  roller.state.phase = 'ready'; roller.state.hasRolled = false;
+  await roller.rollDice(); await drain(roller);
+  assert.deepEqual([...roller.state.dice], [3, 3], 'doubles are judged on the kept two'); assert.equal(roller.state.extraRoll, true); assert.equal(roller.active.perks.tailwind, 0);
+  assert.ok(roller.state.log.some(entry => /Rent Tailwind|Tailwind has run out/.test(entry.message)));
+  roller.state.phase = 'ready'; roller.state.extraRoll = false; k = 0; draws.splice(0, draws.length, .2, .5); await roller.rollDice(); await drain(roller);
+  assert.deepEqual([...roller.state.dice], [2, 4], 'with no Tailwind left, two dice again');
+});
+test('Rent Shield, Rent Doubler and Rent Reversal: charges are spent only when rent is really due, and they run out', async () => {
+  // Shield
+  let game = create(); own(game, 1, 1); own(game, 2, 1); own(game, 4, 0); own(game, 6, 1); own(game, 8, 1);
+  await playCard(game, 'market', 'Rent Shield'); assert.equal(game.active.perks.shield, 2);
+  land(game, 4); assert.equal(game.active.perks.shield, 2, 'your own property owes no rent and costs no charge');
+  game.asset(6).mortgaged = true; land(game, 6); assert.equal(game.active.perks.shield, 2, 'a mortgaged property owes no rent either');
+  land(game, 1); assert.equal(game.active.cash, 1500); assert.equal(game.active.perks.shield, 1); assert.equal(game.state.phase, 'end');
+  land(game, 8); assert.equal(game.active.cash, 1500, 'stations count as rent too'); assert.equal(game.active.perks.shield, 0);
+  assert.ok(game.state.log.some(entry => /Rent Shield has run out/.test(entry.message)));
+  land(game, 1); assert.equal(game.active.cash, 1484, 'after the shield runs out, rent ($16 for a pair) is paid again');
+  // Doubler: the owner collects double, capped at $400 and never reducing a rent already above $400
+  game = create(); own(game, 1, 0); own(game, 2, 0); own(game, 4, 0); game.asset(4).buildings = 3; own(game, 39, 0); game.asset(39).buildings = 5;
+  await playCard(game, 'market', 'Rent Doubler'); assert.equal(game.player(0).perks.doubler, 2);
+  game.state.currentPlayer = 1; land(game, 1); assert.equal(game.player(1).cash, 1468, 'rent $16 doubled to $32, a collection is not capped when small');
+  land(game, 4); assert.equal(game.player(1).cash, 1468 - 400, '$264 doubles to $528 but the cap holds it at $400'); assert.equal(game.player(0).perks.doubler, 0);
+  land(game, 4); assert.equal(game.player(1).cash, 1468 - 400 - 264, 'no charges left: normal rent');
+  game = create(); own(game, 39, 0); game.asset(39).buildings = 5; game.player(0).perks.doubler = 1; game.state.currentPlayer = 1; game.player(1).cash = 5000; land(game, 39);
+  assert.equal(game.player(1).cash, 5000 - 2100, 'a rent already above $400 is never reduced'); assert.equal(game.player(0).perks.doubler, 0);
+  // Reversal
+  game = create(); own(game, 1, 1); own(game, 2, 1); await playCard(game, 'economic', 'Rent Reversal'); assert.equal(game.active.perks.reversal, 3);
+  land(game, 1); assert.equal(game.active.cash, 1516); assert.equal(game.player(1).cash, 1484, 'the owner pays the visitor');
+  land(game, 2); land(game, 1); assert.equal(game.active.cash, 1516 + 20 + 16); assert.equal(game.active.perks.reversal, 0);
+  land(game, 1); assert.equal(game.active.cash, 1552 - 16, 'after 3 landings the rent flows normally again');
+  game = create(); own(game, 1, 1); game.active.perks.reversal = 1; game.player(1).cash = 3; land(game, 1);
+  assert.equal(game.state.phase, 'debt'); assert.equal(game.state.pending.payer, 1, 'the owner can end up owing the visitor');
+  // Order: reversal first, then shield; the doubler applies to whoever receives rent
+  game = create(); own(game, 1, 1); Object.assign(game.active.perks, { reversal: 1, shield: 1, doubler: 1 }); land(game, 1);
+  assert.equal(game.active.cash, 1516, 'reversal: the owner pays the visitor, doubled by the visitor’s Doubler'); assert.deepEqual({ ...game.active.perks }, { launch: 0, tailwind: 0, shield: 1, doubler: 0, reversal: 0 });
+  land(game, 1); assert.equal(game.active.cash, 1516, 'then the shield takes over'); assert.equal(game.active.perks.shield, 0);
+  game = create(); own(game, 1, 1); game.player(1).perks.doubler = 1; game.active.perks.shield = 1; land(game, 1);
+  assert.equal(game.player(1).perks.doubler, 1, 'a shielded landing collects no rent, so the owner’s Doubler is not spent');
+});
+test('Roll Again: the drawer rolls straight away like an extra roll, and the new landing resolves normally', async () => {
+  const game = create(2, () => .4); game.active.position = 14;
+  await playCard(game, 'economic', 'Roll Again');
+  assert.equal(game.state.extraRoll, true); assert.equal(game.state.phase, 'end'); assert.equal(game.canRoll(), true);
+  assert.throws(() => game.nextTurn(), /Roll again/);
+  let n = 0; game.random = () => [0, .2][n++ % 2]; await game.rollDice(); await drain(game);
+  assert.equal(game.state.extraRoll, false); assert.equal(game.active.position, 17); assert.equal(game.state.phase, 'event', 'a non-doubles landing resolves, not a waypoint');
+});
+test('City Events: Boom, Recession and Audit, never the same twice in a row, announced a round ahead, 2 rounds long', () => {
   const advance = (game, rounds) => { for (let i = 0; i < rounds * game.state.players.filter(player => !player.bankrupt).length; i++) { game.state.phase = 'end'; game.state.extraRoll = false; game.nextTurn(); } };
-  let game = create(); game.random = () => .1; advance(game, 3);
+  let game = create(); game.random = () => .1; own(game, 1); advance(game, 3);
   assert.equal(game.state.round, 4); assert.deepEqual({ ...game.state.city.upcoming }, { kind: 'boom', round: 5 }); assert.ok(game.state.log.some(entry => /Coming next round: Property Boom/.test(entry.message)));
-  own(game, 1); assert.equal(game.calculateRent(1), 8);
+  assert.deepEqual([...game.cityLines()], ['Next round: Property Boom (rents +50%).']); assert.equal(game.calculateRent(1), 8);
   advance(game, 1); assert.equal(game.state.round, 5); assert.deepEqual({ ...game.state.city.active }, { kind: 'boom', until: 6 }); assert.equal(game.calculateRent(1), 12, 'rents +50%');
-  advance(game, 1); assert.equal(game.state.city.active.kind, 'boom', 'still active in round 6');
+  assert.deepEqual([...game.cityLines()], ['Property Boom (rents +50%), 2 rounds left.']);
+  advance(game, 1); assert.equal(game.state.city.active.kind, 'boom', 'still active in round 6'); assert.deepEqual([...game.cityLines()].slice(0, 1), ['Property Boom (rents +50%), 1 round left.']);
   advance(game, 1); assert.equal(game.state.city.active, null, 'over in round 7'); assert.equal(game.calculateRent(1), 8);
+  // never the same event twice in a row, even when the dice would pick it
+  game = create(2, randomSeed(9)); const kinds = [];
+  for (let round = 1; round < 60; round++) { advance(game, 1); const up = game.state.city.upcoming; if (up && !kinds.some(entry => entry.round === up.round)) kinds.push(up); }
+  assert.ok(kinds.length >= 10); kinds.forEach((entry, i) => { if (i) assert.notEqual(entry.kind, kinds[i - 1].kind, 'rounds ' + kinds[i - 1].round + ' and ' + entry.round); });
+  assert.deepEqual(new Set(kinds.map(entry => entry.kind)).size, 3, 'all three events turn up');
+  // Recession: building costs −30% and every rent −25%
   game = create(); game.random = () => .4; own(game, 1); own(game, 2); advance(game, 4);
-  assert.equal(game.state.city.active.kind, 'recession'); assert.equal(game.buildingCost(game.active, BOARD[1]), 35, 'building costs -30%');
+  assert.equal(game.state.city.active.kind, 'recession'); assert.equal(game.buildingCost(game.active, BOARD[1]), 35, 'building costs −30%'); assert.equal(game.calculateRent(1), 12, 'a $16 rent falls 25% to $12');
   assert.equal(game.finances(game.active).buildingValue, 0); game.asset(1).buildings = 1; assert.equal(game.finances(game.active).buildingValue, 50, 'net worth ignores the discount');
+  // The City Event multiplier is applied first, then Doubler, its $400 cap, then Reversal or Shield
+  game = create(); game.random = () => .4; own(game, 4, 0); own(game, 6, 0); game.asset(4).buildings = 3; advance(game, 4); game.player(0).perks.doubler = 1;
+  assert.equal(game.calculateRent(4), 198, '$264 less 25%'); game.state.currentPlayer = 1; land(game, 4); assert.equal(game.player(1).cash, 1500 - 396, 'doubled after the recession cut (not capped first)');
+  // Audit: instant, the richest pays the poorest $100; ties go to the lower seat
   game = create(); game.random = () => .9; game.player(0).cash = 2000; game.player(1).cash = 1000; advance(game, 4);
   assert.equal(game.state.city.active, null); assert.equal(game.player(0).cash, 1900); assert.equal(game.player(1).cash, 1100, 'the richest pays the poorest');
-  game.state.round = 20; assert.equal(game.cityLines().length, 0);
+  game = create(3); game.random = () => .9; [game.player(0).cash, game.player(1).cash, game.player(2).cash] = [1500, 1500, 1000]; advance(game, 4);
+  assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1400, 1500, 1100], 'tied richest: the lower seat pays');
+  game = create(3); game.random = () => .9; [game.player(0).cash, game.player(1).cash, game.player(2).cash] = [2000, 1500, 1500]; advance(game, 4);
+  assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1900, 1600, 1500], 'tied poorest: the lower seat receives');
+  game = create(3); game.random = () => .9; advance(game, 4); assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1500, 1500, 1500], 'everyone level: nothing to redistribute');
+  game = create(); game.random = () => .9; game.player(0).cash = 60; game.player(1).cash = 40; advance(game, 4); assert.equal(game.player(0).cash, 0, 'the richest pays only what they have'); assert.equal(game.player(1).cash, 100);
   game = create(3); game.random = () => .9; advance(game, 4); assert.equal(game.state.round, 5, 'a round is every player taking a turn');
   game = create(3); game.player(2).bankrupt = true; game.random = () => .1; for (let i = 0; i < 8; i++) { game.state.phase = 'end'; game.nextTurn(); } assert.equal(game.state.round, 5, 'bankrupt players are skipped without changing the count');
 });
@@ -322,8 +430,9 @@ test('saves from before the card and wheel update still load', () => {
   delete s.round; delete s.jackpot; delete s.city; delete s.lastWheel; s.players.forEach(player => delete player.jailFree);
   s.turn = 9; s.phase = 'event'; s.event = { deck: 'economic', index: 4 };
   const game = Game.restore(JSON.stringify(s));
-  assert.equal(JSON.stringify(game.state.decks.market), '{"recent":[]}'); assert.equal(game.state.round, 5); assert.equal(game.state.jackpot, 100);
-  assert.deepEqual({ ...game.state.city }, { upcoming: null, active: null }); assert.ok(game.state.players.every(player => player.jailFree === 0));
+  assert.equal(JSON.stringify(game.state.decks.market), '{"recent":[]}'); assert.equal(game.state.round, 5); assert.equal(game.state.wheelFree, 0);
+  assert.equal(JSON.stringify(game.state.players[0].perks), '{"launch":0,"tailwind":0,"shield":0,"doubler":0,"reversal":0}', 'older saves hold no power-up charges'); assert.equal(game.state.jackpot, 100);
+  assert.equal(JSON.stringify(game.state.city), '{"upcoming":null,"active":null,"last":null}'); assert.ok(game.state.players.every(player => player.jailFree === 0));
   assert.equal(DECKS.economic[4].title, 'Clean energy rebate', 'the original 15 cards keep their positions');
   const wheelSave = JSON.parse(create().serialize()); wheelSave.phase = 'wheel'; assert.throws(() => Game.restore(JSON.stringify(wheelSave)), /damaged/, 'a wheel phase needs the player on the wheel');
 });
@@ -426,14 +535,14 @@ test('debt prohibits ending, building, borrowing or premature bankruptcy; mortga
   const game = create(); own(game, 1); game.active.cash = 10;
   game.beginPayments([{ payer: 0, creditor: 1, amount: 50, reason: 'test rent', category: 'rent' }]);
   assert.equal(game.state.phase, 'debt'); assert.throws(() => game.nextTurn()); assert.throws(() => game.buildStructure(1)); assert.throws(() => game.declareBankruptcy(), /cover/);
-  game.mortgageProperty(1); game.settleDebt(); assert.equal(game.active.cash, 10); assert.equal(game.player(1).cash, 1550); assert.equal(game.state.phase, 'end');
+  game.mortgageProperty(1); game.settleDebt(); assert.equal(game.active.cash, 22, 'Fire Sale: $50 + 25% raised at $10 cash'); assert.equal(game.player(1).cash, 1550); assert.equal(game.state.phase, 'end');
 });
 test('off-turn event debts use the debtor’s assets and return control to the active player', () => {
   const game = create(3); own(game, 4, 1); game.player(1).cash = 0;
   game.beginPayments(game.living.map(p => ({ payer: p.id, creditor: null, amount: 50, reason: 'market slowdown', category: 'fee' })));
   assert.equal(game.managerPlayer.id, 1); assert.equal(game.active.id, 0);
   assert.throws(() => game.mortgageProperty(1)); game.mortgageProperty(4); game.settleDebt();
-  assert.equal(game.player(1).cash, 20); assert.equal(game.player(2).cash, 1450); assert.equal(game.active.id, 0); assert.equal(game.state.phase, 'end');
+  assert.equal(game.player(1).cash, 37, 'Fire Sale: $70 + 25% raised at $0 cash, less the $50 owed'); assert.equal(game.player(2).cash, 1450); assert.equal(game.active.id, 0); assert.equal(game.state.phase, 'end');
 });
 test('bankruptcy to a player transfers cash, properties, mortgages, and buildings', () => {
   const game = create(3); own(game, 4, 1); game.asset(4).buildings = 2; own(game, 6, 1); game.asset(6).mortgaged = true; game.player(1).cash = 12;
@@ -452,13 +561,14 @@ test('victory is detected and no further turns can be taken', () => {
   assert.equal(game.state.phase, 'victory'); assert.equal(game.state.winner, 1); assert.throws(() => game.nextTurn()); assert.throws(() => game.buildStructure(1));
 });
 test('safe phase saves restore exact ownership, cash, decks, settings and pending actions', () => {
-  for (const phase of ['ready', 'end', 'offer', 'auction', 'event', 'wheel', 'debt', 'victory']) {
+  for (const phase of ['ready', 'end', 'offer', 'auction', 'event', 'wheel', 'freebuild', 'debt', 'victory']) {
     const game = create(); own(game, 4, 1); game.asset(4).buildings = 2; game.state.settings.sound = false;
     if (phase === 'end') game.finishResolution();
     if (phase === 'offer') land(game, 1);
     if (phase === 'auction') { land(game, 1); game.purchaseProperty(); game.startAuction(1); }
     if (phase === 'event') game.drawCard('economic');
     if (phase === 'wheel') land(game, 30);
+    if (phase === 'freebuild') { own(game, 1); own(game, 2); land(game, 30); game.random = () => .53; game.spinWheel(); }
     if (phase === 'debt') { game.active.cash = 0; game.beginPayments([{ payer: 0, creditor: null, amount: 100, reason: 'fee', category: 'fee' }]); }
     if (phase === 'victory') { game.player(0).bankrupt = true; game.checkWinner(); }
     const serialized = game.serialize(), restored = Game.restore(serialized);
@@ -473,7 +583,7 @@ test('a saved auction, event and debt resume once, without duplicate transaction
   game = create(); game.state.event = { deck: 'market', index: 0 }; game.state.phase = 'event';
   game = Game.restore(game.serialize(), { wait: async () => {} }); await game.applyCard(); assert.equal(game.player(0).cash, 1650);
   game = create(); own(game, 1); game.active.cash = 10; game.beginPayments([{ payer: 0, creditor: 1, amount: 50, reason: 'rent', category: 'rent' }]);
-  game = Game.restore(game.serialize()); game.mortgageProperty(1); game.settleDebt(); assert.equal(game.player(1).cash, 1550); assert.equal(game.player(0).cash, 10);
+  game = Game.restore(game.serialize()); game.mortgageProperty(1); game.settleDebt(); assert.equal(game.player(1).cash, 1550); assert.equal(game.player(0).cash, 22);
 });
 
 async function simulate(count, seed) {
@@ -491,6 +601,7 @@ async function simulate(count, seed) {
       }
       case 'event': events.add(s.event.deck + ':' + s.event.index); await game.applyCard(); break;
       case 'wheel': game.spinWheel(); break;
+      case 'freebuild': { const pick = game.freeBuildTargets(game.active).sort((a, b) => game.asset(a.id).buildings - game.asset(b.id).buildings || a.id - b.id)[0]; game.freeBuild(pick.id); break; }
       case 'trade': {
         const t = s.trade, price = t.get.properties.reduce((sum, id) => sum + BOARD[id].price, 0);
         if (t.give.cash >= price * 2) { game.acceptTrade(); trades++; } else game.rejectTrade(); break;

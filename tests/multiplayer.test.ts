@@ -115,11 +115,11 @@ test('Only the off-turn debtor can liquidate, settle, or declare bankruptcy', as
   await assert.rejects(applyGameAction(room, 'host', { action: 'mortgage', id: 1 }), /acting player/);
   await assert.rejects(applyGameAction(room, 'host', { action: 'end' }), /pending payment/);
   room.state = (await applyGameAction(room, 'guest', { action: 'mortgage', id: 1 })).state;
-  assert.equal(room.state.players[1].cash, 70);
+  assert.equal(room.state.players[1].cash, 82, 'Fire Sale: $50 + 25% mortgage proceeds raised at $20 cash');
   room.state = (await applyGameAction(room, 'guest', { action: 'settle' })).state;
   assert.equal(room.state.pending, null);
   assert.equal(room.state.currentPlayer, 0);
-  assert.equal(room.state.players[1].cash, 0);
+  assert.equal(room.state.players[1].cash, 12);
 });
 
 test('Bankruptcy and winner survive serialization', async () => {

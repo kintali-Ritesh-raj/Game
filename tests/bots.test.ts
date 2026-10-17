@@ -94,7 +94,7 @@ test('A timed-out Prison turn pays the $50 fine, mortgaging the lowest-rent land
   room.state=poor.state;const steps=[];
   for(let i=0;i<6&&room.state!.currentPlayer===0;i++)steps.push(await forced());
   assert.deepEqual(steps.map(c=>c.action+(('id' in c && c.id)||'')),['release','mortgage1','settle','timeout'],'only Beacon Wharf (lowest rent) is mortgaged');
-  assert.equal(room.state!.properties[1].mortgaged,true);assert.equal(room.state!.properties[37].mortgaged,false);assert.equal(room.state!.players[0].cash,10);
+  assert.equal(room.state!.properties[1].mortgaged,true);assert.equal(room.state!.properties[37].mortgaged,false);assert.equal(room.state!.players[0].cash,22,'the Fire Sale bonus applies to automatic mortgages too');
   assert.equal(room.state!.players[0].penalty,null);
   const broke=playing();broke.state!.players[0].penalty={kind:'prison',attempts:0};broke.state!.players[0].cash=20;room.state=broke.state;
   assert.equal((await forced()).action,'release');assert.equal((await forced()).action,'bankrupt');assert.equal(room.state!.phase,'victory');
@@ -117,7 +117,17 @@ test('Bots spin the wheel, and a timed-out player spins it automatically',async(
   const room=playing();const game=MarketWars.Game.restore(JSON.stringify(room.state));
   game.state.currentPlayer=1;game.state.phase='moving';game.active.position=30;game.resolveSpace();room.state=JSON.parse(game.serialize());
   assert.equal(chooseBotAction(room.state!)!.action,'spin');assert.deepEqual(timeoutCommand(room.state!),{action:'spin'});
-  assert.equal((await step(room)).action,'spin');assert.notEqual(room.state!.phase,'wheel');assert.equal(room.state!.lastWheel!.player,1);
+  assert.equal((await step(room)).action,'spin');assert.ok(['end','event','debt','freebuild','wheel'].includes(room.state!.phase));assert.equal(room.state!.lastWheel!.player,1);
+});
+test('Bots and timeouts place the Free house on the lowest-built eligible property',async()=>{
+  const game=new MarketWars.Game([{name:'A',token:'black'},{name:'B',token:'lime'}],{}, {random:()=>.53,wait:async()=>{}});
+  for(const id of [1,2])game.asset(id).owner=1;game.asset(1).buildings=2;game.asset(2).buildings=2;for(const id of [4,6])game.asset(id).owner=1;game.asset(4).buildings=1;
+  game.state.currentPlayer=1;game.state.phase='moving';game.active.position=30;game.resolveSpace();game.spinWheel();
+  assert.equal(game.state.phase,'freebuild');const state=JSON.parse(game.serialize());
+  assert.deepEqual(chooseBotAction(state),{action:'free-build',id:6},'Ripple Arcade (no buildings) is the lowest-built');
+  assert.deepEqual(timeoutCommand(state),{action:'free-build',id:6});
+  const room=playing();room.state=state;assert.equal((await step(room)).action,'free-build');assert.equal(room.state!.properties[6].buildings,1);assert.equal(room.state!.phase,'end');
+  await assert.rejects(applyGameAction(playing(),'host',{action:'free-build',id:6}),/./,'only valid during the Free house prize');
 });
 test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolvent bots go bankrupt',async()=>{
   const room=playing();

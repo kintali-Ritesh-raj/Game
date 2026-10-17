@@ -34,8 +34,19 @@ const {Game}=require('../lib/game-engine.cjs');
   const wheelGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
   wheelGame.state.phase='moving';wheelGame.active.position=30;wheelGame.resolveSpace();
   const wheelState=JSON.parse(wheelGame.serialize());
-  wheelGame.random=()=>.63;wheelGame.spinWheel();const spun=JSON.parse(wheelGame.serialize());
-  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun};
+  wheelGame.random=()=>.2;wheelGame.spinWheel();const spun=JSON.parse(wheelGame.serialize()); // the Bad spin slice: -$150
+  // Host owns a Tidehaven pair (one house on Beacon Wharf) and lands a Free house on the wheel.
+  const houseGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
+  houseGame.asset(1).owner=0;houseGame.asset(2).owner=0;houseGame.asset(1).buildings=1;
+  houseGame.state.phase='moving';houseGame.active.position=30;houseGame.resolveSpace();houseGame.random=()=>.53;houseGame.spinWheel();
+  const freeHouse=JSON.parse(houseGame.serialize());
+  freeHouse.lastWheel.id=2; // a later spin than the Bad spin fixture, as in one real game
+  // Round 5: a Property Boom is active, an Audit is announced for round 10, and the host holds power-ups.
+  const buffGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
+  Object.assign(buffGame.state,{round:5,city:{upcoming:{kind:'audit',round:10},active:{kind:'boom',until:6},last:'audit'}});
+  Object.assign(buffGame.player(0).perks,{tailwind:2,shield:1,launch:2});
+  const buffed=JSON.parse(buffGame.serialize());
+  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed};
   const botMember={name:'Bot Ada',token:'lime',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{}});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];

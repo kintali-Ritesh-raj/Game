@@ -207,3 +207,20 @@
 .city-status p{margin:0 0 4px}.city-status p:last-child{margin-bottom:0}
 .city-status .city-event{color:var(--gold);font-weight:600}
 @media(prefers-reduced-motion:reduce){.wheel-disc{transition:none!important}}
+/* Wheel odds, Free house picker, power-up badges, City Event banner */
+.wheel-odds{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:12px}
+.wheel-odds li{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:7px;padding:3px 0;border-bottom:1px dotted var(--line)}
+.wheel-odds i{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px #0004}
+.wheel-odds b{font:600 11px var(--mono);color:var(--muted)}
+.wheel-odds .tier-rare span{font-weight:700}
+.wheel-odds .tier-rare b{color:var(--gold)}
+.freebuild-list{display:grid;gap:8px}
+.freebuild-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-left:5px solid var(--group-color);border-radius:8px;background:var(--bg)}
+.freebuild-item span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.perk-badge{display:inline-block;margin:8px 6px 0 0;padding:3px 9px;border-radius:999px;font:700 10px var(--mono);letter-spacing:.05em;background:#334a5a;color:#fff}
+.perk-launch{background:#b58a1c}.perk-tailwind{background:#2f7ba8}.perk-shield{background:#3c8a5d}.perk-doubler{background:#8a4fb8}.perk-reversal{background:#b24b4b}
+.city-banner{display:flex;flex-wrap:wrap;gap:6px;margin-left:12px}
+.city-chip{padding:4px 10px;border-radius:999px;font:600 11px var(--mono);border:1px solid var(--line);background:var(--panel);color:var(--text)}
+.city-chip.active{background:#c9a24a;border-color:#a67f2e;color:#2a1f12;font-weight:700}
+.city-chip.upcoming{border-style:dashed;color:var(--gold)}
+@media(max-width:700px){.wheel-odds{grid-template-columns:1fr}.city-banner{margin-left:0;flex-basis:100%}}

@@ -54,6 +54,12 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
   return offers[0]?.offer || null;
 }
 
+/** The Free house prize: bots (and timeouts) build on the lowest-built eligible property, lowest property first on ties. */
+function freeHouse(game:Engine, player:Seat):Command {
+  const target = game.freeBuildTargets(player).sort((a,b) => game.asset(a.id).buildings-game.asset(b.id).buildings || a.id-b.id)[0];
+  return target ? {action:'free-build',id:target.id} : {action:'timeout'} as unknown as Command;
+}
+
 /**
  * The forced move when a human's turn timer runs out. A detained player pays the $50 fine;
  * if that fine cannot be paid in cash, their lowest-rent property is mortgaged first.
@@ -75,6 +81,7 @@ export function timeoutCommand(state: GameState): Command | { action: 'timeout' 
   }
   if (state.phase === 'event') return {action:'apply-event'};
   if (state.phase === 'wheel') return {action:'spin'};
+  if (state.phase === 'freebuild') return freeHouse(game, player);
   if (state.phase === 'ready' && player.penalty) return {action:'release'};
   return {action:'timeout'};
 }
@@ -102,6 +109,7 @@ export function chooseBotAction(state: GameState): Command | null {
     }
     case 'event': return {action:'apply-event'};
     case 'wheel': return {action:'spin'};
+    case 'freebuild': return freeHouse(game, player);
     case 'debt': {
       if (player.cash >= state.pending!.amount) return {action:'settle'};
       if (game.liquidatable(player) < state.pending!.amount) return {action:'bankrupt'};
@@ -115,7 +123,7 @@ export function chooseBotAction(state: GameState): Command | null {
       if (state.extraRoll) return {action:'roll'};
       const trade = tradeOffer(game, state, player);
       if (trade) return {action:'trade', trade};
-      const mortgage = owned.find(space => game.asset(space.id).mortgaged && player.cash >= Math.ceil(space.mortgageValue * 1.1) + reserve);
+      const mortgage = owned.find(space => game.asset(space.id).mortgaged && player.cash >= game.unmortgageCost(space.id) + reserve);
       if (mortgage) return {action:'unmortgage',id:mortgage.id};
       const property = owned.filter(space => !game.buildReason(player,space.id) && player.cash >= game.buildingCost(player,space) + reserve)
         .sort((a,b) => game.asset(a.id).buildings-game.asset(b.id).buildings || game.buildingCost(player,a)-game.buildingCost(player,b))[0];
