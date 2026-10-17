@@ -99,6 +99,8 @@
 .toast-life{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--tone);opacity:.75;transform-origin:left;animation:toast-life var(--life,4300ms) linear both}
 .toast-item:hover .toast-life{animation-play-state:paused}
 @keyframes toast-life{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+/* A bot's remark on a declined trade, as a small speech bubble. */
+.toast-remark{margin:5px 0 0!important;padding:3px 9px;display:inline-block;border-radius:9px 9px 9px 2px;background:#ffffff1a;color:#fff!important;font-size:13px!important;font-style:italic;font-weight:600;line-height:1.35!important}
 /* Power-ups shimmer; losses give a short shake; Prison slams its lock. */
 .toast-item.tone-power::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,#0000 30%,#ffffff2e 48%,#e6c06a33 52%,#0000 70%);transform:translateX(-100%);animation:toast-shimmer 1.6s ease-in-out .3s 2;pointer-events:none}
 @keyframes toast-shimmer{to{transform:translateX(100%)}}

@@ -74,7 +74,7 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
       case 'bankrupt': game.declareBankruptcy(); break;
       case 'trade': game.proposeTrade(command.trade); break;
       case 'accept-trade': game.acceptTrade(); break;
-      case 'reject-trade': game.rejectTrade('declined', command.action === 'reject-trade' && 'note' in command ? command.note : ''); break;
+      case 'reject-trade': game.rejectTrade('declined', 'note' in command ? command.note : '', 'remark' in command ? command.remark : ''); break;
     }
     // The unchanged model also starts movement from a payment continuation.
     // Drain that work before saving; animation never holds a database lock.

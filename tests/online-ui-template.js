@@ -298,6 +298,10 @@ async (page) => {
   assert((await page.locator('#city-banner').textContent()).includes('Property Boom (rents +50%), 2 rounds left.')&&(await page.locator('#city-banner').textContent()).includes('Next round: Tax Audit'),'The board header shows the active City Event and the announced one');
   assert((await page.locator('.city-status').textContent()).includes('Round 5'),'The turn card shows the round and the City Event');
   await page.locator('.board-tools').screenshot({path:'output/playwright/city-banner.png'});
+  room.state=clone(fixture.extras.declined);room.revision++;room.transition={action:'reject-trade',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#toast-stack .toast-item',{hasText:'declined the trade offer'}).waitFor({timeout:8000});
+  assert((await page.locator('#toast-stack .toast-item',{hasText:'declined the trade offer'}).locator('.toast-title').textContent())==='Trade declined'&&(await page.locator('#toast-stack .toast-item .toast-remark').first().textContent())==='“Close, but too low.”','The decline popup carries the bot’s short remark');
+  await page.waitForTimeout(700);await page.locator('#toast-stack').screenshot({path:'output/playwright/toast-declined.png'});
   room.state=clone(fixture.extras.jailed);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#classic-token-0.jailed').waitFor();
   assert(await page.locator('#classic-token-0 .pawn-cage').isVisible()&&await page.locator('#classic-token-1.jailed').count()===0,'A jailed pawn is shown behind bars; free pawns are not');

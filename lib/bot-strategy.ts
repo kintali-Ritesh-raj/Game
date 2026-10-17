@@ -48,7 +48,7 @@ export function cashReserve(game:Engine, seat:number) {
   return Math.min(700, Math.max(150, worst));
 }
 /** The extra value a bot asks for, from 25% up to 120%, depending on who is asking, its cash, and how often they have asked lately. */
-function tradeMargin(game:Engine, trade:Trade) {
+function tradeMargin(game:Engine, trade:Trade): { margin:number; asked:number } {
   const bot = game.player(trade.to), rival = game.player(trade.from), living = game.living;
   const worth = (seat:number) => game.finances(game.player(seat)).netWorth;
   let margin = BASE_MARGIN;
@@ -63,11 +63,12 @@ function tradeMargin(game:Engine, trade:Trade) {
   const props = [...trade.give.properties, ...trade.get.properties];
   const current = last && last.from === trade.from && last.to === trade.to && last.turn === game.state.turn && last.properties.length === props.length && props.every(id => last.properties.includes(id));
   const window = 8 * Math.max(1, living.length);
+  let asked = 0;
   for (const item of current ? history.slice(0, -1) : history) {
     if (item.from !== trade.from || item.to !== trade.to || game.state.turn - item.turn >= window) continue;
-    margin += item.properties.some(id => trade.get.properties.includes(id)) ? .15 : .05;
+    asked++; margin += item.properties.some(id => trade.get.properties.includes(id)) ? .15 : .05;
   }
-  return Math.min(MAX_MARGIN, Math.max(.15, margin));
+  return { margin: Math.min(MAX_MARGIN, Math.max(.15, margin)), asked };
 }
 /** A property of the proposer's that would finish (or at least advance) one of the bot's colors, for the decline message. */
 function wantedFrom(game:Engine, trade:Trade) {
@@ -76,25 +77,26 @@ function wantedFrom(game:Engine, trade:Trade) {
   return candidates.find(space => others(space).every(item => game.asset(item.id).owner === trade.to))
     || candidates.find(space => others(space).some(item => game.asset(item.id).owner === trade.to));
 }
-export function judgeTrade(game:Engine, trade:Trade): { accept:boolean; note:string } {
+// `note` explains a decline for the log; `remark` is the bot's own few words, shown in the decline popup.
+export function judgeTrade(game:Engine, trade:Trade): { accept:boolean; note:string; remark:string } {
   const botId = trade.to, rivalId = trade.from, bot = game.player(botId);
   const groups = [...new Set([...trade.give.properties, ...trade.get.properties].map(id => MarketWars.BOARD[id].group))];
   const botCompletes = groups.some(group => ownsAll(game, trade, botId, group, true) && !ownsAll(game, trade, botId, group, false));
-  const decline = (reason:string) => {
+  const decline = (reason:string, remark:string) => {
     const wanted = wantedFrom(game, trade);
-    return { accept: false, note: reason + '.' + (wanted ? ' It would consider a trade for ' + wanted.name + '.' : '') };
+    return { accept: false, note: reason + '.' + (wanted ? ' It would consider a trade for ' + wanted.name + '.' : ''), remark };
   };
   // 1-3. Properties the bot would give up.
   for (const id of trade.get.properties) {
     const group = MarketWars.BOARD[id].group;
-    if (ownsAll(game, trade, botId, group, false)) return decline('It will not break up its full ' + groupName(group) + ' set');
+    if (ownsAll(game, trade, botId, group, false)) return decline('It will not break up its full ' + groupName(group) + ' set', 'Not breaking my set.');
     if (botCompletes) continue; // a set for a set is the one swap the bot will weigh on value
-    if (ownsAll(game, trade, rivalId, group, true)) return decline('It will not hand over the last ' + groupName(group) + ' property');
-    if (held(game, trade, botId, group, false) >= 2) return decline('It is collecting ' + groupName(group) + ' and will not sell');
+    if (ownsAll(game, trade, rivalId, group, true)) return decline('It will not hand over the last ' + groupName(group) + ' property', 'That would finish your set.');
+    if (held(game, trade, botId, group, false) >= 2) return decline('It is collecting ' + groupName(group) + ' and will not sell', 'I\'m collecting this color.');
   }
   // 4. Cash it would pay out must leave a safety reserve.
   const reserve = cashReserve(game, botId), cashAfter = bot.cash - trade.get.cash + trade.give.cash;
-  if (trade.get.cash > 0 && cashAfter < reserve) return decline('It keeps at least ' + cashText(reserve) + ' in cash for rent');
+  if (trade.get.cash > 0 && cashAfter < reserve) return decline('It keeps at least ' + cashText(reserve) + ' in cash for rent', 'I need that cash for rent.');
   // Value: what the bot receives against what it gives up, including what the proposer gains from it.
   let gain = trade.give.cash, loss = trade.get.cash;
   for (const id of trade.give.properties) {
@@ -111,9 +113,9 @@ export function judgeTrade(game:Engine, trade:Trade): { accept:boolean; note:str
     if (held(game, trade, botId, space.group, false) >= 2) loss += space.price * .5;                        // it was collecting this color
     else if (game.groupSpaces(space.group).length > 1 && game.groupSpaces(space.group).some(item => game.asset(item.id).owner === null)) loss += space.price * .1; // a color still open to collect
   }
-  const margin = tradeMargin(game, trade);
-  if (gain >= loss * (1 + margin)) return { accept: true, note: '' };
-  return decline('The offer is too low for it');
+  const { margin, asked } = tradeMargin(game, trade), wants = loss * (1 + margin);
+  if (gain >= wants) return { accept: true, note: '', remark: '' };
+  return decline('The offer is too low for it', gain < wants * .7 ? 'Not even close.' : asked ? 'Still too low.' : 'Close, but too low.');
 }
 /** Accept only what passes the hard rules and the value check. */
 export function acceptsTrade(game:Engine, trade:Trade) { return judgeTrade(game, trade).accept; }
@@ -183,7 +185,7 @@ export function chooseBotAction(state: GameState): Command | null {
   const owned = game.owned(player);
   const reserve = 200;
   switch (state.phase) {
-    case 'trade': { const verdict = judgeTrade(game, state.trade!); return verdict.accept ? {action:'accept-trade'} : {action:'reject-trade', note: verdict.note}; }
+    case 'trade': { const verdict = judgeTrade(game, state.trade!); return verdict.accept ? {action:'accept-trade'} : {action:'reject-trade', note: verdict.note, remark: verdict.remark}; }
     case 'ready':
       if (player.penalty && player.cash >= 350) return {action:'release'};
       return {action:'roll'};

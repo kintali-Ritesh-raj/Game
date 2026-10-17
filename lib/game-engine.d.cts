@@ -18,7 +18,7 @@ declare class Game {
   calculateRent(id:number,diceTotal?:number):number;
   completeGroup(player:GameState['players'][number],group:string):boolean;
   tradeReason(from:number,offer:unknown):string;
-  proposeTrade(offer?:unknown):void; acceptTrade():void; rejectTrade(reason?:string,note?:string):void;
+  proposeTrade(offer?:unknown):void; acceptTrade():void; rejectTrade(reason?:string,note?:string,remark?:string):void;
   sellReason(player:GameState['players'][number],id:number):string;
   mortgageReason(player:GameState['players'][number],id:number):string;
   liquidatable(player:GameState['players'][number]):number;

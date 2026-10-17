@@ -57,7 +57,11 @@ const {Game}=require('../lib/game-engine.cjs');
   // Host is in Prison.
   const jailGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});jailGame.state.players[0].position=10;jailGame.state.players[0].penalty={kind:'prison',attempts:1};
   const jailed=JSON.parse(jailGame.serialize());
-  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed,dieCard,dieRolled,jailed};
+  // Guest (played as a bot here) declines Host's cash offer with a short remark.
+  const tradeGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});tradeGame.asset(1).owner=1;
+  tradeGame.proposeTrade({to:1,give:{cash:240,properties:[]},get:{cash:0,properties:[1]}});tradeGame.rejectTrade('declined','The offer is too low for it.','Close, but too low.');
+  const declined=JSON.parse(tradeGame.serialize());declined.log.forEach(entry=>entry.id+=9000);
+  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed,dieCard,dieRolled,jailed,declined};
   const botMember={name:'Bot Ada',token:'lime',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{}});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];
