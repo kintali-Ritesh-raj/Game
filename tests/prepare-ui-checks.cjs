@@ -55,7 +55,7 @@ const {Game}=require('../lib/game-engine.cjs');
   // Fixtures come from separate games, so lift this one's log ids above every earlier fixture: the page only notifies new entries.
   dieRolled.log.forEach(entry=>entry.id+=5000);
   // Host is in Prison.
-  const jailGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});jailGame.state.players[0].position=10;jailGame.state.players[0].penalty={kind:'prison',attempts:1};
+  const jailGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});jailGame.state.players[0].position=10;jailGame.state.players[0].penalty={kind:'prison',attempts:1};jailGame.state.round=21;
   const jailed=JSON.parse(jailGame.serialize());
   // Guest (played as a bot here) declines Host's cash offer with a short remark.
   const tradeGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});tradeGame.asset(1).owner=1;

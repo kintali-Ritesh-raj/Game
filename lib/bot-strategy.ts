@@ -153,7 +153,7 @@ function freeHouse(game:Engine, player:Seat):Command {
 }
 
 /**
- * The forced move when a human's turn timer runs out. A detained player pays the $50 fine;
+ * The forced move when a human's turn timer runs out. A detained player pays the Prison fine;
  * if that fine cannot be paid in cash, their lowest-rent property is mortgaged first.
  */
 export function timeoutCommand(state: GameState): Command | { action: 'timeout' } {
@@ -187,7 +187,7 @@ export function chooseBotAction(state: GameState): Command | null {
   switch (state.phase) {
     case 'trade': { const verdict = judgeTrade(game, state.trade!); return verdict.accept ? {action:'accept-trade'} : {action:'reject-trade', note: verdict.note, remark: verdict.remark}; }
     case 'ready':
-      if (player.penalty && player.cash >= 350) return {action:'release'};
+      if (player.penalty && player.cash >= game.prisonFine() + 300) return {action:'release'};
       return {action:'roll'};
     case 'offer': {
       const property = MarketWars.BOARD[state.offer!];

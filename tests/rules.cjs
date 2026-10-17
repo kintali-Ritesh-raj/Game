@@ -594,6 +594,17 @@ test('log entries say whether news is good or bad and for whom', async () => {
   const old = Game.restore(JSON.stringify({ ...JSON.parse(game.serialize()), lastDie: undefined, droppedDie: undefined }));
   assert.equal(old.state.lastDie, null); assert.equal(old.state.droppedDie, null);
 });
+test('City Bank interest rises $50 every 7 rounds and the Prison fine rises $100 every 20 rounds', async () => {
+  const at = round => { const game = create(); game.state.round = round; return game; };
+  assert.deepEqual([1, 7, 8, 14, 15, 50].map(round => at(round).bankInterest()), [50, 50, 100, 100, 150, 400]);
+  assert.deepEqual([1, 20, 21, 40, 41, 100].map(round => at(round).prisonFine()), [50, 50, 150, 150, 250, 450]);
+  const banker = at(8); land(banker, 33); assert.equal(banker.active.cash, 1600, 'landing on City Bank in round 8 pays $100');
+  const inmate = at(21); inmate.active.penalty = { kind: 'prison', attempts: 0 }; inmate.active.position = 10; inmate.state.phase = 'ready';
+  inmate.payPenalty(); assert.equal(inmate.active.cash, 1350, 'leaving Prison in round 21 costs $150'); assert.equal(inmate.active.penalty, null);
+  const stuck = at(41); stuck.active.penalty = { kind: 'prison', attempts: 2 }; stuck.active.position = 10; stuck.state.phase = 'ready';
+  const draws = [0, .2]; let k = 0; stuck.random = () => draws[k++] ?? .5; // rolls 1 + 2: no doubles
+  await stuck.rollDice(); assert.ok(stuck.state.log.some(entry => /owes \$250 to leave/.test(entry.message)), 'the third failed roll charges the current fine');
+});
 test('safe phase saves restore exact ownership, cash, decks, settings and pending actions', () => {
   for (const phase of ['ready', 'end', 'offer', 'auction', 'event', 'wheel', 'freebuild', 'debt', 'victory']) {
     const game = create(); own(game, 4, 1); game.asset(4).buildings = 2; game.state.settings.sound = false;

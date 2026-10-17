@@ -305,6 +305,7 @@ async (page) => {
   room.state=clone(fixture.extras.jailed);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#classic-token-0.jailed').waitFor();
   assert(await page.locator('#classic-token-0 .pawn-cage').isVisible()&&await page.locator('#classic-token-1.jailed').count()===0,'A jailed pawn is shown behind bars; free pawns are not');
+  assert((await page.locator('#game-board [data-id="33"] .tile-kind').textContent())==='+$150 INTEREST'&&(await page.locator('#board-center [data-action=release]').textContent()).includes('Pay $150 to leave'),'In round 21 City Bank shows $150 interest and leaving Prison costs $150');
   await page.waitForTimeout(700);await page.locator('#game-board .board-tile[data-id="10"]').screenshot({path:'output/playwright/jailed-pawn.png'});
   await guest.locator('#classic-token-0.jailed').waitFor();
   assert(await guest.locator('#classic-token-0 .pawn-cage').isVisible(),'Other players see the jailed pawn behind bars too');

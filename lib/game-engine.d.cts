@@ -9,6 +9,7 @@ declare class Game {
   readonly managerPlayer:GameState['players'][number];
   player(id:number):GameState['players'][number];
   readonly living:GameState['players'][number][];
+  bankInterest():number; prisonFine():number;
   finances(player:GameState['players'][number]):{netWorth:number;properties:number;buildings:number;score:number};
   asset(id:number):GameState['properties'][string];
   owned(player:GameState['players'][number]):Space[];
