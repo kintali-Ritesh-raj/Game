@@ -96,17 +96,16 @@ test('the supplied visitor sound triggers on another owner’s space, even when 
   game.state.settings.sound = true; game.state.currentPlayer = 1; land(game, 1);
   assert.equal(played.filter(kind => kind === 'visitor').length, 2);
 });
-test('building needs at least 2 unmortgaged properties of a color and costs the district price per level', () => {
+test('one property of a color is enough to build on, at the district price per level', () => {
   const game = create(); own(game, 1); assert.equal(game.calculateRent(1), 8);
-  assert.throws(() => build(game, 1), /at least 2 unmortgaged Tidehaven/);
-  own(game, 2); assert.equal(game.calculateRent(1), 16, 'owning 2 of a color doubles undeveloped rent');
-  build(game, 1); assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
-  const canal = create(); own(canal, 4); assert.throws(() => build(canal, 4), /at least 2/);
-  own(canal, 6, 1); assert.throws(() => build(canal, 4), /at least 2/, 'a rival property does not count');
+  build(game, 1); assert.equal(game.asset(1).buildings, 1, 'no second property of the color is needed');
+  assert.equal(game.active.cash, 1450); assert.equal(game.calculateRent(1), 32);
+  const pair = create(); own(pair, 1); own(pair, 2); assert.equal(pair.calculateRent(1), 16, 'owning 2 of a color still doubles undeveloped rent');
+  const canal = create(); own(canal, 4); own(canal, 6, 1);
   assert.equal(canal.calculateRent(4), 12, 'one of a color earns base rent');
-  own(canal, 7); assert.equal(canal.calculateRent(4), 24, 'two of three already doubles undeveloped rent');
-  build(canal, 4); assert.equal(canal.active.cash, 1440); assert.equal(canal.calculateRent(4), 48);
-  build(canal, 7); build(canal, 4); assert.equal(canal.asset(4).buildings, 2, 'even building counts only your own properties');
+  build(canal, 4); assert.equal(canal.asset(4).buildings, 1, 'a rival owning the rest of the color does not block building');
+  assert.equal(canal.active.cash, 1440);
+  own(canal, 7); build(canal, 7); build(canal, 4); assert.equal(canal.asset(4).buildings, 2, 'even building counts only your own properties');
 });
 test('building and selling must stay even across a color set', () => {
   const game = create(); own(game, 1); own(game, 2);
@@ -128,7 +127,7 @@ test('building happens only on the property you landed on, one level per landing
   assert.throws(() => game.buildStructure(2), /Land on Sailmaker Lane/, 'other properties need their own landing');
   build(game, 2); assert.equal(game.asset(2).buildings, 1);
 });
-test('newly acquired land must be landed on again before its first build; 2 of a color still required', () => {
+test('newly acquired land must be landed on again before its first build', () => {
   const game = create(); own(game, 2); land(game, 1); game.purchaseProperty();
   assert.equal(game.asset(1).ready, false); assert.throws(() => build(game, 1), /Land on Beacon Wharf again/, 'not on the landing where it was bought');
   build(game, 2); assert.equal(game.asset(2).buildings, 1);
@@ -137,7 +136,8 @@ test('newly acquired land must be landed on again before its first build; 2 of a
   game.buildStructure(1); assert.equal(game.asset(1).buildings, 1, 'landing again unlocks building there, on that same landing');
   build(game, 2); build(game, 1); assert.equal(game.asset(1).buildings, 2); assert.equal(game.asset(2).buildings, 2);
   const lone = create(); land(lone, 4); lone.purchaseProperty(); lone.state.phase = 'moving'; lone.active.position = 4; lone.resolveSpace();
-  assert.equal(lone.asset(4).ready, true); assert.throws(() => build(lone, 4), /at least 2/, 'landing again does not lift the color rule');
+  assert.equal(lone.asset(4).ready, true); build(lone, 4); assert.equal(lone.asset(4).buildings, 1, 'landing again unlocks building, even with only one property of the color');
+  assert.throws(() => lone.buildStructure(4), /built here this turn/, 'still one level per landing');
   const traded = create(); own(traded, 1); own(traded, 2, 1); traded.proposeTrade({ to: 1, give: { cash: 200, properties: [] }, get: { cash: 0, properties: [2] } }); traded.acceptTrade();
   assert.throws(() => build(traded, 2), /again/, 'traded land must also be landed on first');
 });
@@ -148,11 +148,11 @@ test('all five development levels, sale, cost and tower rent work', () => {
   assert.equal(game.active.cash, 1000);
   game.sellBuilding(1); assert.equal(game.asset(1).buildings, 4); assert.equal(game.active.cash, 1025); assert.equal(game.calculateRent(1), 288);
 });
-test('mortgaged groups prohibit building; buildings in the color block mortgages', () => {
+test('a mortgaged property cannot be built on; buildings in the color block mortgages', () => {
   const game = create(); own(game, 1); own(game, 2); build(game, 1);
   assert.throws(() => game.mortgageProperty(2), /district/);
-  game.sellBuilding(1); game.mortgageProperty(2); assert.throws(() => build(game, 1), /unmortgaged/);
-  game.unmortgageProperty(2); build(game, 1); assert.equal(game.asset(1).buildings, 1);
+  game.sellBuilding(1); game.mortgageProperty(2); build(game, 1); assert.equal(game.asset(1).buildings, 1, 'a mortgaged property of the color does not block building on the others');
+  assert.throws(() => build(game, 2), /Unmortgage/, 'the mortgaged one cannot be built on');
 });
 test('mortgage disables rent and development; 10% fee restores rent', () => {
   const game = create(); own(game, 1); game.mortgageProperty(1);
