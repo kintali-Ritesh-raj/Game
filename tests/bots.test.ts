@@ -70,19 +70,54 @@ test('Bot develops allowed assets, unmortgages, takes doubles, and pays detentio
   room.state!.phase='ready';room.state!.players[1].penalty={kind:'prison',attempts:0};
   assert.equal((await step(room)).action,'release');assert.equal(room.state!.players[1].penalty,null);
 });
-test('Bots accept fair trades, refuse to hand over a set cheaply, and offer cash for the last property of a set',async()=>{
+test('Bots never hand over a set for cash, but swap for one, and offer cash for the last property of a set',async()=>{
   const room=playing();room.state!.properties[1].owner=0;room.state!.properties[2].owner=1;room.state!.properties[9].owner=1;
   room.state!.phase='trade';room.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:150,properties:[]},get:{cash:0,properties:[2]}};
   assert.equal(chooseBotAction(room.state!)!.action,'reject-trade','$150 is too little for the property that completes the rival set');
-  room.state!.trade.give.cash=250;assert.equal(chooseBotAction(room.state!)!.action,'accept-trade');
+  room.state!.trade.give.cash=2000;const refusal=chooseBotAction(room.state!)!;
+  assert.equal(refusal.action,'reject-trade','no amount of cash buys the last property of a set');assert.match(refusal.note!,/will not hand over the last Tidehaven property/);
   room.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:0,properties:[1]},get:{cash:0,properties:[9]}};
   assert.equal(chooseBotAction(room.state!)!.action,'accept-trade','a property that completes the bot set is worth more to it');
   const proposer=playing();proposer.state!.currentPlayer=1;proposer.state!.phase='end';proposer.state!.properties[1].owner=1;proposer.state!.properties[2].owner=0;
   const offer=await step(proposer);assert.equal(offer.action,'trade');assert.deepEqual(offer.trade!.get.properties,[2]);assert.ok(offer.trade!.give.cash>=240);
-  assert.equal(proposer.state!.phase,'trade');assert.equal((await step(proposer)).action,'accept-trade');assert.equal(proposer.state!.properties[2].owner,1);
+  assert.equal(proposer.state!.phase,'trade');
+  proposer.state=(await applyGameAction(proposer,proposer.members[0].user_id,{action:'accept-trade'})).state;assert.equal(proposer.state!.properties[2].owner,1,'a human can still sell the bot its set');
   assert.notEqual(chooseBotAction(proposer.state!)!.action,'build','traded land must be landed on before the bot can build there');
   proposer.state!.phase='end';proposer.state!.tradesThisTurn=0;proposer.state!.properties[2].owner=0;proposer.state!.properties[1].buildings=0;
   assert.notEqual(chooseBotAction(proposer.state!)!.action,'trade','the same offer is not repeated straight away');
+});
+test('Bots price their land by the board and their position, and get warier when probed',async()=>{
+  const offer=(room:Room,cash:number,get:number[],give:number[]=[])=>{room.state!.phase='trade';room.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash,properties:give},get:{cash:0,properties:get}};return chooseBotAction(room.state!)!;};
+  // A lone $200 property in a color nobody has finished: list price plus a little is no longer enough.
+  const lone=playing();lone.state!.properties[14].owner=1;
+  assert.equal(offer(lone,240,[14]).action,'reject-trade','$240 for a $200 property is declined');
+  assert.match(offer(lone,240,[14]).note!,/too low/);
+  assert.equal(offer(lone,330,[14]).action,'accept-trade','a real premium is accepted');
+  // Probing: each recent offer for the same land raises the price.
+  lone.state!.tradeHistory=[{from:0,to:1,turn:0,properties:[14]},{from:0,to:1,turn:0,properties:[14]}];
+  assert.equal(offer(lone,330,[14]).action,'reject-trade','after two earlier offers for it, the same price is no longer enough');
+  assert.equal(offer(lone,450,[14]).action,'accept-trade');
+  // A bot short of cash sells more readily than a rich one, but never below its value.
+  const poor=playing();poor.state!.properties[14].owner=1;poor.state!.players[1].cash=100;poor.state!.properties[39].owner=0;
+  lone.state!.tradeHistory=[];
+  assert.equal(offer(lone,300,[14]).action,'reject-trade','a cash-rich bot turns down $300');
+  assert.equal(offer(poor,300,[14]).action,'accept-trade','a cash-poor bot takes the same $300');
+  assert.equal(offer(poor,220,[14]).action,'reject-trade','but never close to list price');
+  // Collecting: with 2 of a color, cash will not buy one; the bot names what it would want instead.
+  const collector=playing();for(const id of [4,6])collector.state!.properties[id].owner=1;collector.state!.properties[7].owner=0;collector.state!.properties[14].owner=1;
+  const no=offer(collector,1000,[4]);
+  assert.equal(no.action,'reject-trade');assert.match(no.note!,/collecting Canal Quarter/);assert.match(no.note!,/consider a trade for Waterwheel Row/);
+  assert.equal(offer(collector,0,[14],[7]).action,'accept-trade','the property that finishes its color buys another of its properties');
+  // It never breaks a set it owns, and keeps a cash reserve when buying.
+  const owner=playing();owner.state!.properties[1].owner=1;owner.state!.properties[2].owner=1;
+  assert.match(offer(owner,3000,[1]).note!,/will not break up its full Tidehaven set/);
+  const buyer=playing();buyer.state!.properties[9].owner=0;buyer.state!.players[1].cash=300;
+  buyer.state!.phase='trade';buyer.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:0,properties:[9]},get:{cash:250,properties:[]}};
+  assert.match(chooseBotAction(buyer.state!)!.note!,/keeps at least \$150 in cash/);
+  // The reason reaches the table.
+  const logged=playing();logged.state!.properties[14].owner=1;logged.state!.phase='trade';logged.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:240,properties:[]},get:{cash:0,properties:[14]}};
+  await step(logged);const line=logged.state!.log.at(-1)!;
+  assert.match(line.message,/declined the trade offer from Human: The offer is too low for it\./);assert.equal(line.player,0);
 });
 test('A timed-out Prison turn pays the $50 fine, mortgaging the lowest-rent land first when cash is short',async()=>{
   const room=playing();const s=room.state!;s.players[0].penalty={kind:'prison',attempts:1};s.players[0].position=10;

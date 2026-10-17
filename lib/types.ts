@@ -30,4 +30,5 @@ export type Transition = { action: string; player: number; dice: number[]; path:
 export type Connection = { code: string; user_id: string; client_id: string; seen_at: string; connected: boolean };
 export const ACTIONS = ['roll', 'end', 'buy', 'skip', 'auction', 'bid', 'pass', 'apply-event', 'release', 'build', 'sell', 'mortgage', 'unmortgage', 'settle', 'bankrupt', 'trade', 'accept-trade', 'reject-trade', 'spin', 'free-build'] as const;
 export type GameAction = typeof ACTIONS[number];
-export type Command = { action: GameAction; id?: number; increment?: number; trade?: TradeOffer };
+// `note` is only ever set by the server's bot code (a reason for declining a trade); player commands are rebuilt without it.
+export type Command = { action: GameAction; id?: number; increment?: number; trade?: TradeOffer; note?: string };

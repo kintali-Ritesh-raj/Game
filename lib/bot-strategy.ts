@@ -15,19 +15,108 @@ function completesWith(game:Engine, seat:number, id:number, extra:number[] = [])
   const space = MarketWars.BOARD[id];
   return game.groupSpaces(space.group).every(item => item.id === id || extra.includes(item.id) || game.asset(item.id).owner === seat);
 }
-// What a property is worth to its next holder: the price (doubled when it finishes their set) plus its buildings at cost.
-function worthTo(game:Engine, seat:number, id:number, extra:number[]) {
-  const space = MarketWars.BOARD[id], base = game.asset(id).mortgaged ? space.price * .45 : space.price;
-  return (completesWith(game, seat, id, extra) ? base * 2 : base) + game.asset(id).buildings * space.buildingCost;
+// ── Answering trade offers ──
+// A bot weighs a trade by what it means for the board, not just list prices. Four hard rules come first, then a value
+// check with a margin that moves with the game. Declines carry a short reason, and name a property the bot would rather have.
+type Trade = TradeOffer & { from:number };
+const BASE_MARGIN = .25, MAX_MARGIN = 1.2;
+const groupName = (group:string) => MarketWars.GROUPS[group as keyof typeof MarketWars.GROUPS]?.name || group;
+const cashText = (amount:number) => '$' + Math.round(amount).toLocaleString('en-US');
+
+/** Who holds `id` once the trade goes through. */
+function ownerAfter(game:Engine, trade:Trade, id:number) {
+  return trade.give.properties.includes(id) ? trade.to : trade.get.properties.includes(id) ? trade.from : game.asset(id).owner;
 }
-/** Accept when what the bot receives is worth at least what it gives up, counting a set it would hand over. */
-export function acceptsTrade(game:Engine, trade:TradeOffer & { from:number }) {
-  const bot = game.player(trade.to), proposer = trade.from;
-  if (bot.cash - trade.get.cash < 100) return false;
-  const gain = trade.give.cash + trade.give.properties.reduce((sum, id) => sum + worthTo(game, bot.id, id, trade.give.properties), 0);
-  const loss = trade.get.cash + trade.get.properties.reduce((sum, id) => sum + worthTo(game, proposer, id, trade.get.properties), 0);
-  return gain >= loss;
+function held(game:Engine, trade:Trade, seat:number, group:string, after:boolean) {
+  return game.groupSpaces(group).filter(space => (after ? ownerAfter(game, trade, space.id) : game.asset(space.id).owner) === seat).length;
 }
+function ownsAll(game:Engine, trade:Trade, seat:number, group:string, after:boolean) {
+  return held(game, trade, seat, group, after) === game.groupSpaces(group).length;
+}
+/** Land at its price (less the cost of lifting a mortgage) plus buildings at cost. Station and utility rents grow with the stage. */
+function assetValue(game:Engine, id:number) {
+  const space = MarketWars.BOARD[id], asset = game.asset(id);
+  const land = asset.mortgaged ? space.price - game.unmortgageCost(id) : space.price;
+  return (land + asset.buildings * (space.buildingCost || 0)) * (space.type === 'property' ? 1 : game.stage());
+}
+/** What owning a whole color is worth on top of its land: three quarters of the set's total price, since a full set doubles every rent on it. */
+const setBonus = (game:Engine, group:string) => game.groupSpaces(group).reduce((sum, space) => sum + space.price, 0) * .75;
+/** Cash the bot keeps for the worst single rent it could land on (a typical roll of 7 for utilities), between $150 and $700. */
+export function cashReserve(game:Engine, seat:number) {
+  const worst = MarketWars.BOARD.filter(space => space.price && game.asset(space.id).owner !== null && game.asset(space.id).owner !== seat)
+    .reduce((max, space) => Math.max(max, game.calculateRent(space.id, 7)), 0);
+  return Math.min(700, Math.max(150, worst));
+}
+/** The extra value a bot asks for, from 25% up to 120%, depending on who is asking, its cash, and how often they have asked lately. */
+function tradeMargin(game:Engine, trade:Trade) {
+  const bot = game.player(trade.to), rival = game.player(trade.from), living = game.living;
+  const worth = (seat:number) => game.finances(game.player(seat)).netWorth;
+  let margin = BASE_MARGIN;
+  const leader = living.reduce((best, player) => worth(player.id) > worth(best.id) ? player : best, living[0]);
+  if (leader.id === rival.id) margin += .15;                         // do not feed the player in the lead
+  const reserve = cashReserve(game, bot.id);
+  // A cash-rich bot has little use for more cash; a cash-poor one values it more.
+  if (trade.give.cash > 0 && bot.cash > reserve * 3) margin += .15; else if (bot.cash < reserve) margin -= .1;
+  // Every recent offer from the same player makes the bot warier, three times as much when they keep eyeing the same land.
+  // That stops anyone probing for the exact price by raising the cash a little each time.
+  const history = game.state.tradeHistory || [], last = history.at(-1);
+  const props = [...trade.give.properties, ...trade.get.properties];
+  const current = last && last.from === trade.from && last.to === trade.to && last.turn === game.state.turn && last.properties.length === props.length && props.every(id => last.properties.includes(id));
+  const window = 8 * Math.max(1, living.length);
+  for (const item of current ? history.slice(0, -1) : history) {
+    if (item.from !== trade.from || item.to !== trade.to || game.state.turn - item.turn >= window) continue;
+    margin += item.properties.some(id => trade.get.properties.includes(id)) ? .15 : .05;
+  }
+  return Math.min(MAX_MARGIN, Math.max(.15, margin));
+}
+/** A property of the proposer's that would finish (or at least advance) one of the bot's colors, for the decline message. */
+function wantedFrom(game:Engine, trade:Trade) {
+  const candidates = game.owned(game.player(trade.from)).filter(space => space.type === 'property' && !game.asset(space.id).buildings && !trade.give.properties.includes(space.id));
+  const others = (space:typeof candidates[number]) => game.groupSpaces(space.group).filter(item => item.id !== space.id);
+  return candidates.find(space => others(space).every(item => game.asset(item.id).owner === trade.to))
+    || candidates.find(space => others(space).some(item => game.asset(item.id).owner === trade.to));
+}
+export function judgeTrade(game:Engine, trade:Trade): { accept:boolean; note:string } {
+  const botId = trade.to, rivalId = trade.from, bot = game.player(botId);
+  const groups = [...new Set([...trade.give.properties, ...trade.get.properties].map(id => MarketWars.BOARD[id].group))];
+  const botCompletes = groups.some(group => ownsAll(game, trade, botId, group, true) && !ownsAll(game, trade, botId, group, false));
+  const decline = (reason:string) => {
+    const wanted = wantedFrom(game, trade);
+    return { accept: false, note: reason + '.' + (wanted ? ' It would consider a trade for ' + wanted.name + '.' : '') };
+  };
+  // 1-3. Properties the bot would give up.
+  for (const id of trade.get.properties) {
+    const group = MarketWars.BOARD[id].group;
+    if (ownsAll(game, trade, botId, group, false)) return decline('It will not break up its full ' + groupName(group) + ' set');
+    if (botCompletes) continue; // a set for a set is the one swap the bot will weigh on value
+    if (ownsAll(game, trade, rivalId, group, true)) return decline('It will not hand over the last ' + groupName(group) + ' property');
+    if (held(game, trade, botId, group, false) >= 2) return decline('It is collecting ' + groupName(group) + ' and will not sell');
+  }
+  // 4. Cash it would pay out must leave a safety reserve.
+  const reserve = cashReserve(game, botId), cashAfter = bot.cash - trade.get.cash + trade.give.cash;
+  if (trade.get.cash > 0 && cashAfter < reserve) return decline('It keeps at least ' + cashText(reserve) + ' in cash for rent');
+  // Value: what the bot receives against what it gives up, including what the proposer gains from it.
+  let gain = trade.give.cash, loss = trade.get.cash;
+  for (const id of trade.give.properties) {
+    const space = MarketWars.BOARD[id];
+    gain += assetValue(game, id);
+    if (ownsAll(game, trade, botId, space.group, true) && !ownsAll(game, trade, botId, space.group, false)) gain += setBonus(game, space.group) / Math.max(1, trade.give.properties.filter(other => MarketWars.BOARD[other].group === space.group).length);
+    else if (held(game, trade, botId, space.group, true) >= 2 && held(game, trade, botId, space.group, false) < 2) gain += space.price * .3;
+  }
+  for (const id of trade.get.properties) {
+    const space = MarketWars.BOARD[id];
+    loss += assetValue(game, id);
+    if (ownsAll(game, trade, rivalId, space.group, true)) loss += setBonus(game, space.group) * 1.5;        // only reachable in a set-for-a-set swap
+    else if (held(game, trade, rivalId, space.group, true) >= 2 && held(game, trade, rivalId, space.group, false) < 2) loss += space.price * .35; // they reach 2 of the color
+    if (held(game, trade, botId, space.group, false) >= 2) loss += space.price * .5;                        // it was collecting this color
+    else if (game.groupSpaces(space.group).length > 1 && game.groupSpaces(space.group).some(item => game.asset(item.id).owner === null)) loss += space.price * .1; // a color still open to collect
+  }
+  const margin = tradeMargin(game, trade);
+  if (gain >= loss * (1 + margin)) return { accept: true, note: '' };
+  return decline('The offer is too low for it');
+}
+/** Accept only what passes the hard rules and the value check. */
+export function acceptsTrade(game:Engine, trade:Trade) { return judgeTrade(game, trade).accept; }
 /** Offer cash for a rival's property in a color where the bot holds at least as many. */
 function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
   if ((state.tradesThisTurn || 0) > 0) return null;
@@ -48,7 +137,8 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
     const cash = Math.ceil((space.price * (completes ? 2 : 1.5) + game.asset(space.id).buildings * space.buildingCost) / 10) * 10 + 10;
     if (bot.cash < cash + 150) return [];
     const offer = { to: owner, give: { cash, properties: [] }, get: { cash: 0, properties: [space.id] } };
-    return game.tradeReason(bot.id, offer) ? [] : [{ offer, completes, price: space.price }];
+    if (game.tradeReason(bot.id, offer) || (!human(owner) && !acceptsTrade(game, { ...offer, from: bot.id }))) return [];
+    return [{ offer, completes, price: space.price }];
   });
   offers.sort((a, b) => Number(b.completes) - Number(a.completes) || b.price - a.price);
   return offers[0]?.offer || null;
@@ -93,7 +183,7 @@ export function chooseBotAction(state: GameState): Command | null {
   const owned = game.owned(player);
   const reserve = 200;
   switch (state.phase) {
-    case 'trade': return {action: acceptsTrade(game, state.trade!) ? 'accept-trade' : 'reject-trade'};
+    case 'trade': { const verdict = judgeTrade(game, state.trade!); return verdict.accept ? {action:'accept-trade'} : {action:'reject-trade', note: verdict.note}; }
     case 'ready':
       if (player.penalty && player.cash >= 350) return {action:'release'};
       return {action:'roll'};
