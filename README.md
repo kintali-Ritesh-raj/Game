@@ -128,7 +128,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs 58 rule checks, 25 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, building on landing and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, the Wheel of Fortune, the Free Market jackpot, City Events, 100-card decks and rarity, rolled and gamble cards, the Prison pass, old-save migration, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
+`npm test` runs 59 rule checks, 25 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, building on landing and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, the Wheel of Fortune, the Free Market jackpot, City Events, 100-card decks and rarity, rolled and gamble cards, the Prison pass, old-save migration, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
 
 Deterministic two-browser UI checks use the Playwright CLI. Start the app with `npm run dev` first, then open it at `localhost` (the Next.js dev server rejects `127.0.0.1`):
 

@@ -605,6 +605,12 @@ test('City Bank interest rises $50 every 7 rounds and the Prison fine rises $100
   const draws = [0, .2]; let k = 0; stuck.random = () => draws[k++] ?? .5; // rolls 1 + 2: no doubles
   await stuck.rollDice(); assert.ok(stuck.state.log.some(entry => /owes \$250 to leave/.test(entry.message)), 'the third failed roll charges the current fine');
 });
+test('every move-to card takes you to the space its text names', async () => {
+  for (const deck of Object.values(DECKS)) for (const card of deck.filter(item => item.effect === 'advance'))
+    assert.ok(card.text.includes(BOARD[card.destination].name), card.title + ' moves to ' + BOARD[card.destination].name + ', which its text does not name');
+  const game = create(); game.active.position = 3; await playCard(game, 'market', 'Skyway shortcut');
+  assert.equal(game.active.position, 23, 'Skyway shortcut lands on Skyway Terminal'); assert.equal(BOARD[23].name, 'Skyway Terminal');
+});
 test('safe phase saves restore exact ownership, cash, decks, settings and pending actions', () => {
   for (const phase of ['ready', 'end', 'offer', 'auction', 'event', 'wheel', 'freebuild', 'debt', 'victory']) {
     const game = create(); own(game, 4, 1); game.asset(4).buildings = 2; game.state.settings.sound = false;
