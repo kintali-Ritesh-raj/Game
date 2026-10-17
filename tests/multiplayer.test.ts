@@ -103,8 +103,12 @@ test('Only the current player can spin the Wheel of Fortune, and the spin is dec
   assert.deepEqual(command({ action: 'spin', index: 7, outcome: 'cheat' }), { action: 'spin', id: undefined, increment: undefined });
   const spun = await applyGameAction(room, 'host', { action: 'spin' });
   assert.equal(spun.state.lastWheel?.player, 0); assert.ok(spun.state.lastWheel!.index >= 0 && spun.state.lastWheel!.index < 8);
-  assert.ok(['end', 'event', 'debt'].includes(spun.state.phase));
-  await assert.rejects(applyGameAction({ ...room, state: spun.state }, 'host', { action: 'spin' }), /no wheel/);
+  // The spin is random: a Free spin keeps the wheel for another turn of it; every other slice resolves.
+  if (MarketWars.WHEEL[spun.state.lastWheel!.index].kind === 'free') assert.equal(spun.state.phase, 'wheel');
+  else {
+    assert.ok(['end', 'event', 'debt'].includes(spun.state.phase));
+    await assert.rejects(applyGameAction({ ...room, state: spun.state }, 'host', { action: 'spin' }), /no wheel/);
+  }
 });
 
 test('Only the off-turn debtor can liquidate, settle, or declare bankruptcy', async () => {
@@ -157,4 +161,17 @@ test('Revision and input validation reject stale or malformed requests', () => {
   assert.throws(() => command({ action: 'replace-state' }), /Unknown/);
   assert.throws(() => profile({ name: 'A', token: 'admin' }), /color/);
   assert.deepEqual(profile({ name: ' A ', role: 'monopolist', token: 'blue' }), { name: 'A', token: 'blue' }, 'Legacy role fields are dropped');
+});
+
+test('A card die marks its move so bots and turn timers wait for the throw to play', async () => {
+  const { botReadyAt, CARD_DIE_MS } = await import('../lib/bot-timing');
+  const room = playing(), game = fixture();
+  Object.assign(game.state, { event: { deck: 'market', index: MarketWars.DECKS.market.findIndex(card => card.title === 'Lucky customer') }, phase: 'event' });
+  room.state = saved(game);
+  const result = await applyGameAction(room, 'host', { action: 'apply-event' });
+  assert.equal(result.transition.die, 1); assert.ok([1, 2, 3, 4, 5, 6].includes(result.state.lastDie!.value), 'the server rolled the card die');
+  const plain = await applyGameAction({ ...room, state: result.state }, 'host', { action: 'end' });
+  assert.equal(plain.transition.die, undefined, 'a move without a card die is not delayed');
+  const at = new Date().toISOString();
+  assert.equal(botReadyAt({ ...room, state: result.state, transition: result.transition, updated_at: at }) - botReadyAt({ ...room, state: result.state, transition: plain.transition, updated_at: at }), CARD_DIE_MS);
 });

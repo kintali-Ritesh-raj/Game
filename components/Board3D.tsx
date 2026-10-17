@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { BAND, GRID, drawBoardFace, drawCardFace, drawNote, drawWood, tileAt, tileRect } from '@/lib/board3d-textures';
 
 export type BoardSnapshot = {
-  players: { id: number; name: string; color: string; position: number; bankrupt: boolean; active: boolean; mine: boolean }[];
+  players: { id: number; name: string; color: string; position: number; bankrupt: boolean; active: boolean; mine: boolean; jailed?: boolean }[];
   properties: Record<string, { owner: number | null; buildings: number; mortgaged: boolean }>;
   dice: number[]; phase: string; hasRolled: boolean; rollId: string; selected: number;
   movementSpeed: number; animationSpeed: number;
@@ -222,7 +222,32 @@ function Dice({ snapshot }: { snapshot: BoardSnapshot }) {
 
 // ── Pawns, owner chips and buildings ───────────────────────────────────────────
 const pawnProfile = [[0, 0], [.2, 0], [.215, .03], [.2, .06], [.13, .09], [.085, .16], [.07, .28], [.11, .31], [.06, .34], [0, .35]].map(([x, y]) => new THREE.Vector2(x, y));
-function Pawn({ color, target, active, speed }: { color: string; target: THREE.Vector3; active: boolean; speed: number }) {
+/** Prison bars that drop over a jailed pawn. */
+function Cage({ jailed }: { jailed: boolean }) {
+  const ref = useRef<THREE.Group>(null), drop = useRef<number | null>(null);
+  const invalidate = useThree(state => state.invalidate);
+  useEffect(() => { drop.current = jailed && !reducedMotion() ? performance.now() : null; invalidate(); }, [jailed, invalidate]);
+  useFrame(() => {
+    const cage = ref.current; if (!cage) return;
+    if (drop.current === null) { cage.position.y = 0; return; }
+    const t = Math.min(1, (performance.now() - drop.current) / 520);
+    // Fall from above and settle with one small bounce.
+    cage.position.y = t < .7 ? 1.1 * (1 - t / .7) ** 2 : Math.sin((t - .7) / .3 * Math.PI) * .06;
+    if (t >= 1) drop.current = null;
+    invalidate();
+  });
+  if (!jailed) return null;
+  const bars = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2);
+  return <group ref={ref}>
+    {bars.map(angle => <mesh key={angle} position={[Math.cos(angle) * .27, .27, Math.sin(angle) * .27]} castShadow>
+      <cylinderGeometry args={[.016, .016, .54, 10]} /><meshStandardMaterial color="#b9bec6" metalness={.85} roughness={.28} />
+    </mesh>)}
+    {[.01, .54].map(y => <mesh key={y} position-y={y} rotation-x={Math.PI / 2} castShadow>
+      <torusGeometry args={[.27, .022, 10, 40]} /><meshStandardMaterial color="#8f959e" metalness={.9} roughness={.3} />
+    </mesh>)}
+  </group>;
+}
+function Pawn({ color, target, active, speed, jailed = false }: { color: string; target: THREE.Vector3; active: boolean; speed: number; jailed?: boolean }) {
   const ref = useRef<THREE.Group>(null);
   const hop = useRef<{ from: THREE.Vector3; to: THREE.Vector3; start: number; duration: number } | null>(null);
   const invalidate = useThree(state => state.invalidate);
@@ -244,6 +269,7 @@ function Pawn({ color, target, active, speed }: { color: string; target: THREE.V
     <mesh castShadow receiveShadow><latheGeometry args={[pawnProfile, 40]} /><meshPhysicalMaterial color={color} roughness={.3} clearcoat={1} clearcoatRoughness={.1} metalness={.05} /></mesh>
     <mesh position-y={.41} castShadow><sphereGeometry args={[.105, 32, 20]} /><meshPhysicalMaterial color={color} roughness={.28} clearcoat={1} clearcoatRoughness={.08} metalness={.05} /></mesh>
     {active && <mesh rotation-x={-Math.PI / 2} position-y={.006}><ringGeometry args={[.24, .29, 40]} /><meshStandardMaterial color="#f0cf7c" emissive="#d9a23a" emissiveIntensity={.8} /></mesh>}
+    <Cage jailed={jailed} />
   </group>;
 }
 function House({ color, position, rotation }: { color: string; position: THREE.Vector3; rotation: number }) {
@@ -285,7 +311,7 @@ function Pawns({ snapshot }: { snapshot: BoardSnapshot }) {
     const here = living.filter(other => other.position === player.position), index = here.indexOf(player);
     const offsets = [[0, 0], [-.16, 0, .16, 0], [-.17, -.1, .17, -.1, 0, .14], [-.16, -.15, .16, -.15, -.16, .15, .16, .15]][here.length - 1] || [0, 0];
     const target = spaceCenter(player.position).add(new THREE.Vector3(offsets[index * 2] || 0, 0, offsets[index * 2 + 1] || 0));
-    return <Pawn key={player.id} color={player.color} target={target} active={player.active} speed={snapshot.movementSpeed} />;
+    return <Pawn key={player.id} color={player.color} target={target} active={player.active} speed={snapshot.movementSpeed} jailed={!!player.jailed} />;
   })}</>;
 }
 

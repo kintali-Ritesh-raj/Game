@@ -81,6 +81,7 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
     for (let i = 0; game.busy && i < 100; i++) await new Promise<void>(resolve => setImmediate(resolve));
     if (game.busy) throw new Error('The move did not finish. Try again.');
     transition.dice = [...game.state.dice];
+    if ((game.state.lastDie?.id || 0) > (state.lastDie?.id || 0)) transition.die = game.state.lastDie!.id;
     return { state: JSON.parse(game.serialize()) as GameState, transition };
   } catch (error) {
     throw new ApiError(400, error instanceof Error ? error.message : 'This action is unavailable.');

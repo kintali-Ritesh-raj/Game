@@ -11,10 +11,13 @@ export function botSeat(room: Room): number | null {
   return room.members[seat]?.type === 'bot' && !room.state.players[seat]?.bankrupt ? seat : null;
 }
 
+// A card die is thrown, read and cleared on every screen in about this long (see showCardDie in lib/game-ui.js).
+export const CARD_DIE_MS = 4000;
+
 // Leave time for every client to replay the preceding accepted move.
 export function botReadyAt(room: Room) {
   const transition = room.transition;
-  const animation = (transition?.action === 'roll' ? 950 : 0) + (transition?.action === 'spin' ? 4500 : 0) + (transition?.path.length || 0) * 150;
+  const animation = (transition?.action === 'roll' ? 950 : 0) + (transition?.action === 'spin' ? 4500 : 0) + (transition?.die ? CARD_DIE_MS : 0) + (transition?.path.length || 0) * 150;
   return Date.parse(room.updated_at) + animation + (room.state?.phase === 'event' ? 4000 : 1100);
 }
 

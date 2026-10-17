@@ -12,6 +12,8 @@ export type GameState = {
   city?: { upcoming: { kind: 'boom' | 'recession' | 'audit'; round: number } | null; active: { kind: 'boom' | 'recession' | 'audit'; until: number } | null; last?: 'boom' | 'recession' | 'audit' | null };
   wheelFree?: number;
   lastWheel?: { id: number; player: number; index: number; label: string; outcome: string } | null;
+  lastDie?: { id: number; player: number; value: number; title: string; tone: 'gain' | 'loss' | 'neutral'; result: string; detail: string } | null;
+  droppedDie?: number | null;
   trade?: (TradeOffer & { from: number; returnPhase: 'ready' | 'end' }) | null; tradesThisTurn?: number;
   tradeHistory?: { from: number; to: number; turn: number; properties: number[] }[];
   settings: Record<string, boolean | number>; winner: number | null;
@@ -23,7 +25,8 @@ export type Room = {
   status: 'lobby' | 'playing' | 'finished' | 'closed'; revision: number; state: GameState | null;
   created_at: string; updated_at: string; transition: Transition | null;
 };
-export type Transition = { action: string; player: number; dice: number[]; path: number[]; sounds: string[] };
+// `die` is set when the move threw a card die, so bots and turn timers wait for that throw to finish on screen.
+export type Transition = { action: string; player: number; dice: number[]; path: number[]; sounds: string[]; die?: number };
 export type Connection = { code: string; user_id: string; client_id: string; seen_at: string; connected: boolean };
 export const ACTIONS = ['roll', 'end', 'buy', 'skip', 'auction', 'bid', 'pass', 'apply-event', 'release', 'build', 'sell', 'mortgage', 'unmortgage', 'settle', 'bankrupt', 'trade', 'accept-trade', 'reject-trade', 'spin', 'free-build'] as const;
 export type GameAction = typeof ACTIONS[number];

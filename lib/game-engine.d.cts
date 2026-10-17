@@ -28,5 +28,5 @@ declare class Game {
   settleDebt():void; declareBankruptcy():void; resolveSpace():void;
   beginPayments(payments:{payer:number;creditor:number|null;amount:number;reason:string;category:string}[],continuation?:{kind:string;steps?:number}):void;
 }
-declare const MarketWars: {Game:typeof Game;BOARD:Space[];validatePlayers(players:Profile[]):string;TOKENS:Record<string,string>;TOKEN_COLORS:Record<string,string>;COLORS:string[];DECKS:Record<string,{title:string;text:string;effect:string;rarity:string}[]>;CITY_EVENTS:Record<string,{name:string;text:string}>;JACKPOT_BASE:number;PERK_NAMES:Record<string,string>;WHEEL:{id:string;weight:number;kind:string;amount?:number;tier:string}[];WHEEL_MAX_FREE:number;POWER_UPS:string[];PERK_CHARGES:Record<string,number>};
+declare const MarketWars: {Game:typeof Game;BOARD:Space[];validatePlayers(players:Profile[]):string;TOKENS:Record<string,string>;TOKEN_COLORS:Record<string,string>;COLORS:string[];DECKS:Record<string,{title:string;text:string;effect:string;rarity:string}[]>;CITY_EVENTS:Record<string,{name:string;text:string}>;JACKPOT_BASE:number;PERK_NAMES:Record<string,string>;WHEEL:{id:string;weight:number;kind:string;amount?:number;tier:string}[];WHEEL_MAX_FREE:number;POWER_UPS:string[];PERK_CHARGES:Record<string,number>;SERVICE_RENT:Record<'transport'|'utility',number[]>};
 export = MarketWars;

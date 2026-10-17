@@ -1,0 +1,136 @@
+/* ── Motion and feedback: dice, card dice, notifications, cash changes and Prison bars ── */
+
+/* Turn dice. While the server's roll plays out, each die tumbles in (faces flicker from game-ui.js), then lands with a squash. */
+.dice{perspective:480px}
+.dice.rolling .die{animation:die-tumble .95s cubic-bezier(.22,.62,.3,1) both;animation-delay:calc(var(--i,0) * 70ms);will-change:transform}
+.dice.landed .die{animation:die-land .55s cubic-bezier(.3,1.7,.5,1) both;animation-delay:calc(var(--i,0) * 60ms)}
+@keyframes die-tumble{
+  0%{transform:translate3d(-140%,-170%,0) rotateX(0) rotateY(0) rotateZ(-50deg) scale(.7);opacity:0}
+  14%{opacity:1}
+  40%{transform:translate3d(-30%,-22%,0) rotateX(400deg) rotateY(120deg) rotateZ(60deg) scale(1.08)}
+  62%{transform:translate3d(6%,6%,0) rotateX(640deg) rotateY(240deg) rotateZ(160deg) scale(1)}
+  78%{transform:translate3d(0,-26%,0) rotateX(700deg) rotateY(330deg) rotateZ(250deg) scale(1.03)}
+  90%{transform:translate3d(0,0,0) rotateX(720deg) rotateY(360deg) rotateZ(330deg) scale(1)}
+  100%{transform:translate3d(0,0,0) rotateX(720deg) rotateY(360deg) rotateZ(360deg)}
+}
+@keyframes die-land{0%{transform:scale(1.22,.78) translateY(8%)}35%{transform:scale(.9,1.12) translateY(-10%)}65%{transform:scale(1.04,.97)}100%{transform:none}}
+/* Doubles: a gold halo pulses around both dice. */
+.dice.doubles .die:not(.dropped){outline:2px solid #f2c24b;outline-offset:2px}
+.dice.landed.doubles .die:not(.dropped){animation:die-land .55s cubic-bezier(.3,1.7,.5,1) both,die-halo 1.6s ease-out .2s 2}
+@keyframes die-halo{0%{box-shadow:0 0 0 0 #f2c24bcc}100%{box-shadow:0 0 0 14px #f2c24b00}}
+/* Tailwind: three dice are thrown; the lowest is greyed out and struck through once they land. */
+.dice .die.dropped{position:relative}
+.dice:not(.rolling) .die.dropped{opacity:.42;filter:grayscale(1);transform:scale(.78)}
+.dice.landed .die.dropped{animation:die-drop .6s ease-out .35s both}
+.dice:not(.rolling) .die.dropped::after{content:'';position:absolute;left:-12%;right:-12%;top:50%;height:3px;border-radius:2px;background:#e0533d;transform:rotate(-38deg);box-shadow:0 0 0 1px #0006}
+@keyframes die-drop{0%{opacity:1;filter:none;transform:scale(1)}100%{opacity:.42;filter:grayscale(1);transform:scale(.78)}}
+
+/* ── Card die: a real 3D cube thrown over the board ── */
+.fx-stage{position:fixed;inset:0;z-index:950;display:grid;place-items:center;pointer-events:none;
+  background:radial-gradient(closest-side,#07110fd9,#07110f80 70%,#0000);animation:fx-in .25s ease-out both}
+.fx-stage.leaving{animation:fx-out .3s ease-in both}
+@keyframes fx-in{from{opacity:0}to{opacity:1}}
+@keyframes fx-out{to{opacity:0;transform:scale(.97)}}
+.fx-panel{--tone:#e6c06a;display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 30px 20px;min-width:min(320px,90%);max-width:min(440px,92%);text-align:center;
+  border-radius:18px;background:linear-gradient(160deg,#1f4745,#0f2524);border:1px solid #c9a24a99;
+  box-shadow:0 30px 70px -20px #000,inset 0 1px 0 #ffffff26;color:#fbf5e3;animation:fx-panel-in .4s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes fx-panel-in{from{transform:translateY(16px) scale(.9);opacity:0}to{transform:none;opacity:1}}
+.fx-kicker{font:600 11px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.24em;color:#e6c06a;margin:0}
+.fx-title{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:600;margin:0;line-height:1.35;color:#fbf5e3!important}
+.fx-scene{position:relative;width:150px;height:150px;perspective:600px;display:grid;place-items:center;margin:8px 0 4px}
+.fx-cube{--s:74px;position:relative;width:var(--s);height:var(--s);transform-style:preserve-3d;transform:rotateX(-15deg) rotateY(-19deg)}
+.fx-face{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:3px;padding:12px;border-radius:14px;backface-visibility:hidden;
+  background:radial-gradient(120% 120% at 25% 18%,#fff,#f6f1e4 45%,#d9cfb8);box-shadow:inset 0 0 0 1px #00000014,inset -3px -4px 8px #8a7a5a40}
+.fx-face .pip{width:12px;height:12px;border-radius:50%;justify-self:center;align-self:center;background:radial-gradient(circle at 40% 35%,#4a4a44,#111 70%)}
+.fx-face.front{transform:translateZ(calc(var(--s) / 2))}
+.fx-face.back{transform:rotateY(180deg) translateZ(calc(var(--s) / 2))}
+.fx-face.right{transform:rotateY(90deg) translateZ(calc(var(--s) / 2))}
+.fx-face.left{transform:rotateY(-90deg) translateZ(calc(var(--s) / 2))}
+.fx-face.top{transform:rotateX(90deg) translateZ(calc(var(--s) / 2))}
+.fx-face.bottom{transform:rotateX(-90deg) translateZ(calc(var(--s) / 2))}
+.fx-shadow{position:absolute;bottom:14px;left:50%;width:96px;height:18px;margin-left:-48px;border-radius:50%;background:radial-gradient(closest-side,#000c,#0000);opacity:.7}
+.fx-result{display:flex;flex-direction:column;align-items:center;gap:2px;animation:fx-result-in .45s cubic-bezier(.2,1.6,.4,1) both}
+.fx-result b{font:700 34px/1.05 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;color:var(--tone);text-shadow:0 0 22px color-mix(in srgb,var(--tone) 55%,transparent)}
+.fx-result span{font-size:13px;color:#d9d0b8}
+@keyframes fx-result-in{from{opacity:0;transform:translateY(10px) scale(.6)}to{opacity:1;transform:none}}
+.fx-stage.tone-gain .fx-panel{--tone:#4fe08f}
+.fx-stage.tone-loss .fx-panel{--tone:#ff6b5e}
+.fx-stage.tone-neutral .fx-panel{--tone:#e6c06a}
+.fx-stage.revealed .fx-panel{border-color:var(--tone);box-shadow:0 30px 70px -20px #000,0 0 0 1px var(--tone),0 0 40px -6px var(--tone),inset 0 1px 0 #ffffff26;transition:box-shadow .4s,border-color .4s}
+.fx-stage.revealed.tone-loss .fx-panel{animation:fx-shake .45s ease-in-out}
+@keyframes fx-shake{0%,100%{transform:none}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+
+/* ── Notifications ── */
+.toast-stack{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:1000;width:min(420px,calc(100% - 24px));pointer-events:none}
+.toast-item{
+  --tone:#9fb8b4;--tint:#9fb8b41f;position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:11px 14px 13px 11px;pointer-events:auto;cursor:pointer;
+  color:#fbf5e3;font-size:13px;line-height:1.35;border-radius:14px;border:1px solid color-mix(in srgb,var(--tone) 45%,#ffffff1a);
+  background:linear-gradient(100deg,var(--tint),#0000 55%),linear-gradient(160deg,#18393a,#0e2223);
+  box-shadow:0 18px 38px -14px #000d,0 0 0 1px #0006,inset 0 1px 0 #ffffff1c;
+  animation:toast-in .5s cubic-bezier(.18,1.35,.4,1) both;transition:opacity .3s,transform .3s,margin .3s cubic-bezier(.4,0,.2,1)
+}
+.toast-item.hide{opacity:0;transform:translateY(-6px) scale(.96)}
+@keyframes toast-in{0%{opacity:0;transform:translateY(-22px) scale(.92)}100%{opacity:1;transform:none}}
+.toast-item.tone-gain{--tone:#4fe08f;--tint:#4fe08f26}
+.toast-item.tone-loss{--tone:#ff6b5e;--tint:#ff6b5e2b}
+.toast-item.tone-power{--tone:#b996ff;--tint:#a77bff30}
+.toast-item.tone-prison{--tone:#ff9a4a;--tint:#ff9a4a2b}
+.toast-item.tone-deal{--tone:#e6c06a;--tint:#e6c06a24}
+.toast-item.tone-city{--tone:#5ec8ff;--tint:#5ec8ff26}
+.toast-icon{flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#0d1f1f;
+  background:radial-gradient(circle at 32% 28%,#ffffffa6,#0000 50%),var(--tone);box-shadow:0 0 0 3px color-mix(in srgb,var(--tone) 22%,transparent),0 6px 14px -6px var(--tone);
+  animation:toast-icon-in .6s cubic-bezier(.2,1.8,.4,1) .08s both}
+.toast-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+@keyframes toast-icon-in{0%{transform:scale(.2) rotate(-40deg);opacity:0}100%{transform:none;opacity:1}}
+.toast-body{min-width:0;flex:1}
+.toast-head{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.toast-title{font:700 11px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--tone)}
+.toast-who{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#e9e1cb;padding:2px 8px 2px 4px;border-radius:999px;background:#ffffff14}
+.toast-who .token-dot{width:11px;height:11px}
+.toast-item.mine .toast-who{background:color-mix(in srgb,var(--tone) 26%,transparent);color:#fff}
+.toast-amount{margin-left:auto;font:700 20px/1 'Barlow Condensed',system-ui,sans-serif;color:var(--tone);font-variant-numeric:tabular-nums;text-shadow:0 0 16px color-mix(in srgb,var(--tone) 45%,transparent)}
+.toast-text{margin:0;color:#e3dcc8!important;font-size:13px!important;line-height:1.35!important;overflow-wrap:anywhere}
+.toast-life{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--tone);opacity:.75;transform-origin:left;animation:toast-life var(--life,4300ms) linear both}
+.toast-item:hover .toast-life{animation-play-state:paused}
+@keyframes toast-life{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+/* Power-ups shimmer; losses give a short shake; Prison slams its lock. */
+.toast-item.tone-power::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,#0000 30%,#ffffff2e 48%,#e6c06a33 52%,#0000 70%);transform:translateX(-100%);animation:toast-shimmer 1.6s ease-in-out .3s 2;pointer-events:none}
+@keyframes toast-shimmer{to{transform:translateX(100%)}}
+.toast-item.tone-loss{animation:toast-in .5s cubic-bezier(.18,1.35,.4,1) both,toast-shake .4s ease-in-out .45s}
+@keyframes toast-shake{0%,100%{translate:0}25%{translate:-5px}50%{translate:4px}75%{translate:-2px}}
+.toast-item.tone-prison .toast-icon{animation:toast-lock .7s cubic-bezier(.3,1.6,.5,1) .08s both}
+@keyframes toast-lock{0%{transform:translateY(-60%) scale(.6);opacity:0}60%{transform:translateY(8%) scale(1.1);opacity:1}100%{transform:none}}
+
+/* Cash changes float up from the player's balance. */
+#fx-floats{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:990}
+.cash-float{position:fixed;z-index:990;pointer-events:none;transform:translateY(-50%);font:700 17px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;
+  padding:3px 8px;border-radius:999px;animation:cash-float 1.5s cubic-bezier(.2,.8,.3,1) both;box-shadow:0 6px 16px -6px #000c}
+.cash-float.gain{color:#0c2a19;background:#4fe08f}
+.cash-float.loss{color:#2f0b07;background:#ff6b5e}
+@keyframes cash-float{0%{opacity:0;transform:translateY(-20%) scale(.6)}15%{opacity:1;transform:translateY(-60%) scale(1.08)}30%{transform:translateY(-70%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-260%)}}
+
+/* ── Prison: bars drop over a jailed pawn, which rattles them now and then ── */
+.player-token .pawn-cage{position:absolute;left:-16%;right:-16%;top:8%;bottom:-3%;display:flex;justify-content:space-between;padding:0 7%;pointer-events:none;display:none}
+.player-token.jailed .pawn-cage{display:flex;animation:cage-drop .6s cubic-bezier(.3,1.5,.5,1) both}
+.pawn-cage i{width:8%;border-radius:.3cqw;background:linear-gradient(90deg,#24272d,#d8dde4 38%,#6a717c 68%,#1c1f24);box-shadow:.05cqw 0 .2cqw #000b}
+.cage-rail{position:absolute;left:0;right:0;height:9%;border-radius:.4cqw;background:linear-gradient(#e2e6eb,#6a717c 55%,#2a2d33);box-shadow:0 .08cqw .2cqw #000a}
+.cage-rail.top{top:0}.cage-rail.bottom{bottom:0}
+.cage-lock{position:absolute;right:-4%;top:44%;width:30%;aspect-ratio:1;border-radius:24%;
+  background:radial-gradient(circle at 50% 42%,#2a1d06 0 13%,#0000 14%),linear-gradient(#f6da7a,#b8862b);box-shadow:0 .1cqw .3cqw #000b,inset 0 .08cqw 0 #fff8}
+.cage-lock::before{content:'';position:absolute;left:22%;right:22%;bottom:78%;height:52%;border:.32cqw solid #c9cfd6;border-bottom:0;border-radius:50% 50% 0 0}
+.player-token.jailed .pawn-body{animation:pawn-rattle 3.4s ease-in-out .8s infinite;transform-origin:50% 92%}
+.player-token.jailed .pawn-art{filter:var(--shadow) saturate(.75) brightness(.86)}
+@keyframes cage-drop{0%{opacity:0;transform:translateY(-130%)}55%{opacity:1;transform:translateY(5%)}75%{transform:translateY(-4%)}100%{opacity:1;transform:none}}
+@keyframes pawn-rattle{0%,80%,100%{transform:none}83%{transform:rotate(-6deg)}86%{transform:rotate(6deg)}89%{transform:rotate(-4deg)}92%{transform:rotate(3deg)}95%{transform:rotate(-1deg)}}
+
+@media(prefers-reduced-motion:reduce){
+  .dice.rolling .die,.dice.landed .die,.fx-stage,.fx-panel,.fx-result,.fx-stage.revealed .fx-panel,
+  .toast-item,.toast-icon,.toast-item::before,.toast-life,.cash-float,.player-token.jailed .pawn-cage,.player-token.jailed .pawn-body{animation:none!important}
+}
+@media(max-width:600px){
+  .toast-stack{top:8px}
+  .toast-item{padding:9px 12px 11px 9px;font-size:12px}
+  .toast-icon{width:30px;height:30px}
+  .toast-amount{font-size:18px}
+  .fx-panel{padding:18px 18px 16px}
+}

@@ -50,7 +50,14 @@ const {Game}=require('../lib/game-engine.cjs');
   const dieGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});
   dieGame.state.event={deck:'market',index:require('../lib/game-engine.cjs').DECKS.market.findIndex(card=>card.title==='Lucky customer')};dieGame.state.phase='event';
   const dieCard=JSON.parse(dieGame.serialize());
-  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed,dieCard};
+  // The same card after Host presses Roll the die: the server rolls a 2, so 2 x $30 = $60.
+  await dieGame.applyCard();const dieRolled=JSON.parse(dieGame.serialize());
+  // Fixtures come from separate games, so lift this one's log ids above every earlier fixture: the page only notifies new entries.
+  dieRolled.log.forEach(entry=>entry.id+=5000);
+  // Host is in Prison.
+  const jailGame=new Game(members,{}, {random:()=>.2,wait:async()=>{}});jailGame.state.players[0].position=10;jailGame.state.players[0].penalty={kind:'prison',attempts:1};
+  const jailed=JSON.parse(jailGame.serialize());
+  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed,dieCard,dieRolled,jailed};
   const botMember={name:'Bot Ada',token:'lime',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{}});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];

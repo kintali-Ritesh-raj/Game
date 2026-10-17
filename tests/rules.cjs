@@ -162,9 +162,12 @@ test('mortgage disables rent and development; 10% fee restores rent', () => {
 });
 test('transport and utility rents count only active stations, buildings are prohibited', () => {
   const game = create(); own(game, 8); own(game, 23); own(game, 15); own(game, 29);
-  assert.equal(game.calculateRent(8), 50); assert.equal(game.calculateRent(15, 7), 70);
+  assert.equal(game.calculateRent(8), 150); assert.equal(game.calculateRent(15, 7), 105);
   game.mortgageProperty(23); game.mortgageProperty(29);
-  assert.equal(game.calculateRent(8), 25); assert.equal(game.calculateRent(15, 7), 28);
+  assert.equal(game.calculateRent(8), 50); assert.equal(game.calculateRent(15, 7), 42);
+  // Service rents grow with the game stage: ×2 after round 15, ×3 after round 30.
+  game.state.round = 16; assert.equal(game.calculateRent(8), 100); assert.equal(game.calculateRent(15, 7), 84);
+  game.state.round = 31; assert.equal(game.calculateRent(8), 150);
   assert.throws(() => build(game, 8), /cannot be developed/);
 });
 test('auction cycles bidders, awards highest bid, and handles no bids', () => {
@@ -235,6 +238,8 @@ test('rolled, gamble, catch-up and levy cards use the server dice and the game s
   };
   let game = create(); game.random = () => .99; await apply(game, 'market', 'Lucky customer'); assert.equal(game.active.cash, 1500 + 6 * 30);
   assert.ok(game.state.log.some(entry => /Card die for “Lucky customer”: Ritesh rolled a 6, so 6 × \$30 = \$180/.test(entry.message)), 'the log says the die belongs to the card');
+  assert.deepEqual({ ...game.state.lastDie }, { id: 1, player: 0, value: 6, title: 'Lucky customer', tone: 'gain', result: '+$180', detail: '6 × $30' }, 'the card die is recorded so every screen throws the same die');
+  const gain = game.state.log.find(entry => /received \$180/.test(entry.message)); assert.equal(gain.tone, 'gain'); assert.equal(gain.player, 0);
   game = create(); game.random = () => 0; await apply(game, 'market', 'Storm damage'); assert.equal(game.active.cash, 1470); assert.equal(game.state.jackpot, 115, 'half of a card payment feeds the pot');
   for (const [roll, expected] of [[0, 1400], [.4, 1500], [.99, 1750]]) { game = create(); game.random = () => roll; await apply(game, 'market', 'Double or nothing'); assert.equal(game.active.cash, expected, 'gamble at ' + roll); }
   game = create(); game.state.round = 16; game.random = () => .99; await apply(game, 'market', 'Lucky customer'); assert.equal(game.active.cash, 1500 + 6 * 60, 'stage 2 doubles cash cards');
@@ -344,13 +349,13 @@ test('Launch Boost adds $150 to Launch money for 2 passes; Tailwind keeps the be
   game.active.position = 39; await game.movePlayer(1, { resolve: false }); assert.equal(game.active.cash, 1500 + 900, 'back to the normal $200');
   const roller = create(); roller.active.perks.tailwind = 2; const draws = [.5, .34, 0, .4, .4, 0, .2, .2]; let k = 0; roller.random = () => draws[k++] ?? .3;
   await roller.rollDice(); await drain(roller);
-  assert.deepEqual([...roller.state.dice], [4, 3], 'the best two of 4, 3, 1'); assert.equal(roller.active.perks.tailwind, 1); assert.ok(roller.state.log.some(entry => /drops the lowest \(1\)/.test(entry.message)));
+  assert.deepEqual([...roller.state.dice], [4, 3], 'the best two of 4, 3, 1'); assert.equal(roller.state.droppedDie, 1, 'the dropped die is kept so the screen can show all three'); assert.equal(roller.active.perks.tailwind, 1); assert.ok(roller.state.log.some(entry => /drops the lowest \(1\)/.test(entry.message)));
   roller.state.phase = 'ready'; roller.state.hasRolled = false;
   await roller.rollDice(); await drain(roller);
   assert.deepEqual([...roller.state.dice], [3, 3], 'doubles are judged on the kept two'); assert.equal(roller.state.extraRoll, true); assert.equal(roller.active.perks.tailwind, 0);
   assert.ok(roller.state.log.some(entry => /Rent Tailwind|Tailwind has run out/.test(entry.message)));
   roller.state.phase = 'ready'; roller.state.extraRoll = false; k = 0; draws.splice(0, draws.length, .2, .5); await roller.rollDice(); await drain(roller);
-  assert.deepEqual([...roller.state.dice], [2, 4], 'with no Tailwind left, two dice again');
+  assert.deepEqual([...roller.state.dice], [2, 4], 'with no Tailwind left, two dice again'); assert.equal(roller.state.droppedDie, null);
 });
 test('Rent Shield, Rent Doubler and Rent Reversal: charges are spent only when rent is really due, and they run out', async () => {
   // Shield
@@ -560,6 +565,18 @@ test('victory is detected and no further turns can be taken', () => {
   const game = create(); game.active.cash = 0;
   game.beginPayments([{ payer: 0, creditor: 1, amount: 100, reason: 'rent', category: 'rent' }]); game.declareBankruptcy();
   assert.equal(game.state.phase, 'victory'); assert.equal(game.state.winner, 1); assert.throws(() => game.nextTurn()); assert.throws(() => game.buildStructure(1));
+});
+test('log entries say whether news is good or bad and for whom', async () => {
+  const game = create(); own(game, 1, 1); land(game, 1); game.state.phase = 'ready';
+  game.sendPlayerToPenalty(game.active);
+  const tones = game.state.log.filter(entry => entry.tone).map(entry => entry.tone + ':' + entry.player);
+  assert.ok(tones.includes('prison:0'), 'going to Prison is marked as Prison news for that player');
+  game.grantPerk(game.active, 'shield', 2); assert.equal(game.state.log.at(-1).tone, 'power');
+  game.state.players[0].penalty = null; game.state.players[0].position = 0; game.state.phase = 'ready';
+  game.beginPayments([{ payer: 0, creditor: 1, amount: 20, reason: 'test', category: 'rent' }]);
+  const paid = game.state.log.find(entry => / paid \$20/.test(entry.message)); assert.equal(paid.tone, 'loss'); assert.equal(paid.player, 0);
+  const old = Game.restore(JSON.stringify({ ...JSON.parse(game.serialize()), lastDie: undefined, droppedDie: undefined }));
+  assert.equal(old.state.lastDie, null); assert.equal(old.state.droppedDie, null);
 });
 test('safe phase saves restore exact ownership, cash, decks, settings and pending actions', () => {
   for (const phase of ['ready', 'end', 'offer', 'auction', 'event', 'wheel', 'freebuild', 'debt', 'victory']) {

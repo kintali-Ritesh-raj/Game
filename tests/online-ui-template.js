@@ -125,6 +125,7 @@ async (page) => {
   await page.locator('#turn-action-card [data-action=roll]').click();
   await page.locator('#board-center .dice.rolling').waitFor();
   assert(await page.locator('#turn-action-card .dice.rolling').count()===1,'Dice animate on both the board and action card');
+  await page.waitForTimeout(320);await page.locator('#board-center').screenshot({path:'output/playwright/dice-rolling.png'});
   await page.locator('#modal [data-action=buy]').waitFor();
   assert(await page.locator('#modal [data-action=auction]').count()===0,'Unowned property offers purchase or skip, never an auction');
   assert((await page.locator('#board-center .dice-total').textContent()).includes('4 TOTAL'),'Board dice settle on the synchronized result');
@@ -138,6 +139,7 @@ async (page) => {
   assert(await guest.locator('#classic-token-0').getAttribute('data-space')==='4','Host token moves to the purchased space on both boards');
   await guest.locator('#toast-stack .toast-item',{hasText:'Host purchased Lockside Walk'}).waitFor();
   assert(await guest.locator('#ownership-notice').count()===0,'Purchase appears as a top notification for the other player, with no duplicate corner card');
+  assert(await guest.locator('#toast-stack .toast-item.tone-deal',{hasText:'Host purchased Lockside Walk'}).count()===1&&(await guest.locator('#toast-stack .toast-item.tone-deal .toast-title').first().textContent())==='Purchased','A purchase notification is styled as a deal and names the buyer');
   await page.locator('#turn-action-card [data-action=end]').click();
   await guest.waitForFunction(()=>!document.querySelector('#board-center [data-action=roll]').disabled);
   assert(await page.locator('#board-center [data-action=roll]').isDisabled(),'Host cannot roll during guest turn');
@@ -195,7 +197,7 @@ async (page) => {
   for(const width of [320,768,1024,1440]){
     await page.setViewportSize({width,height:900});
     await page.waitForTimeout(250); // Let token positions settle after responsive layout changes.
-    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px square board fits without page overflow');
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px square board fits without page overflow '+await page.evaluate(()=>document.documentElement.scrollWidth+' '+[...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).slice(0,6).map(el=>el.tagName+'.'+el.className+'@'+Math.round(el.getBoundingClientRect().right)).join(' ')));
     const offSpace=await page.locator('#game-board').evaluate(board=>[...board.querySelectorAll('.player-token:not([hidden])')].map(token=>{
       // A pawn's base must be on its space.
       const marker=token.getBoundingClientRect(),tile=board.querySelector('.board-tile[data-id="'+token.dataset.space+'"]').getBoundingClientRect();
@@ -251,6 +253,19 @@ async (page) => {
   await page.locator('#modal [data-action=apply-event]:has-text("Roll the die")').waitFor();await guest.locator('#modal .event-card h3:has-text("Lucky customer")').waitFor();
   assert((await page.locator('#modal [data-action=apply-event]').textContent()).includes('Roll the die')&&(await page.locator('#modal').textContent()).includes('Nothing is rolled until you press the button'),'A die card waits for the player to press Roll the die');
   assert(await page.locator('#modal [data-action=apply-event]').isEnabled()&&await guest.locator('#modal [data-action=apply-event]').isDisabled()&&(await guest.locator('#modal').textContent()).includes('rolls the die'),'Only the drawing player can roll the card die; the others see who must roll');
+  room.state=clone(fixture.extras.dieRolled);room.revision++;room.transition={action:'apply-event',player:0,dice:room.state.dice,path:[],sounds:['income']};broadcast('mw_rooms',room);
+  await page.locator('#fx-stage .fx-cube').waitFor();
+  assert(await page.locator('#fx-stage .fx-face').count()===6&&await page.locator('#fx-stage .fx-cube').evaluate(el=>el.getAnimations().length>0),'The card die is thrown as a tumbling 3D cube');
+  assert(await page.locator('#toast-stack .toast-item',{hasText:'received $60'}).count()===0,'The result toast waits until the die has landed');
+  await page.locator('#fx-stage .fx-result:not([hidden])').waitFor({timeout:6000});await guest.locator('#fx-stage .fx-result:not([hidden])').waitFor({timeout:6000});
+  assert(await page.locator('#fx-stage .fx-result b').textContent()==='+$60'&&await guest.locator('#fx-stage .fx-result b').textContent()==='+$60'&&(await page.locator('#fx-stage .fx-result span').textContent()).includes('2 × $30'),'Every player sees the die land on the server roll and the amount it pays');
+  assert(await page.locator('#fx-stage.tone-gain').count()===1,'A winning card die is shown in the gain colour');
+  await page.locator('#fx-stage').screenshot({path:'output/playwright/card-die.png'});
+  await page.locator('#toast-stack .toast-item.tone-gain',{hasText:'Host received $60'}).waitFor({timeout:8000});
+  assert(await page.locator('#fx-stage').count()===0,'The die closes before the result notification appears');
+  await page.waitForFunction(()=>[...document.querySelectorAll('#toast-stack .toast-item.tone-gain .toast-amount')].some(el=>el.textContent==='+$60'),{},{timeout:3000});
+  assert((await page.locator('#toast-stack .toast-item.tone-gain .toast-who').first().textContent()).includes('You'),'A gain notification is green, shows +$60 and names the player (You on your own screen)');
+  await page.locator('#toast-stack').screenshot({path:'output/playwright/toast-gain.png'});
   room.state=clone(fixture.extras.wheelState);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#modal [data-action=spin]').waitFor();await guest.locator('#modal [data-action=spin]').waitFor();
   assert(await page.locator('#modal [data-action=spin]').isEnabled()&&await guest.locator('#modal [data-action=spin]').isDisabled(),'Only the player standing on the Wheel of Fortune can spin it');
@@ -278,6 +293,12 @@ async (page) => {
   assert((await page.locator('#city-banner').textContent()).includes('Property Boom (rents +50%), 2 rounds left.')&&(await page.locator('#city-banner').textContent()).includes('Next round: Tax Audit'),'The board header shows the active City Event and the announced one');
   assert((await page.locator('.city-status').textContent()).includes('Round 5'),'The turn card shows the round and the City Event');
   await page.locator('.board-tools').screenshot({path:'output/playwright/city-banner.png'});
+  room.state=clone(fixture.extras.jailed);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#classic-token-0.jailed').waitFor();
+  assert(await page.locator('#classic-token-0 .pawn-cage').isVisible()&&await page.locator('#classic-token-1.jailed').count()===0,'A jailed pawn is shown behind bars; free pawns are not');
+  await page.waitForTimeout(700);await page.locator('#game-board .board-tile[data-id="10"]').screenshot({path:'output/playwright/jailed-pawn.png'});
+  await guest.locator('#classic-token-0.jailed').waitFor();
+  assert(await guest.locator('#classic-token-0 .pawn-cage').isVisible(),'Other players see the jailed pawn behind bars too');
   room.state=clone(fixture.extras.debt);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#modal [data-action=settle]').waitFor();await page.locator('#modal [data-action=manager]').click();
   await page.locator('#modal .debt-meter').waitFor();
