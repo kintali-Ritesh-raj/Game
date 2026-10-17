@@ -172,7 +172,7 @@ async (page) => {
   await guest.locator('#game-screen').waitFor({state:'visible'});
   assert(await guest.locator('#cash-1').textContent()==='$1,488','Manual room-code entry rejoins the same game');
   room.state=clone(fixture.extras.developed);room.revision++;room.transition={action:'build',player:0,dice:room.state.dice,path:[],sounds:['build']};broadcast('mw_rooms',room);
-  await page.locator('.player-property[data-id="4"] [data-buildings="2"]').waitFor();
+  await page.locator('.player-property[data-id="4"][data-buildings="2"]').waitFor();
   assert(await page.locator('[data-pieces="4"] .piece-house').count()===2&&await page.locator('[data-pieces="4"] .piece-tower').count()===0,'Board shows two owner-coloured miniature houses on the developed property');
   assert(await page.locator('[data-pieces="4"] .piece-badge').getAttribute('data-owner')==='0','Ownership shield uses the owner (Host) while the colour band keeps the property group');
   await page.locator('#turn-action-card [data-action=trade-compose]').click();await page.locator('#trade-target').waitFor();
@@ -194,6 +194,8 @@ async (page) => {
     });
     assert(stray.length===0,width+'px every shield, house, tower and pawn stays inside its own card and clear of the property text ('+stray.join(',')+')');
   }
+  for(const width of [1366,1920]){await page.setViewportSize({width,height:900});await page.waitForTimeout(200);
+    assert(await page.locator('#player-cards').evaluate(el=>el.scrollHeight<=el.clientHeight+1&&[...el.querySelectorAll('.player-card')].every(card=>card.getBoundingClientRect().height<110)),width+'px every player card is compact and the list needs no scrolling');}
   for(const width of [320,768,1024,1440]){
     await page.setViewportSize({width,height:900});
     await page.waitForTimeout(250); // Let token positions settle after responsive layout changes.
@@ -223,7 +225,7 @@ async (page) => {
   await guest.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:'output/playwright/classic-board-desktop.png'});
   await guest.screenshot({path:'output/playwright/classic-board-mobile.png'});
-  assert(await page.locator('.player-property[data-id="4"] .house-icon').count()===2,'Player card lists two visible houses for this property');
+  assert((await page.locator('.player-property[data-id="4"]').textContent())==='2'&&(await page.locator('.player-property[data-id="4"]').getAttribute('title')).includes('2 houses'),'The player card chip for this property shows its 2 houses');
   await guest.locator('#game-board [data-id="4"]').click();
   assert(await guest.locator('#modal [data-buildings="2"] .house-icon').count()===2,'Property deed shows the owner and individual house icons');
   await guest.locator('#modal [data-action=close]').last().click();
@@ -235,7 +237,8 @@ async (page) => {
   await page.waitForFunction(()=>document.querySelector('#game-board [data-id="4"]').getAttribute('aria-label').includes('owned by Guest'));
   await page.locator('[data-pieces="4"] .piece-badge[data-owner="1"]').waitFor();
   assert(await page.locator('[data-pieces="4"] .piece-house').count()===2,'After the auction the shield and both houses switch to the new owner');
-  assert(await guest.locator('.player-card').filter({hasText:'Guest'}).locator('.player-property[data-id="4"] [data-buildings="2"]').count()===1,'Auction transfers the property and both houses to the winner');
+  assert(await guest.locator('.player-card').filter({hasText:'Guest'}).locator('.player-property[data-id="4"][data-buildings="2"]').count()===1,'Auction transfers the property and both houses to the winner');
+  await guest.locator('#player-cards').screenshot({path:'output/playwright/player-list.png'});
   assert(await page.locator('#cash-0').textContent()==='$'+fixture.extras.resold.players[0].cash.toLocaleString('en-US'),'Winning bid is credited to the seller');
   await page.waitForTimeout(700); // Let the ownership and house entrance animations finish for visual inspection.
   await page.locator('.board-tools').evaluate(el=>el.scrollIntoView({block:'start'}));
@@ -289,7 +292,8 @@ async (page) => {
   assert(await guest.locator('#modal [data-action=free-build]').count()===0,'Other players do not see the free-house choice');
   room.state=clone(fixture.extras.buffed);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('.perk-badge').first().waitFor();
-  assert((await page.locator('.player-card').first().locator('.perk-badge').allTextContents()).join('|')==='Launch Boost ×2|Tailwind ×2|Shield ×1','Power-ups show on the player card with their remaining uses');
+  assert((await page.locator('#turn-action-card .perk-badge').allTextContents()).join('|')==='Launch Boost ×2|Tailwind ×2|Shield ×1'&&(await page.locator('.player-card').first().getAttribute('title')).includes('Tailwind ×2'),'Power-ups show on the turn card and in the player card tooltip with their remaining uses');
+  assert(await page.locator('.player-card').first().locator('.perk-badge').count()===0,'Player cards stay compact: no badges inside');
   assert((await page.locator('#city-banner').textContent()).includes('Property Boom (rents +50%), 2 rounds left.')&&(await page.locator('#city-banner').textContent()).includes('Next round: Tax Audit'),'The board header shows the active City Event and the announced one');
   assert((await page.locator('.city-status').textContent()).includes('Round 5'),'The turn card shows the round and the City Event');
   await page.locator('.board-tools').screenshot({path:'output/playwright/city-banner.png'});

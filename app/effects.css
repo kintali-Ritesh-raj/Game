@@ -1,29 +1,35 @@
 /* ── Motion and feedback: dice, card dice, notifications, cash changes and Prison bars ── */
 
-/* Turn dice. While the server's roll plays out, each die tumbles in (faces flicker from game-ui.js), then lands with a squash. */
-.dice{perspective:480px}
-.dice.rolling .die{animation:die-tumble .95s cubic-bezier(.22,.62,.3,1) both;animation-delay:calc(var(--i,0) * 70ms);will-change:transform}
-.dice.landed .die{animation:die-land .55s cubic-bezier(.3,1.7,.5,1) both;animation-delay:calc(var(--i,0) * 60ms)}
-@keyframes die-tumble{
-  0%{transform:translate3d(-140%,-170%,0) rotateX(0) rotateY(0) rotateZ(-50deg) scale(.7);opacity:0}
-  14%{opacity:1}
-  40%{transform:translate3d(-30%,-22%,0) rotateX(400deg) rotateY(120deg) rotateZ(60deg) scale(1.08)}
-  62%{transform:translate3d(6%,6%,0) rotateX(640deg) rotateY(240deg) rotateZ(160deg) scale(1)}
-  78%{transform:translate3d(0,-26%,0) rotateX(700deg) rotateY(330deg) rotateZ(250deg) scale(1.03)}
-  90%{transform:translate3d(0,0,0) rotateX(720deg) rotateY(360deg) rotateZ(330deg) scale(1)}
-  100%{transform:translate3d(0,0,0) rotateX(720deg) rotateY(360deg) rotateZ(360deg)}
-}
-@keyframes die-land{0%{transform:scale(1.22,.78) translateY(8%)}35%{transform:scale(.9,1.12) translateY(-10%)}65%{transform:scale(1.04,.97)}100%{transform:none}}
-/* Doubles: a gold halo pulses around both dice. */
-.dice.doubles .die:not(.dropped){outline:2px solid #f2c24b;outline-offset:2px}
-.dice.landed.doubles .die:not(.dropped){animation:die-land .55s cubic-bezier(.3,1.7,.5,1) both,die-halo 1.6s ease-out .2s 2}
-@keyframes die-halo{0%{box-shadow:0 0 0 0 #f2c24bcc}100%{box-shadow:0 0 0 14px #f2c24b00}}
-/* Tailwind: three dice are thrown; the lowest is greyed out and struck through once they land. */
-.dice .die.dropped{position:relative}
-.dice:not(.rolling) .die.dropped{opacity:.42;filter:grayscale(1);transform:scale(.78)}
-.dice.landed .die.dropped{animation:die-drop .6s ease-out .35s both}
-.dice:not(.rolling) .die.dropped::after{content:'';position:absolute;left:-12%;right:-12%;top:50%;height:3px;border-radius:2px;background:#e0533d;transform:rotate(-38deg);box-shadow:0 0 0 1px #0006}
-@keyframes die-drop{0%{opacity:1;filter:none;transform:scale(1)}100%{opacity:.42;filter:grayscale(1);transform:scale(.78)}}
+/* Turn dice: real 3D cubes. game-ui.js throws them on every roll (see throwDice) and they settle on the server's value. */
+.die.die3d{--s:55px;position:relative;flex:none;display:inline-block!important;width:var(--s)!important;height:var(--s)!important;padding:0!important;border:0!important;border-radius:0!important;
+  background:none!important;box-shadow:none!important;perspective:calc(var(--s) * 7);animation:none!important}
+.sidebar-dice .die.die3d{--s:42px}
+.readable-dice .die.die3d{--s:46px}
+.classic-board-view .die.die3d{--s:clamp(32px,7cqw,60px)}
+:is(#game-board,#preview-board) .board-center .die.die3d{--s:5.4cqw}
+.dice:has(.die3d){gap:calc(var(--gap-s,1) * 14px)}
+:is(#game-board,#preview-board) .board-center .dice:has(.die3d){gap:2.4cqw}
+/* The shadow stays on the felt under the cube. */
+.die.die3d::before{content:'';position:absolute;left:4%;right:-6%;bottom:-16%;height:26%;border-radius:50%;background:radial-gradient(closest-side,#000000a6,#0000);pointer-events:none}
+.die-cube{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
+.die-face{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:calc(var(--s) * .15);gap:calc(var(--s) * .03);
+  border-radius:calc(var(--s) * .13);backface-visibility:hidden;
+  background:radial-gradient(130% 130% at 24% 16%,#fffefb,#f5efe1 45%,#d8ccb2);
+  box-shadow:inset 0 0 0 1px #0000001f,inset calc(var(--s) * -.05) calc(var(--s) * -.07) calc(var(--s) * .14) #7a6a4a4d,inset calc(var(--s) * .03) calc(var(--s) * .03) calc(var(--s) * .05) #ffffffb3}
+.die-face .pip{width:calc(var(--s) * .17)!important;height:calc(var(--s) * .17)!important;margin:0!important;border-radius:50%;justify-self:center;align-self:center;
+  background:radial-gradient(circle at 38% 32%,#55554e,#121212 68%)!important;box-shadow:inset 0 calc(var(--s) * .015) calc(var(--s) * .02) #000c}
+.die-face.front{transform:translateZ(calc(var(--s) / 2))}
+.die-face.back{transform:rotateY(180deg) translateZ(calc(var(--s) / 2))}
+.die-face.right{transform:rotateY(90deg) translateZ(calc(var(--s) / 2))}
+.die-face.left{transform:rotateY(-90deg) translateZ(calc(var(--s) / 2))}
+.die-face.top{transform:rotateX(90deg) translateZ(calc(var(--s) / 2))}
+.die-face.bottom{transform:rotateX(-90deg) translateZ(calc(var(--s) / 2))}
+/* Doubles: a gold glow pulses around both dice. */
+.dice.doubles .die3d:not(.dropped){filter:drop-shadow(0 0 calc(var(--s) * .1) #f2c24bcc);animation:die-halo 1.4s ease-in-out 2 both!important}
+@keyframes die-halo{0%,100%{filter:drop-shadow(0 0 calc(var(--s) * .06) #f2c24b99)}50%{filter:drop-shadow(0 0 calc(var(--s) * .28) #f2c24b)}}
+/* Tailwind: three cubes are thrown; once they land the lowest is greyed out and struck through. */
+.dice:not(.rolling) .die3d.dropped{opacity:.45;filter:grayscale(1);scale:.8;transition:opacity .5s .3s,filter .5s .3s,scale .5s .3s}
+.dice:not(.rolling) .die3d.dropped::after{content:'';position:absolute;left:-14%;right:-14%;top:50%;height:3px;border-radius:2px;background:#e0533d;transform:rotate(-38deg);box-shadow:0 0 0 1px #0006;z-index:1}
 
 /* ── Card die: a real 3D cube thrown over the board ── */
 .fx-stage{position:fixed;inset:0;z-index:950;display:grid;place-items:center;pointer-events:none;
@@ -103,11 +109,11 @@
 
 /* Cash changes float up from the player's balance. */
 #fx-floats{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:990}
-.cash-float{position:fixed;z-index:990;pointer-events:none;transform:translateY(-50%);font:700 17px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;
+.cash-float{position:fixed;z-index:990;pointer-events:none;transform:translate(-50%,-50%);font:700 17px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;
   padding:3px 8px;border-radius:999px;animation:cash-float 1.5s cubic-bezier(.2,.8,.3,1) both;box-shadow:0 6px 16px -6px #000c}
 .cash-float.gain{color:#0c2a19;background:#4fe08f}
 .cash-float.loss{color:#2f0b07;background:#ff6b5e}
-@keyframes cash-float{0%{opacity:0;transform:translateY(-20%) scale(.6)}15%{opacity:1;transform:translateY(-60%) scale(1.08)}30%{transform:translateY(-70%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-260%)}}
+@keyframes cash-float{0%{opacity:0;transform:translate(-50%,-10%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.08)}30%{transform:translate(-50%,-75%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-240%)}}
 
 /* ── Prison: bars drop over a jailed pawn, which rattles them now and then ── */
 .player-token .pawn-cage{position:absolute;left:-16%;right:-16%;top:8%;bottom:-3%;display:flex;justify-content:space-between;padding:0 7%;pointer-events:none;display:none}
@@ -124,7 +130,7 @@
 @keyframes pawn-rattle{0%,80%,100%{transform:none}83%{transform:rotate(-6deg)}86%{transform:rotate(6deg)}89%{transform:rotate(-4deg)}92%{transform:rotate(3deg)}95%{transform:rotate(-1deg)}}
 
 @media(prefers-reduced-motion:reduce){
-  .dice.rolling .die,.dice.landed .die,.fx-stage,.fx-panel,.fx-result,.fx-stage.revealed .fx-panel,
+  .dice.doubles .die3d,.fx-stage,.fx-panel,.fx-result,.fx-stage.revealed .fx-panel,
   .toast-item,.toast-icon,.toast-item::before,.toast-life,.cash-float,.player-token.jailed .pawn-cage,.player-token.jailed .pawn-body{animation:none!important}
 }
 @media(max-width:600px){
@@ -134,3 +140,22 @@
   .toast-amount{font-size:18px}
   .fx-panel{padding:18px 18px 16px}
 }
+
+/* ── Player list: one compact row per seat so every player is visible at once ── */
+.player-cards{max-height:none!important}
+.player-card.compact{padding:10px 12px 10px 14px;min-width:0}
+.player-card.compact::before{top:10px!important;bottom:10px!important}
+.player-card.compact .player-card-top{display:flex;align-items:center;gap:8px;min-width:0}
+.player-card.compact .token-dot{width:16px;height:16px;flex:none}
+.player-card.compact .player-name{flex:1;min-width:0;font-size:14px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-card.compact .bot-badge{font-size:8px;padding:1px 4px;margin-left:4px}
+.player-card.compact .cash-amount{flex:none;font-size:18px;letter-spacing:-.5px;border-radius:4px;padding:0 2px}
+.player-card.compact .player-own{display:flex;align-items:center;gap:8px;margin-top:7px;min-width:0}
+.player-card.compact .own-count{flex:none;font:10px var(--mono);color:var(--muted);white-space:nowrap}
+.player-card.compact .player-properties{display:flex;flex-wrap:wrap;gap:3px;max-height:none;overflow:visible;margin:0;border:0;min-width:0}
+.player-card.compact .player-property{flex:none;width:15px;height:15px;min-height:0;padding:0;border:0;border-radius:3px;background:var(--chip);display:grid;place-items:center;
+  font:700 9px/1 var(--mono);color:#fff;text-shadow:0 0 2px #000,0 0 2px #000;box-shadow:inset 0 0 0 1px #0000004d,0 1px 0 #0003;cursor:pointer}
+.player-card.compact .player-property:hover,.player-card.compact .player-property:focus-visible{outline:2px solid var(--player-color);outline-offset:1px}
+.player-card.compact .player-property.mortgaged{opacity:.38;background:repeating-linear-gradient(135deg,var(--chip) 0 3px,#0000 3px 6px)}
+.turn-buffs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.turn-buffs>span{margin:0!important}
