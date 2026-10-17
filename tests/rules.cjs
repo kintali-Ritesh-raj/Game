@@ -605,6 +605,14 @@ test('City Bank interest rises $50 every 7 rounds and the Prison fine rises $100
   const draws = [0, .2]; let k = 0; stuck.random = () => draws[k++] ?? .5; // rolls 1 + 2: no doubles
   await stuck.rollDice(); assert.ok(stuck.state.log.some(entry => /owes \$250 to leave/.test(entry.message)), 'the third failed roll charges the current fine');
 });
+test('the Tax Audit amount rises $100 every 10 rounds, and the banner names the amount for its round', () => {
+  const game = create();
+  assert.deepEqual([1, 10, 11, 20, 21, 40, 41, 200].map(round => game.auditAmount(round)), [100, 100, 200, 200, 300, 400, 500, 500], 'capped at $500 from round 41');
+  game.state.round = 25; game.player(0).cash = 3000; game.player(1).cash = 1000; game.applyAudit();
+  assert.deepEqual([game.player(0).cash, game.player(1).cash], [2700, 1300], 'in round 25 the richest pays the poorest $300');
+  game.state.round = 20; game.state.city.upcoming = { kind: 'audit', round: 21 };
+  assert.ok(game.cityLines().includes('Next round: Tax Audit (richest pays poorest $300).'), 'announced in round 20 for round 21, so it shows the round-21 amount');
+});
 test('every move-to card takes you to the space its text names', async () => {
   for (const deck of Object.values(DECKS)) for (const card of deck.filter(item => item.effect === 'advance'))
     assert.ok(card.text.includes(BOARD[card.destination].name), card.title + ' moves to ' + BOARD[card.destination].name + ', which its text does not name');
