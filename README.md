@@ -82,6 +82,10 @@ The GitHub Actions workflow runs the rule, authorization, database-policy tests,
 
 The square 2D board is the default view: all 40 spaces around the edges, moving player tokens, property ownership and buildings, and dice in the center. On laptops, market activity sits on the left and players and actions on the right; tablets and phones show the board first at full width. Tap any space to read its full deed. **Your token** focuses your current space, and keyboard users can open a focused deed with Enter or Space. The ☾/☀ button in the header switches dark mode, remembered per browser.
 
+**Board sizes.** The Host picks the board in the lobby. Classic is the square board with 40 spaces. Skyline is a pentagon with 50: its new side has the Stock Exchange corner (Dividend Day: $5 for every property anyone owns, times the game stage), Skyline Row ($420–$440), Royal Marina ($460–$480), Hyperloop Station, an Economic Event and a Luxury Tax ($100 × stage). Grand is a hexagon with 60: it adds a second side with the Grand Terminal corner (the Express Line takes you to a random station, paying Launch money if you pass it), Orbital Quarter ($500–$520), Crown Heights ($540–$560), Starport, two card spaces and another Luxury Tax. With more stations, station rent climbs with each one owned: $50, $150, $250, $400.
+
+**Colors.** Each player picks one of four colors. Colors already taken in a room are shown as blocked to everyone, including players on the join screen, so the last player to join has only the remaining color.
+
 **Popups for your turn.** When you land on your own property and are allowed to build, a popup offers **Build** (with the cost and the new rent) or **Ignore**. A jailed player's turn opens a popup with **Roll for doubles** or **Pay $X to leave** (and **Raise cash** when short); it cannot be dismissed, so nobody forgets they are in Prison.
 
 Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
@@ -128,7 +132,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs 60 rule checks, 25 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, building on landing and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, the Wheel of Fortune, the Free Market jackpot, City Events, 100-card decks and rarity, rolled and gamble cards, the Prison pass, old-save migration, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
+`npm test` runs 63 rule checks, 26 server and bot checks, and 8 PostgreSQL/PGlite checks. These cover complete games (including trades), classic rents, building on landing and even building, trades, doubles waypoints, turn timeouts, leaving a game, owner auctions, off-turn debt, detention, bankruptcy, room capacity, idempotency, conflicting revisions, RLS, the Wheel of Fortune, the Free Market jackpot, City Events, 100-card decks and rarity, rolled and gamble cards, the Prison pass, old-save migration, rejoin codes, and room cleanup. PGlite exercises PostgreSQL rules and policies; it has no `pg_cron`, so the cleanup function is tested directly rather than through its schedule, and it does not test the hosted Realtime service.
 
 Deterministic two-browser UI checks use the Playwright CLI. Start the app with `npm run dev` first, then open it at `localhost` (the Next.js dev server rejects `127.0.0.1`):
 
@@ -139,7 +143,7 @@ npx playwright-cli -s=market-online run-code --filename=output/playwright/online
 npx playwright-cli -s=market-online close
 ```
 
-These 112 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
+These 122 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
 
 For a **real internet/Supabase smoke test**, configure a test Supabase project with anonymous sign-ins and the migration, start the Next app against it, and run:
 

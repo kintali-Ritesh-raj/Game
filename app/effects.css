@@ -166,3 +166,37 @@
 .brand>span:last-child{white-space:nowrap}
 @media(max-width:600px){.site-header .brand{font-size:14px;gap:8px}}
 @media(max-width:360px){.site-header .brand{font-size:12px;gap:6px}.brand>span:last-child{white-space:normal}}
+
+/* ── Pentagon and hexagon boards (lib/game-ui.js buildPolygonBoard) ──
+   Cards sit in rotated slots around the polygon; the felt fills the middle and the centre controls are scaled to fit it. */
+#game-board.poly-board{display:block;position:relative;aspect-ratio:1;padding:0}
+#game-board.poly-board .poly-felt{position:absolute;inset:0;z-index:0;pointer-events:none;background-color:#123a3c;
+  background-image:var(--leather),var(--mottle),radial-gradient(120% 100% at 30% 22%,#2a6766 0%,#18494a 38%,#103133 78%,#0b2426 100%)}
+#game-board.poly-board .poly-slot{position:absolute;z-index:1;transform-origin:50% 50%;overflow:clip}
+#game-board.poly-board .poly-scope{position:absolute;left:0;top:0;height:100%;width:calc(100% * var(--scope));container-type:inline-size;pointer-events:none}
+#game-board.poly-board .poly-scope>.board-tile{position:absolute;left:0;top:0;width:calc(100% / var(--scope));height:100%;pointer-events:auto}
+#game-board.poly-board .poly-scope>.tile-pieces{position:absolute;left:0;top:0;width:calc(100% / var(--scope));height:100%}
+#game-board.poly-board .board-center{position:absolute;width:76.3%;height:76.3%;transform:translate(-50%,-50%) scale(var(--poly-center,1));
+  background:none;box-shadow:none;z-index:2}
+#game-board.poly-board .board-center::before{display:none}
+#game-board.poly-board .board-center .skyline-edge{display:none}
+
+/* ── Lobby: colours in use and the board choice ── */
+.lobby-colors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 16px}
+.lobby-color{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border:1px solid var(--line);border-radius:10px;font-size:12px;text-align:center}
+.lobby-color .token-dot{width:22px;height:22px}
+.lobby-color b{font-size:11px;font-weight:600;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.lobby-color.taken{opacity:.55;background:repeating-linear-gradient(135deg,#0000 0 6px,#8881 6px 12px)}
+.lobby-color.taken b{color:var(--text)}
+.lobby-board{margin:0 0 18px}
+.lobby-board-choice{display:flex;align-items:center;gap:10px;font-size:14px;margin:0}
+.board-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border:0;padding:0;margin:14px 0}
+.board-picker legend{font-size:13px;font-weight:600;margin-bottom:8px}
+.board-option{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;text-align:center;font-size:12px}
+.board-option b{display:block;font-size:14px}
+.board-option input{position:absolute;opacity:0;pointer-events:none}
+.board-option.selected{border-color:var(--red,#c0392b);box-shadow:0 0 0 2px var(--red,#c0392b) inset}
+.board-option:has(input:focus-visible){outline:2px solid var(--red,#c0392b);outline-offset:2px}
+.board-icon{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.8}
+.board-option.selected .board-icon{fill:#c0392b22}
+@media(max-width:420px){.lobby-colors{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -6,7 +6,7 @@ const path = require('node:path');
 const context = { console, setTimeout, clearTimeout };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'lib', 'game-engine.cjs'), 'utf8'), context);
-const { Game, BOARD, GROUPS, DECKS, WHEEL, validatePlayers, RARITY_WEIGHTS } = context.MarketWars;
+const { Game, BOARD, BOARDS, GROUPS, DECKS, WHEEL, validatePlayers, RARITY_WEIGHTS } = context.MarketWars;
 const players = [
   { name: 'Ritesh', token: 'black' },
   { name: 'Manish', token: 'blue' },
@@ -612,6 +612,40 @@ test('the Tax Audit amount rises $100 every 10 rounds, and the banner names the 
   assert.deepEqual([game.player(0).cash, game.player(1).cash], [2700, 1300], 'in round 25 the richest pays the poorest $300');
   game.state.round = 20; game.state.city.upcoming = { kind: 'audit', round: 21 };
   assert.ok(game.cityLines().includes('Next round: Tax Audit (richest pays poorest $300).'), 'announced in round 20 for round 21, so it shows the round-21 amount');
+});
+test('pentagon and hexagon boards add whole sides and keep every classic space where it was', () => {
+  assert.deepEqual([4, 5, 6].map(n => BOARDS[n].length), [40, 50, 60]);
+  for (const n of [5, 6]) BOARD.forEach(space => assert.equal(BOARDS[n][space.id].name, space.name, space.name + ' keeps its id on the ' + n + '-sided board'));
+  for (const n of [4, 5, 6]) for (let side = 0; side < n; side++) {
+    const corner = BOARDS[n][side * 10];
+    assert.ok(!corner.price, 'each side starts with a corner on the ' + n + '-sided board');
+    if (side >= 4) assert.equal(BOARDS[n].slice(side * 10 + 1, side * 10 + 10).filter(space => space.type === 'transport').length, 1, 'each new side has one station');
+  }
+  // New colour groups: 3, 3, 3 and 2 properties, each priced above the last, never cheaper than Aurora Mile
+  const sizes = ['skyline', 'marina', 'orbit', 'crown'].map(group => BOARDS[6].filter(space => space.group === group).length);
+  assert.deepEqual(sizes, [3, 3, 3, 2]);
+  assert.ok(BOARDS[6].slice(40).filter(space => space.type === 'property').every(space => space.price > 400));
+  const game = new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {} });
+  assert.equal(game.board.length, 60); assert.equal(game.state.sides, 6); assert.equal(Object.keys(game.state.properties).length, 40);
+  assert.equal(new Game(players.slice(0, 2), {}, { sides: 9 }).board.length, 40, 'an unknown size falls back to the square board');
+  const saved = Game.restore(game.serialize()); assert.equal(saved.board.length, 60, 'a saved hexagon game restores as a hexagon');
+  assert.equal(Game.restore(JSON.stringify({ ...JSON.parse(create().serialize()), sides: undefined })).state.sides, 4, 'older saves are square-board games');
+});
+test('Stock Exchange pays Dividend Day, Luxury Tax charges $100 per stage, and Grand Terminal rides to a station', () => {
+  const make = () => new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {} });
+  let game = make(); [1, 2, 4].forEach(id => { game.asset(id).owner = 1; }); land(game, 40);
+  assert.equal(game.active.cash, 1515, '3 owned properties pay $15 on Dividend Day');
+  game = make(); game.state.round = 31; game.asset(1).owner = 1; land(game, 40); assert.equal(game.active.cash, 1515, 'stage 3 triples it: 1 property × $5 × 3');
+  game = make(); land(game, 47); assert.equal(game.active.cash, 1400, 'Luxury Tax is $100');
+  game = make(); game.state.round = 16; land(game, 58); assert.equal(game.active.cash, 1300, 'and $200 at stage 2');
+  game = make(); game.random = () => .99; land(game, 50);
+  assert.equal(game.active.position, 55, 'the Express Line ends on a station (here Starport)'); assert.equal(game.state.phase, 'offer', 'and resolves it: an unowned station can be bought');
+  game = make(); game.random = () => 0; land(game, 50);
+  assert.equal(game.active.position, 8, 'a ride round to Northline Rail passes Launch'); assert.equal(game.active.cash, 1700, 'and pays the $200 Launch money');
+});
+test('station rent climbs with each of up to four stations', () => {
+  const game = new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {} });
+  [8, 23, 45, 55].forEach((id, i) => { game.asset(id).owner = 1; assert.equal(game.calculateRent(8), [50, 150, 250, 400][i], (i + 1) + ' stations'); });
 });
 test('every move-to card takes you to the space its text names', async () => {
   for (const deck of Object.values(DECKS)) for (const card of deck.filter(item => item.effect === 'advance'))

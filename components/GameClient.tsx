@@ -6,6 +6,8 @@ import { initializeUI } from '@/lib/game-ui';
 import { useMultiplayer } from './useMultiplayer';
 import Lobby from './Lobby';
 import PlayerForm from './PlayerForm';
+import { request } from '@/lib/supabase-browser';
+import type { Token } from '@/lib/types';
 
 export default function GameClient({ initialCode }: { initialCode?: string }) {
   const multiplayer = useMultiplayer(initialCode);
@@ -17,6 +19,16 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
   const [rejoinMode, setRejoinMode] = useState(false);
   const [rejoinInput, setRejoinInput] = useState('');
   const [myRejoinCode, setMyRejoinCode] = useState('');
+  // Colours already taken in the room being joined, refreshed while the join form is open.
+  const [takenTokens, setTakenTokens] = useState<Token[]>([]);
+  useEffect(() => {
+    const code = joinCode.trim().toUpperCase();
+    if (multiplayer.screen !== 'join' || code.length !== 6) { setTakenTokens([]); return; }
+    let cancelled = false;
+    const peek = () => request<{ taken: Token[] }>('/api/rooms/' + code, 'POST', { operation: 'peek' }).then(result => { if (!cancelled) setTakenTokens(result.taken); }).catch(() => { if (!cancelled) setTakenTokens([]); });
+    void peek(); const timer = setInterval(peek, 4000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [joinCode, multiplayer.screen]);
   useEffect(() => { setMyRejoinCode(''); }, [multiplayer.code, multiplayer.screen]);
   const showRejoinCode = async () => {
     try { setMyRejoinCode(await multiplayer.rejoinCode()); } catch (caught) { setMyRejoinCode(caught instanceof Error ? caught.message : 'Unavailable'); }
@@ -71,7 +83,7 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
             <p className="setup-role-note">Find it under “Show rejoin code” on the device you played on. It moves your seat, cash and properties to this device.</p>
             <button className="primary full" type="submit" disabled={multiplayer.busy}>{multiplayer.busy ? 'Connecting…' : 'Rejoin my seat'}</button>
           </form>
-        : <PlayerForm busy={multiplayer.busy} label={multiplayer.screen === 'create' ? 'Create Game' : 'Join lobby'} onSubmit={player => multiplayer.joinOrCreate(player, multiplayer.screen === 'join' ? joinCode || ' ' : undefined)} />}
+        : <PlayerForm taken={multiplayer.screen === 'join' ? takenTokens : []} boardChoice={multiplayer.screen === 'create'} busy={multiplayer.busy} label={multiplayer.screen === 'create' ? 'Create Game' : 'Join lobby'} onSubmit={player => multiplayer.joinOrCreate(player, multiplayer.screen === 'join' ? joinCode || ' ' : undefined)} />}
       {multiplayer.screen === 'join' && <button className="text-button" onClick={() => setRejoinMode(!rejoinMode)}>{rejoinMode ? 'Join as a new player instead' : 'Already have a seat? Rejoin with a code'}</button>}
       <button className="text-button" onClick={() => multiplayer.navigate('menu')}>Back to menu</button>
     </main>}

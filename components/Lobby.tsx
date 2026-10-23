@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import PlayerForm, { TOKENS, TokenDot } from './PlayerForm';
-import type { Connection, Profile, Room } from '@/lib/types';
+import PlayerForm, { BOARD_CHOICES, BoardIcon, BoardPicker, TOKENS, TokenDot } from './PlayerForm';
+import type { BoardSides, Connection, Profile, Room, Token } from '@/lib/types';
 
 export default function Lobby({ room, userId, connections, busy, connected, start, leave, updateProfile, addBot, removeBot }: {
   room: Room; userId: string; connections: Connection[]; busy: boolean; connected: boolean;
@@ -18,6 +18,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
   const host = room.members.find(member => member.user_id === room.host_id);
   const mine = room.members.find(member => member.user_id === userId);
   const canStart = room.members.length >= 2;
+  const sides: BoardSides = host?.sides === 5 || host?.sides === 6 ? host.sides : 4, board = BOARD_CHOICES.find(choice => choice.sides === sides)!;
   const copy = async (value: string, kind: string) => {
     try { await navigator.clipboard.writeText(value); setCopied(kind + ' copied.'); }
     catch { setCopied('Select the ' + kind.toLowerCase() + ' below and copy it manually.'); }
@@ -30,6 +31,15 @@ export default function Lobby({ room, userId, connections, busy, connected, star
       <p role="status" className="copy-status">{copied || 'Friends can open this link or enter the room code.'}</p>
     </section>
     <div className="lobby-topline"><span>HOST <b>{host?.name}</b></span><span>{room.members.length} / 4 PLAYERS</span></div>
+    <div className="lobby-colors" aria-label="Player colors">
+      {(Object.keys(TOKENS) as Token[]).map(token => { const owner = room.members.find(member => member.token === token);
+        return <span key={token} className={'lobby-color' + (owner ? ' taken' : '')}><TokenDot token={token} />{TOKENS[token].label}<b>{owner ? owner.name : 'Free'}</b></span>; })}
+    </div>
+    <div className="lobby-board">
+      {room.host_id === userId && mine
+        ? <BoardPicker value={sides} disabled={busy || !connected} onChange={next => { if (next !== sides) void updateProfile({ name: mine.name, token: mine.token, sides: next }).catch(() => {}); }} />
+        : <p className="lobby-board-choice"><BoardIcon sides={sides} /><span>Board: <b>{board.name}</b> · {board.detail}</span></p>}
+    </div>
     <ul className="lobby-players" aria-label="Lobby players">
       {room.members.map(member => {
         const online = connections.some(c => c.user_id === member.user_id && c.connected && now - Date.parse(c.seen_at) < 45000);
@@ -48,7 +58,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
       <p>{room.members.length >= 4 ? 'Table full. Remove a bot to free a seat.' : 'Bots buy, build and bid automatically. Four players total, including bots.'}</p>
     </div>}
     <div className="lobby-choices"><button className="secondary" onClick={() => setEditing(!editing)} disabled={busy}>{editing ? 'Close choices' : 'Edit my name & color'}</button></div>
-    {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile(player); setEditing(false); }} />}
+    {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile({ ...player, ...(room.host_id === userId ? { sides } : {}) }); setEditing(false); }} />}
     <p className="lobby-note">Everyone starts with $1,500 and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
     <div className="setup-footer"><button className="secondary" onClick={() => void leave()} disabled={busy}>Leave lobby</button>
       {room.host_id === userId

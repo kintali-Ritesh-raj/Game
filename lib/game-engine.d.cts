@@ -1,5 +1,5 @@
 import type { GameState, Profile } from './types';
-interface EngineOptions { random?:()=>number; wait?:(ms:number)=>Promise<void>; onChange?:(state:GameState)=>void; onSound?:(sound:string)=>void }
+interface EngineOptions { sides?:4|5|6; rollDie?:()=>number; random?:()=>number; wait?:(ms:number)=>Promise<void>; onChange?:(state:GameState)=>void; onSound?:(sound:string)=>void }
 interface Space { id:number; name:string; type:string; group:string; price:number; buildingCost:number; mortgageValue:number; baseRent:number }
 declare class Game {
   constructor(players:Profile[], settings?:Record<string,boolean|number>, options?:EngineOptions);
@@ -9,6 +9,7 @@ declare class Game {
   readonly managerPlayer:GameState['players'][number];
   player(id:number):GameState['players'][number];
   readonly living:GameState['players'][number][];
+  readonly board:Space[];
   bankInterest():number; prisonFine():number; auditAmount(round?:number):number;
   finances(player:GameState['players'][number]):{netWorth:number;properties:number;buildings:number;score:number};
   asset(id:number):GameState['properties'][string];
@@ -31,5 +32,5 @@ declare class Game {
   settleDebt():void; declareBankruptcy():void; resolveSpace():void;
   beginPayments(payments:{payer:number;creditor:number|null;amount:number;reason:string;category:string}[],continuation?:{kind:string;steps?:number}):void;
 }
-declare const MarketWars: {Game:typeof Game;BOARD:Space[];validatePlayers(players:Profile[]):string;TOKENS:Record<string,string>;TOKEN_COLORS:Record<string,string>;COLORS:string[];DECKS:Record<string,{title:string;text:string;effect:string;rarity:string}[]>;CITY_EVENTS:Record<string,{name:string;text:string}>;JACKPOT_BASE:number;PERK_NAMES:Record<string,string>;WHEEL:{id:string;weight:number;kind:string;amount?:number;tier:string}[];WHEEL_MAX_FREE:number;POWER_UPS:string[];PERK_CHARGES:Record<string,number>;SERVICE_RENT:Record<'transport'|'utility',number[]>;GROUPS:Record<string,{name:string;color:string;cost:number}>};
+declare const MarketWars: {Game:typeof Game;BOARD:Space[];BOARDS:Record<4|5|6,Space[]>;validatePlayers(players:Profile[]):string;TOKENS:Record<string,string>;TOKEN_COLORS:Record<string,string>;COLORS:string[];DECKS:Record<string,{title:string;text:string;effect:string;rarity:string}[]>;CITY_EVENTS:Record<string,{name:string;text:string}>;JACKPOT_BASE:number;PERK_NAMES:Record<string,string>;WHEEL:{id:string;weight:number;kind:string;amount?:number;tier:string}[];WHEEL_MAX_FREE:number;POWER_UPS:string[];PERK_CHARGES:Record<string,number>;SERVICE_RENT:Record<'transport'|'utility',number[]>;GROUPS:Record<string,{name:string;color:string;cost:number}>};
 export = MarketWars;

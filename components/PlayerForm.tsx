@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Member, Profile, Token } from '@/lib/types';
+import type { BoardSides, Member, Profile, Token } from '@/lib/types';
 
 // Each player's marker is one of four high-contrast colours; it also colours their pawn, shields and houses.
 export const TOKENS: Record<Token, { label: string; color: string }> = {
@@ -11,14 +11,34 @@ export const TOKENS: Record<Token, { label: string; color: string }> = {
   lime: { label: 'Lime', color: '#7ed321' },
 };
 const isToken = (value: unknown): value is Token => typeof value === 'string' && value in TOKENS;
+// The three boards. Each new side adds a corner, two colour groups, a station and two card or tax spaces.
+export const BOARD_CHOICES: { sides: BoardSides; name: string; detail: string }[] = [
+  { sides: 4, name: 'Classic', detail: 'Square · 40 spaces' },
+  { sides: 5, name: 'Skyline', detail: 'Pentagon · 50 spaces' },
+  { sides: 6, name: 'Grand', detail: 'Hexagon · 60 spaces' },
+];
+export function BoardIcon({ sides }: { sides: BoardSides }) {
+  const points = Array.from({ length: sides }, (_, k) => { const a = (90 - 180 / sides + k * 360 / sides) * Math.PI / 180; return (12 + 10 * Math.cos(a)).toFixed(2) + ',' + (12 + 10 * Math.sin(a)).toFixed(2); }).join(' ');
+  return <svg className="board-icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points={points} /></svg>;
+}
+export function BoardPicker({ value, onChange, disabled }: { value: BoardSides; onChange: (sides: BoardSides) => void; disabled?: boolean }) {
+  return <fieldset className="board-picker" id="online-board">
+    <legend>Board size</legend>
+    {BOARD_CHOICES.map(choice => <label key={choice.sides} className={'board-option' + (value === choice.sides ? ' selected' : '')}>
+      <input type="radio" name="online-board" value={choice.sides} checked={value === choice.sides} disabled={disabled} onChange={() => onChange(choice.sides)} />
+      <BoardIcon sides={choice.sides} /><span><b>{choice.name}</b>{choice.detail}</span>
+    </label>)}
+  </fieldset>;
+}
 export function TokenDot({ token }: { token: string }) {
   return <span className="token-dot" style={{ '--token-color': isToken(token) ? TOKENS[token].color : '#8a8f8c' } as React.CSSProperties} aria-hidden="true" />;
 }
 
-export default function PlayerForm({ initial, members = [], busy, label, onSubmit }: {
-  initial?: Profile; members?: Member[]; busy: boolean; label: string; onSubmit: (player: Profile) => Promise<void>;
+// `taken` lists colours already chosen by other players; they are shown as blocked. `boardChoice` adds the Host's board picker.
+export default function PlayerForm({ initial, members = [], taken: takenTokens = [], boardChoice = false, busy, label, onSubmit }: {
+  initial?: Profile; members?: Member[]; taken?: Token[]; boardChoice?: boolean; busy: boolean; label: string; onSubmit: (player: Profile) => Promise<void>;
 }) {
-  const taken = (token: Token) => members.some(member => member.token === token);
+  const taken = (token: Token) => takenTokens.includes(token) || members.some(member => member.token === token);
   const firstFree = (preferred?: unknown) => isToken(preferred) && !taken(preferred) ? preferred : (Object.keys(TOKENS) as Token[]).find(token => !taken(token)) || 'black';
   const [player, setPlayer] = useState<Profile>(initial ? { ...initial, token: firstFree(initial.token) } : { name: '', token: firstFree() });
   useEffect(() => {
@@ -29,6 +49,10 @@ export default function PlayerForm({ initial, members = [], busy, label, onSubmi
     } catch { /* Use the empty player form. */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
+  // Someone else took this colour while the form was open: move to the first free one.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (taken(player.token)) setPlayer(current => ({ ...current, token: firstFree(current.token) })); }, [takenTokens.join(), members.map(member => member.token).join()]);
+  const free = (Object.keys(TOKENS) as Token[]).filter(token => !taken(token));
   return <form className="online-player-form" onSubmit={event => { event.preventDefault(); void onSubmit(player); }}>
     <label htmlFor="online-name">Player name</label>
     <input id="online-name" value={player.name} required maxLength={20} autoComplete="nickname" onChange={event => setPlayer({ ...player, name: event.target.value })} />
@@ -39,7 +63,9 @@ export default function PlayerForm({ initial, members = [], busy, label, onSubmi
         <TokenDot token={token} /><span>{TOKENS[token].label}{taken(token) ? ' · taken' : ''}</span>
       </label>)}
     </fieldset>
-    <p className="setup-role-note">Everyone plays by the same classic rules. Own 2 properties of a color to start building.</p>
-    <button className="primary full" type="submit" disabled={busy}>{busy ? 'Connecting…' : label}</button>
+    {free.length < 4 && <p className="setup-role-note" role="status">{free.length === 1 ? 'Only ' + TOKENS[free[0]].label.toLowerCase() + ' is left.' : free.length ? free.length + ' colors are still free.' : 'Every color is taken: this room is full.'}</p>}
+    {boardChoice && <BoardPicker value={player.sides || 4} onChange={sides => setPlayer({ ...player, sides })} />}
+    <p className="setup-role-note">Everyone plays by the same rules. Build on your own property each time you land on it.</p>
+    <button className="primary full" type="submit" disabled={busy || !free.length}>{busy ? 'Connecting…' : label}</button>
   </form>;
 }

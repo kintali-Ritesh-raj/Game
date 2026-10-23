@@ -24,6 +24,13 @@ export async function POST(request: Request, context: Context) {
     const { db, actor } = await authenticate(request);
     const code = roomCode((await context.params).code), body = await jsonBody(request);
     if (body.operation === 'join') return Response.json({ room: await roomRpc(db, 'mw_join_room', { p_code: code, p_actor: actor, p_profile: profile(body) }) });
+    // Before joining, a player may see which colours are already in use, so they can pick a free one.
+    if (body.operation === 'peek') {
+      const { data, error } = await db.from('mw_rooms').select('status,members').eq('code', code).maybeSingle();
+      if (error) throw error;
+      if (!data || data.status === 'closed') throw new ApiError(404, 'Room not found. Check the code with the Host.');
+      return Response.json({ status: data.status, players: data.members.length, taken: (data.members as { token: string }[]).map(member => member.token) });
+    }
     if (body.operation === 'reclaim') return Response.json({ room: await reclaimSeat(db, code, actor, body.rejoin_code) });
     const room = await readRoom(db, code, actor);
     if (body.operation === 'rejoin-code') return Response.json({ rejoin_code: await seatKey(db, room, actor) });
