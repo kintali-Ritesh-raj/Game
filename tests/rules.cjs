@@ -471,13 +471,19 @@ test('paying penalty gives a normal roll; doubles release without an extra roll'
   game.sendPlayerToPenalty(game.active); game.state.phase = 'ready'; await game.rollDice();
   assert.equal(game.active.penalty, null); assert.equal(game.active.position, 14); assert.equal(game.state.extraRoll, false);
 });
-test('three failed detention rolls require payment; cash recovery resumes the last movement', async () => {
+test('after three failed Prison rolls the player leaves for free and moves the last roll', async () => {
   let roll = 0; const game = create(2, () => (roll++ % 2 ? .2 : 0));
-  game.sendPlayerToPenalty(game.active); game.active.penalty.attempts = 2; game.active.cash = 0; own(game, 1);
-  game.state.phase = 'ready'; await game.rollDice();
-  assert.equal(game.state.phase, 'debt'); assert.equal(game.state.pending.amount, 50); assert.equal(game.active.position, 10);
-  game.mortgageProperty(1); game.settleDebt(); await drain(game);
-  assert.equal(game.active.penalty, null); assert.equal(game.active.position, 13); assert.equal(game.state.phase, 'offer');
+  game.sendPlayerToPenalty(game.active); game.active.penalty.attempts = 2; game.active.cash = 0;
+  game.state.phase = 'ready'; await game.rollDice(); await drain(game);
+  assert.equal(game.active.penalty, null, 'three wasted turns are enough: no fine'); assert.equal(game.active.cash, 0, 'nothing is paid');
+  assert.equal(game.active.position, 13, 'the last roll (1 + 2) is moved'); assert.equal(game.state.phase, 'offer');
+  assert.ok(game.state.log.some(entry => /leaves Prison for free/.test(entry.message)));
+});
+test('an owner in Prison collects no rent', () => {
+  const game = create(); own(game, 1, 1); game.player(1).penalty = { kind: 'prison', attempts: 0 }; game.player(1).position = 10;
+  land(game, 1); assert.equal(game.active.cash, 1500, 'no rent while the owner is inside'); assert.equal(game.player(1).cash, 1500);
+  assert.ok(game.state.log.some(entry => /is in Prison, so no rent is collected/.test(entry.message)));
+  game.player(1).penalty = null; game.state.phase = 'moving'; game.resolveSpace(); assert.equal(game.active.cash, 1500 - 8, 'once free, rent is collected again');
 });
 test('every player pays the listed price for bank land', () => {
   const game = create(); land(game, 4); game.purchaseProperty(); assert.equal(game.player(0).cash, 1500 - 140);
@@ -603,7 +609,7 @@ test('City Bank interest rises $50 every 7 rounds and the Prison fine rises $100
   inmate.payPenalty(); assert.equal(inmate.active.cash, 1350, 'leaving Prison in round 21 costs $150'); assert.equal(inmate.active.penalty, null);
   const stuck = at(41); stuck.active.penalty = { kind: 'prison', attempts: 2 }; stuck.active.position = 10; stuck.state.phase = 'ready';
   const draws = [0, .2]; let k = 0; stuck.random = () => draws[k++] ?? .5; // rolls 1 + 2: no doubles
-  await stuck.rollDice(); assert.ok(stuck.state.log.some(entry => /owes \$250 to leave/.test(entry.message)), 'the third failed roll charges the current fine');
+  await stuck.rollDice(); await drain(stuck); assert.equal(stuck.active.cash, 1500, 'the third failed roll costs nothing, even in round 41'); assert.equal(stuck.active.penalty, null);
 });
 test('the Tax Audit amount rises $100 every 10 rounds, and the banner names the amount for its round', () => {
   const game = create();

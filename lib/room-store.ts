@@ -10,6 +10,15 @@ export async function readRoom(db: SupabaseClient, code: string, actor: string) 
   if (!room.member_ids.includes(actor)) throw new ApiError(403, 'Join this room to access the lobby.');
   return room;
 }
+/** The room with its private game state, for members only, in one query. */
+export async function readMemberGameRoom(db: SupabaseClient, code: string, actor: string) {
+  const {data,error} = await db.from('mw_rooms').select('*,mw_game_secrets(state)').eq('code',code).maybeSingle();
+  if (error) throw error;
+  if (!data || data.status === 'closed') throw new ApiError(404, 'Room not found. Check the code with the Host.');
+  const {mw_game_secrets:secrets,...room} = data as unknown as Room & {mw_game_secrets:{state:GameState}|null};
+  if (!room.member_ids.includes(actor)) throw new ApiError(403, 'Join this room to access the lobby.');
+  return {room, state: secrets?.state ?? null};
+}
 export async function readGameRoom(db: SupabaseClient, code: string, expected: number) {
   const {data,error} = await db.from('mw_rooms').select('*,mw_game_secrets(state)').eq('code',code).single();
   if (error) throw error;

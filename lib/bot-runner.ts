@@ -5,14 +5,16 @@ import { botReadyAt, botSeat } from './bot-timing';
 import { chooseBotAction } from './bot-strategy';
 import { readGameRoom, roomRpc } from './room-store';
 import { ApiError } from './validation';
-import type { Room } from './types';
+import type { GameState, Room } from './types';
 
-export async function advanceBot(db:SupabaseClient, room:Room, requester:string, expected:number) {
+// `preloaded` is the private game state when the caller has already read it with the room (one query instead of two).
+export async function advanceBot(db:SupabaseClient, room:Room, requester:string, expected:number, preloaded?:GameState|null) {
   const requesterSeat = memberIndex(room,requester);
   if (room.members[requesterSeat].type === 'bot') throw new ApiError(403,'A human player session is required.');
   requireRevision(room,expected);
   if (botSeat(room) === null || Date.now() < botReadyAt(room)) return room;
-  const authoritative = await readGameRoom(db,room.code,expected);
+  if (preloaded === null) throw new ApiError(503,'The game state is unavailable. Try again.');
+  const authoritative = preloaded ? {...room,state:preloaded} : await readGameRoom(db,room.code,expected);
   const seat = botSeat(authoritative);
   if (seat === null) return room;
   const command = chooseBotAction(authoritative.state!);

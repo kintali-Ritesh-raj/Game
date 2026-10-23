@@ -170,6 +170,11 @@
 /* ── Pentagon and hexagon boards (lib/game-ui.js buildPolygonBoard) ──
    Cards sit in rotated slots around the polygon; the felt fills the middle and the centre controls are scaled to fit it. */
 #game-board.poly-board{display:block;position:relative;aspect-ratio:1;padding:0}
+#game-board.poly-board .poly-ring{position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(135deg,#e7d9b5,#cdb98e)}
+/* Corners: the card is clipped to the corner's shape; its name and icon sit upright at the shape's centre. */
+#game-board.poly-board .poly-corner{overflow:visible}
+#game-board.poly-board .poly-corner .board-tile{border-radius:0}
+#game-board.poly-board .poly-corner .tile-face{position:absolute;left:var(--face-x);top:var(--face-y);width:var(--face-w);height:var(--face-h);transform:translate(-50%,-50%) scale(var(--face-fit,1));padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 #game-board.poly-board .poly-felt{position:absolute;inset:0;z-index:0;pointer-events:none;background-color:#123a3c;
   background-image:var(--leather),var(--mottle),radial-gradient(120% 100% at 30% 22%,#2a6766 0%,#18494a 38%,#103133 78%,#0b2426 100%)}
 #game-board.poly-board .poly-slot{position:absolute;z-index:1;transform-origin:50% 50%;overflow:clip}
@@ -200,3 +205,6 @@
 .board-icon{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.8}
 .board-option.selected .board-icon{fill:#c0392b22}
 @media(max-width:420px){.lobby-colors{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Pawns slide on the compositor, so moves stay smooth while the rest of the page updates. */
+.player-token{will-change:transform}

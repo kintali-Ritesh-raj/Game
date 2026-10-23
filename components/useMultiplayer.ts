@@ -28,6 +28,7 @@ export function useMultiplayer(initialCode?: string) {
   const [error, setError] = useState('');
   const [pending, setPending] = useState<Pending | null>(null);
   const roomRef = useRef<Room | null>(null);
+  const connectionsRef = useRef<Connection[]>([]);
   const userRef = useRef('');
   const createId = useRef('');
   const mounted = useRef(true);
@@ -37,7 +38,7 @@ export function useMultiplayer(initialCode?: string) {
     if (roomRef.current?.code === incoming.code && roomRef.current.revision > incoming.revision) return;
     roomRef.current = incoming;
     setRoom(incoming);
-    if (snapshot.connections) setConnections(snapshot.connections);
+    if (snapshot.connections) { setConnections(snapshot.connections); connectionsRef.current = snapshot.connections; }
   }, []);
 
   const load = useCallback(async (target: string) => {
@@ -117,8 +118,10 @@ export function useMultiplayer(initialCode?: string) {
       });
     setConnection('connecting');
     void heartbeat(); void refresh();
-    // Re-fetch after subscribing and periodically to close missed-event gaps.
-    const polling = setInterval(() => { void refresh(); }, 5000);
+    // Re-fetch after subscribing and periodically to close missed-event gaps: every 15 seconds while live updates
+    // are connected, every 5 while they are not, and not at all from a hidden tab (it refreshes when shown again).
+    let ticks = 0;
+    const polling = setInterval(() => { ticks++; if (!document.hidden && (!subscribed || ticks % 3 === 0)) void refresh(); }, 5000);
     const heartbeats = setInterval(() => { if (navigator.onLine) void heartbeat(); }, 15000);
     const reconnect = () => { if (!disposed && navigator.onLine) { void heartbeat(); void refresh(); } };
     const offline = () => setConnection('offline');
@@ -166,7 +169,11 @@ export function useMultiplayer(initialCode?: string) {
       }
       if (!cancelled && roomRef.current?.revision === botRevision) timer = setTimeout(advance,retryDelay);
     };
-    const delay = Math.max(750,botReadyAt(roomRef.current!) - Date.now() + 150);
+    // One player's browser drives each bot move: the connected human with the lowest seat goes first, and every other
+    // browser waits a little longer per seat as a fallback. That avoids every browser asking at once and all but one losing.
+    const humans = (roomRef.current?.members || []).filter(member => member.type !== 'bot' && connectionsRef.current.some(c => c.user_id === member.user_id && c.connected && Date.now() - Date.parse(c.seen_at) < 45000)).map(member => member.user_id);
+    const rank = Math.max(0, humans.includes(userRef.current) ? humans.indexOf(userRef.current) : humans.length);
+    const delay = Math.max(750,botReadyAt(roomRef.current!) - Date.now() + 150) + rank * 2500;
     timer = setTimeout(advance,delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [activeBot,botRevision,code,connection,screen,accept,load]);

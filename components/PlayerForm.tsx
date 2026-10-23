@@ -45,7 +45,8 @@ export default function PlayerForm({ initial, members = [], taken: takenTokens =
     if (initial) { setPlayer({ ...initial, token: firstFree(initial.token) }); return; }
     try {
       const saved = JSON.parse(localStorage.getItem('market-wars-profile') || 'null') as Profile | null;
-      if (saved) setPlayer({ name: saved.name || '', token: firstFree(saved.token) });
+      // The last board size the Host chose is remembered with their name and colour.
+      if (saved) setPlayer({ name: saved.name || '', token: firstFree(saved.token), ...(saved.sides === 5 || saved.sides === 6 ? { sides: saved.sides } : {}) });
     } catch { /* Use the empty player form. */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
