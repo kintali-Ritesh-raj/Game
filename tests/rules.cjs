@@ -471,9 +471,12 @@ test('paying penalty gives a normal roll; doubles release without an extra roll'
   game.sendPlayerToPenalty(game.active); game.state.phase = 'ready'; await game.rollDice();
   assert.equal(game.active.penalty, null); assert.equal(game.active.position, 14); assert.equal(game.state.extraRoll, false);
 });
-test('after three failed Prison rolls the player leaves for free and moves the last roll', async () => {
-  let roll = 0; const game = create(2, () => (roll++ % 2 ? .2 : 0));
-  game.sendPlayerToPenalty(game.active); game.active.penalty.attempts = 2; game.active.cash = 0;
+test('after five failed Prison rolls the player leaves for free and moves the last roll', async () => {
+  let roll = 0; const early = create(2, () => (roll++ % 2 ? .2 : 0));
+  early.sendPlayerToPenalty(early.active); early.active.penalty.attempts = 3; early.state.phase = 'ready'; await early.rollDice(); await drain(early);
+  assert.deepEqual({ ...early.active.penalty }, { kind: 'prison', attempts: 4 }, 'a fourth failed roll still leaves the player inside'); assert.equal(early.active.position, 10);
+  roll = 0; const game = create(2, () => (roll++ % 2 ? .2 : 0));
+  game.sendPlayerToPenalty(game.active); game.active.penalty.attempts = 4; game.active.cash = 0;
   game.state.phase = 'ready'; await game.rollDice(); await drain(game);
   assert.equal(game.active.penalty, null, 'three wasted turns are enough: no fine'); assert.equal(game.active.cash, 0, 'nothing is paid');
   assert.equal(game.active.position, 13, 'the last roll (1 + 2) is moved'); assert.equal(game.state.phase, 'offer');
@@ -607,7 +610,7 @@ test('City Bank interest rises $50 every 7 rounds and the Prison fine rises $100
   const banker = at(8); land(banker, 33); assert.equal(banker.active.cash, 1600, 'landing on City Bank in round 8 pays $100');
   const inmate = at(21); inmate.active.penalty = { kind: 'prison', attempts: 0 }; inmate.active.position = 10; inmate.state.phase = 'ready';
   inmate.payPenalty(); assert.equal(inmate.active.cash, 1350, 'leaving Prison in round 21 costs $150'); assert.equal(inmate.active.penalty, null);
-  const stuck = at(41); stuck.active.penalty = { kind: 'prison', attempts: 2 }; stuck.active.position = 10; stuck.state.phase = 'ready';
+  const stuck = at(41); stuck.active.penalty = { kind: 'prison', attempts: 4 }; stuck.active.position = 10; stuck.state.phase = 'ready';
   const draws = [0, .2]; let k = 0; stuck.random = () => draws[k++] ?? .5; // rolls 1 + 2: no doubles
   await stuck.rollDice(); await drain(stuck); assert.equal(stuck.active.cash, 1500, 'the third failed roll costs nothing, even in round 41'); assert.equal(stuck.active.penalty, null);
 });
