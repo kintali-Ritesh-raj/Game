@@ -23,9 +23,11 @@ export function revision(value: unknown) {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new ApiError(400, 'Invalid room revision.');
   return value;
 }
+// Space ids run 0-59 on the largest (hexagon) board; the engine checks each id against the game's own board and owner.
+const MAX_SPACE = 59;
 export function command(value: Record<string, unknown>): Command {
   if (!ACTIONS.includes(value.action as Command['action'])) throw new ApiError(400, 'Unknown game action.');
-  if (['build', 'sell', 'mortgage', 'unmortgage', 'auction', 'free-build'].includes(String(value.action)) && (!Number.isInteger(value.id) || Number(value.id) < 0 || Number(value.id) > 39)) throw new ApiError(400, 'Invalid property.');
+  if (['build', 'sell', 'mortgage', 'unmortgage', 'auction', 'free-build'].includes(String(value.action)) && (!Number.isInteger(value.id) || Number(value.id) < 0 || Number(value.id) > MAX_SPACE)) throw new ApiError(400, 'Invalid property.');
   if (value.action === 'bid' && (!Number.isSafeInteger(value.increment) || Number(value.increment) < 10)) throw new ApiError(400, 'The bid increment must be a whole amount of at least $10.');
   if (value.action === 'trade') return { action: 'trade', trade: tradeOffer(value.trade) };
   return { action: value.action, id: value.id, increment: value.increment } as Command;
@@ -35,7 +37,7 @@ function tradeOffer(value: unknown): TradeOffer {
   const side = (raw: unknown) => {
     const item = raw as Record<string, unknown> | null;
     if (!item || typeof item !== 'object' || !Number.isSafeInteger(item.cash) || Number(item.cash) < 0 || Number(item.cash) > 10_000_000
-      || !Array.isArray(item.properties) || item.properties.length > 28 || item.properties.some(id => !Number.isInteger(id) || id < 0 || id > 39)) throw new ApiError(400, 'Invalid trade offer.');
+      || !Array.isArray(item.properties) || item.properties.length > 40 || item.properties.some(id => !Number.isInteger(id) || id < 0 || id > MAX_SPACE)) throw new ApiError(400, 'Invalid trade offer.');
     return { cash: Number(item.cash), properties: [...item.properties] as number[] };
   };
   if (!offer || typeof offer !== 'object' || !Number.isInteger(offer.to) || Number(offer.to) < 0 || Number(offer.to) > 3) throw new ApiError(400, 'Invalid trade offer.');
