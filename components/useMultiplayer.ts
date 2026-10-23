@@ -113,15 +113,16 @@ export function useMultiplayer(initialCode?: string) {
       .subscribe(status => {
         subscribed = status === 'SUBSCRIBED';
         if (disposed) return;
-        if (subscribed) { void heartbeat(); void refresh(); }
+        // Catch up now, and once more shortly after: a move made while the channel was still opening is not pushed.
+        if (subscribed) { void heartbeat(); void refresh(); setTimeout(() => { if (!disposed) void refresh(); }, 1500); }
         else setConnection(navigator.onLine ? 'reconnecting' : 'offline');
       });
     setConnection('connecting');
     void heartbeat(); void refresh();
-    // Re-fetch after subscribing and periodically to close missed-event gaps: every 15 seconds while live updates
-    // are connected, every 5 while they are not, and not at all from a hidden tab (it refreshes when shown again).
-    let ticks = 0;
-    const polling = setInterval(() => { ticks++; if (!document.hidden && (!subscribed || ticks % 3 === 0)) void refresh(); }, 5000);
+    // Re-fetch after subscribing and every 5 seconds to close missed-event gaps. Live updates can drop on phones and
+    // mobile data (or arrive before a new channel is ready), so this backstop must stay short; a hidden tab skips it
+    // and refreshes as soon as it is shown again.
+    const polling = setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
     const heartbeats = setInterval(() => { if (navigator.onLine) void heartbeat(); }, 15000);
     const reconnect = () => { if (!disposed && navigator.onLine) { void heartbeat(); void refresh(); } };
     const offline = () => setConnection('offline');
