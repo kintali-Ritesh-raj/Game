@@ -643,14 +643,28 @@ test('pentagon and hexagon boards add whole sides and keep every classic space w
 test('Stock Exchange pays Dividend Day, Luxury Tax charges $100 per stage, and Grand Terminal rides to a station', () => {
   const make = () => new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {} });
   let game = make(); [1, 2, 4].forEach(id => { game.asset(id).owner = 1; }); land(game, 40);
-  assert.equal(game.active.cash, 1515, '3 owned properties pay $15 on Dividend Day');
-  game = make(); game.state.round = 31; game.asset(1).owner = 1; land(game, 40); assert.equal(game.active.cash, 1515, 'stage 3 triples it: 1 property × $5 × 3');
-  game = make(); land(game, 47); assert.equal(game.active.cash, 1400, 'Luxury Tax is $100');
-  game = make(); game.state.round = 16; land(game, 58); assert.equal(game.active.cash, 1300, 'and $200 at stage 2');
+  assert.equal(game.active.cash, 1815, '3 owned properties pay $15 on Dividend Day (the hexagon starts at $1,800)');
+  game = make(); game.state.round = 31; game.asset(1).owner = 1; land(game, 40); assert.equal(game.active.cash, 1815, 'stage 3 triples it: 1 property × $5 × 3');
+  game = make(); land(game, 47); assert.equal(game.active.cash, 1700, 'Luxury Tax is $100');
+  game = make(); game.state.round = 16; land(game, 58); assert.equal(game.active.cash, 1600, 'and $200 at stage 2');
   game = make(); game.random = () => .99; land(game, 50);
   assert.equal(game.active.position, 55, 'the Express Line ends on a station (here Starport)'); assert.equal(game.state.phase, 'offer', 'and resolves it: an unowned station can be bought');
   game = make(); game.random = () => 0; land(game, 50);
-  assert.equal(game.active.position, 8, 'a ride round to Northline Rail passes Launch'); assert.equal(game.active.cash, 1700, 'and pays the $200 Launch money');
+  assert.equal(game.active.position, 8, 'a ride round to Northline Rail passes Launch'); assert.equal(game.active.cash, 2040, 'and pays the hexagon Launch money ($240)');
+});
+test('bigger boards scale what players earn: ×1.1 on the pentagon, ×1.2 on the hexagon, costs unchanged', async () => {
+  const make = sides => new Game(players.slice(0, 2), {}, { sides, random: () => .99, wait: async () => {} });
+  assert.deepEqual([4, 5, 6].map(sides => make(sides).active.cash), [1500, 1650, 1800], 'starting cash');
+  for (const [sides, pay] of [[4, 200], [5, 220], [6, 240]]) {
+    const game = make(sides), cash = game.active.cash; game.active.position = game.board.length - 1; game.state.phase = 'ready';
+    game.random = () => 0; await game.rollDice(); await drain(game); // 1 + 1 moves 2 spaces, passing Launch
+    assert.ok(game.state.log.some(entry => entry.message.includes('passed Launch and received ' + '$' + pay)), sides + ' sides pay $' + pay + ' at Launch');
+  }
+  assert.deepEqual([4, 5, 6].map(sides => make(sides).bankInterest()), [50, 55, 60], 'City Bank interest (rounded to $5)');
+  const card = make(6); await playCard(card, 'market', 'A strong opening'); assert.equal(card.active.cash, 1800 + 180, 'a $150 card pays $180 on the hexagon');
+  const bill = make(6); await playCard(bill, 'market', 'Unexpected upkeep'); assert.equal(bill.active.cash, 1800 - 80, 'costs are not scaled');
+  assert.equal(make(6).wheelSegments().find(slice => slice.id === 'jackpot').amount, 480, 'Wheel cash wins scale too');
+  assert.equal(make(6).wheelSegments().find(slice => slice.id === 'bad').amount, 150, 'Wheel losses do not');
 });
 test('station rent climbs with each of up to four stations', () => {
   const game = new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {} });

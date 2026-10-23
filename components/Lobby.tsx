@@ -59,7 +59,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
     </div>}
     <div className="lobby-choices"><button className="secondary" onClick={() => setEditing(!editing)} disabled={busy}>{editing ? 'Close choices' : 'Edit my name & color'}</button></div>
     {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile({ ...player, ...(room.host_id === userId ? { sides } : {}) }); setEditing(false); }} />}
-    <p className="lobby-note">Everyone starts with $1,500 and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
+    <p className="lobby-note">Everyone starts with {sides === 6 ? '$1,800' : sides === 5 ? '$1,650' : '$1,500'} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
     <div className="setup-footer"><button className="secondary" onClick={() => void leave()} disabled={busy}>Leave lobby</button>
       {room.host_id === userId
         ? <button className="primary large" onClick={() => void start().catch(() => {})} disabled={busy || !connected || !canStart}>Start Game <span aria-hidden="true">↗</span></button>
