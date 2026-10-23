@@ -10,15 +10,16 @@ const members = [
   { name: 'Guest', user_id: 'guest', seat: 1, token: 'blue' as const },
 ];
 const lobby = (): Room => ({ code: 'AB12CD', host_id: 'host', members: structuredClone(members), member_ids: ['host', 'guest'], status: 'lobby', revision: 1, state: null, transition: null, created_at: '', updated_at: '' });
-const playing = (): Room => { const room = lobby(); room.state = startGame(room, 'host'); room.status = 'playing'; return room; };
-const fixture = () => new MarketWars.Game(members, {}, { random: () => .3, wait: async () => {} });
+// Mechanics are checked on the base economy (earnings ×1, $1,500 start); the live multipliers have their own test.
+const playing = (): Room => { const room = lobby(); room.state = startGame(room, 'host'); room.state.earnings = 1; room.state.players.forEach(p => { p.cash = 1500; }); room.status = 'playing'; return room; };
+const fixture = () => new MarketWars.Game(members, {}, { random: () => .3, wait: async () => {}, earnings: 1 });
 const saved = (game: ReturnType<typeof fixture>) => JSON.parse(game.serialize()) as GameState;
 
 test('Host authorization, membership, and unchanged starting rules', () => {
   assert.throws(() => startGame(lobby(), 'guest'), /Only the Host/);
   assert.throws(() => startGame(lobby(), 'outsider'), /not a player/);
   const state = startGame(lobby(), 'host');
-  assert.deepEqual(state.players.map(p => p.cash), [1500, 1500]);
+  assert.deepEqual(state.players.map(p => p.cash), [1725, 1725], 'the square board starts with $1,500 × 1.15');
   assert.equal(state.phase, 'ready');
 });
 

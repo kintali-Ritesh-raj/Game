@@ -1,5 +1,5 @@
 import type { GameState, Profile } from './types';
-interface EngineOptions { sides?:4|5|6; rollDie?:()=>number; random?:()=>number; wait?:(ms:number)=>Promise<void>; onChange?:(state:GameState)=>void; onSound?:(sound:string)=>void }
+interface EngineOptions { sides?:4|5|6; earnings?:number; rollDie?:()=>number; random?:()=>number; wait?:(ms:number)=>Promise<void>; onChange?:(state:GameState)=>void; onSound?:(sound:string)=>void }
 interface Space { id:number; name:string; type:string; group:string; price:number; buildingCost:number; mortgageValue:number; baseRent:number }
 declare class Game {
   constructor(players:Profile[], settings?:Record<string,boolean|number>, options?:EngineOptions);

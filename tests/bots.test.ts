@@ -7,7 +7,7 @@ import {addBotMembers,removeBotMembers,membersAfterLeaving} from '../lib/lobby-b
 import {chooseBotAction,timeoutCommand} from '../lib/bot-strategy';
 import {actingSeat,botReadyAt,botSeat} from '../lib/bot-timing';
 import {profile} from '../lib/validation';
-import type {Room} from '../lib/types';
+import type {GameState,Room} from '../lib/types';
 
 function lobby():Room {
   const host={name:'Human',token:'black' as const,user_id:randomUUID(),seat:0};
@@ -16,7 +16,9 @@ function lobby():Room {
 function add(room:Room) {
   room.members=addBotMembers(room,room.host_id,room.revision);room.member_ids=room.members.map(m=>m.user_id);room.revision++;
 }
-function playing() { const room=lobby();add(room);room.state=startGame(room,room.host_id);room.status='playing';return room; }
+// Mechanics are checked on the base economy (earnings ×1, $1,500 start); the live multipliers have their own test.
+const baseEconomy=(state:GameState)=>{state.earnings=1;state.players.forEach(p=>{p.cash=1500;});return state;};
+function playing() { const room=lobby();add(room);room.state=baseEconomy(startGame(room,room.host_id));room.status='playing';return room; }
 async function step(room:Room) {
   const command=chooseBotAction(room.state!);assert.ok(command,'every actionable phase has a decision');
   const seat=actingSeat(room.state!);
