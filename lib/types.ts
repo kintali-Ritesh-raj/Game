@@ -1,4 +1,4 @@
-export type Token = 'black' | 'blue' | 'magenta' | 'lime';
+export type Token = 'black' | 'blue' | 'magenta' | 'lime' | 'orange' | 'cyan';
 export type BoardSides = 4 | 5;
 // `sides` is the Host's board choice (only the Host's is used).
 export type Profile = { name: string; token: Token; sides?: BoardSides };

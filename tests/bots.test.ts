@@ -25,13 +25,14 @@ async function step(room:Room) {
   const result=await applyGameAction(room,room.members[seat].user_id,command);room.state=result.state;return command;
 }
 
-test('Host adds up to three distinct bots; humans cannot submit bot profiles or manage another host lobby',()=>{
-  const room=lobby();add(room);add(room);add(room);
-  assert.equal(room.members.length,4);assert.equal(new Set(room.members.map(m=>m.token)).size,4);assert.equal(new Set(room.member_ids).size,4);
+test('Host adds up to five distinct bots (six seats); humans cannot submit bot profiles or manage another host lobby',()=>{
+  const room=lobby();for(let i=0;i<5;i++)add(room);
+  assert.equal(room.members.length,6);assert.equal(new Set(room.members.map(m=>m.token)).size,6);assert.equal(new Set(room.member_ids).size,6);
+  assert.equal(new Set(room.members.map(m=>m.name)).size,6,'every bot has its own name');
   assert.throws(()=>add(room),/full/);
   assert.throws(()=>addBotMembers(room,room.members[1].user_id,room.revision),/Only the Host/);
   const clean=profile({...room.members[0],type:'bot'});assert.equal('type' in clean,false);
-  const started=startGame(room,room.host_id);assert.deepEqual(started.players.map(p=>p.type),['human','bot','bot','bot']);
+  const started=startGame(room,room.host_id);assert.deepEqual(started.players.map(p=>p.type),['human','bot','bot','bot','bot','bot']);
   room.status='playing';assert.throws(()=>removeBotMembers(room,room.host_id,room.revision,room.members[1].user_id),/before/);
 });
 test('Removing bots preserves humans and seat order, and host transfer always chooses a human',()=>{
@@ -177,6 +178,16 @@ test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolven
   assert.equal(room.state!.pending,null);assert.equal(room.state!.players[0].cash,1560);
   const busted=playing();const g=MarketWars.Game.restore(JSON.stringify(busted.state));g.state.players[1].cash=0;g.beginPayments([{payer:1,creditor:0,amount:100,reason:'fee',category:'rent'}]);busted.state=JSON.parse(g.serialize());
   assert.equal((await step(busted)).action,'bankrupt');assert.equal(busted.state!.phase,'victory');assert.equal(busted.state!.winner,0);
+});
+test('A six-player bot game reaches a winner without breaking money or building rules',async()=>{
+  const room=lobby();for(let i=0;i<5;i++)add(room);
+  room.state=startGame(room,room.host_id);room.status='playing';assert.equal(room.state!.players.length,6);
+  let actions=0;
+  while(room.state!.phase!=='victory'&&actions++<30000) {
+    await step(room);
+    assert.ok(room.state!.players.every(p=>p.cash>=0&&p.position>=0&&p.position<40));
+  }
+  assert.equal(room.state!.phase,'victory');assert.equal(room.state!.players.filter(p=>!p.bankrupt).length,1);
 });
 test('Bots finish games on the pentagon board chosen by the Host',async()=>{
   for(const sides of [5] as const) {

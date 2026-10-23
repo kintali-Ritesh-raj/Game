@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Monopoly: No Mercy',
     short_name: 'No Mercy',
-    description: 'An online strategy board game for 2–4 players. Buy land, collect color sets, build and outlast your rivals.',
+    description: 'An online strategy board game for 2–6 players. Buy land, collect color sets, build and outlast your rivals.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

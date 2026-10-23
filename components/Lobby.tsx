@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import PlayerForm, { BOARD_CHOICES, BoardIcon, BoardPicker, TOKENS, TokenDot } from './PlayerForm';
+// Up to six players per table, bots included.
+const MAX_SEATS = 6;
 import type { BoardSides, Connection, Profile, Room, Token } from '@/lib/types';
 
 export default function Lobby({ room, userId, connections, busy, connected, start, leave, updateProfile, addBot, removeBot }: {
@@ -30,7 +32,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
       <div><label htmlFor="room-link-display">Share Link</label><div className="copy-field"><input id="room-link-display" readOnly value={link} /><button className="secondary" onClick={() => void copy(link, 'Link')}>Copy Link</button></div></div>
       <p role="status" className="copy-status">{copied || 'Friends can open this link or enter the room code.'}</p>
     </section>
-    <div className="lobby-topline"><span>HOST <b>{host?.name}</b></span><span>{room.members.length} / 4 PLAYERS</span></div>
+    <div className="lobby-topline"><span>HOST <b>{host?.name}</b></span><span>{room.members.length} / {MAX_SEATS} PLAYERS</span></div>
     <div className="lobby-colors" aria-label="Player colors">
       {(Object.keys(TOKENS) as Token[]).map(token => { const owner = room.members.find(member => member.token === token);
         return <span key={token} className={'lobby-color' + (owner ? ' taken' : '')}><TokenDot token={token} />{TOKENS[token].label}<b>{owner ? owner.name : 'Free'}</b></span>; })}
@@ -51,15 +53,15 @@ export default function Lobby({ room, userId, connections, busy, connected, star
           </div>
         </li>;
       })}
-      {Array.from({ length: 4 - room.members.length }, (_, i) => <li key={'empty-' + i} className="lobby-player empty-seat"><span className="lobby-token">+</span><span>Waiting for a rival…</span></li>)}
+      {Array.from({ length: MAX_SEATS - room.members.length }, (_, i) => <li key={'empty-' + i} className="lobby-player empty-seat"><span className="lobby-token">+</span><span>Waiting for a rival…</span></li>)}
     </ul>
     {room.host_id === userId && <div className="lobby-bot-controls">
-      <button className="secondary" onClick={() => void addBot()} disabled={busy || !connected || room.members.length >= 4}>Add bot +</button>
-      <p>{room.members.length >= 4 ? 'Table full. Remove a bot to free a seat.' : 'Bots buy, build and bid automatically. Four players total, including bots.'}</p>
+      <button className="secondary" onClick={() => void addBot()} disabled={busy || !connected || room.members.length >= MAX_SEATS}>Add bot +</button>
+      <p>{room.members.length >= MAX_SEATS ? 'Table full. Remove a bot to free a seat.' : 'Bots buy, build and bid automatically. Up to six players, including bots.'}</p>
     </div>}
     <div className="lobby-choices"><button className="secondary" onClick={() => setEditing(!editing)} disabled={busy}>{editing ? 'Close choices' : 'Edit my name & color'}</button></div>
     {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile({ ...player, ...(room.host_id === userId ? { sides } : {}) }); setEditing(false); }} />}
-    <p className="lobby-note">Everyone starts with {sides === 5 ? '$1,950' : '$1,725'} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
+    <p className="lobby-note">Everyone starts with {sides === 5 ? '$1,950' : '$1,875'} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
     <div className="setup-footer"><button className="secondary" onClick={() => void leave()} disabled={busy}>Leave lobby</button>
       {room.host_id === userId
         ? <button className="primary large" onClick={() => void start().catch(() => {})} disabled={busy || !connected || !canStart}>Start Game <span aria-hidden="true">↗</span></button>

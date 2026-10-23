@@ -606,7 +606,7 @@ test('log entries say whether news is good or bad and for whom', async () => {
 });
 test('City Bank interest rises $50 every 7 rounds and the Prison fine rises $100 every 20 rounds', async () => {
   const at = round => { const game = create(); game.state.round = round; return game; };
-  assert.deepEqual([1, 7, 8, 14, 15, 50].map(round => at(round).bankInterest()), [50, 50, 100, 100, 150, 400]);
+  assert.deepEqual([1, 7, 8, 14, 15, 50, 64, 65, 400].map(round => at(round).bankInterest()), [50, 50, 100, 100, 150, 400, 500, 500, 500], 'grows $50 every 7 rounds and stops at $500');
   assert.deepEqual([1, 20, 21, 40, 41, 100].map(round => at(round).prisonFine()), [50, 50, 150, 150, 250, 450]);
   const banker = at(8); land(banker, 33); assert.equal(banker.active.cash, 1600, 'landing on City Bank in round 8 pays $100');
   const inmate = at(21); inmate.active.penalty = { kind: 'prison', attempts: 0 }; inmate.active.position = 10; inmate.state.phase = 'ready';
@@ -645,15 +645,15 @@ test('Stock Exchange pays Dividend Day and Luxury Tax charges $100 per stage', (
   game = make(); land(game, 47); assert.equal(game.active.cash, 1400, 'Luxury Tax is $100');
   game = make(); game.state.round = 16; land(game, 47); assert.equal(game.active.cash, 1300, 'and $200 at stage 2');
 });
-test('earnings scale per board (×1.15 / ×1.3), costs unchanged, and each game keeps its multiplier', async () => {
+test('earnings scale per board (×1.25 / ×1.3), costs unchanged, and each game keeps its multiplier', async () => {
   const make = sides => new Game(players.slice(0, 2), {}, { sides, random: () => .99, wait: async () => {} });
-  assert.deepEqual([4, 5].map(sides => make(sides).active.cash), [1725, 1950], 'starting cash');
-  for (const [sides, pay] of [[4, 230], [5, 260]]) {
+  assert.deepEqual([4, 5].map(sides => make(sides).active.cash), [1875, 1950], 'starting cash');
+  for (const [sides, pay] of [[4, 250], [5, 260]]) {
     const game = make(sides); game.active.position = game.board.length - 1; game.state.phase = 'ready';
     game.random = () => 0; await game.rollDice(); await drain(game); // 1 + 1 moves 2 spaces, passing Launch
     assert.ok(game.state.log.some(entry => entry.message.includes('passed Launch and received ' + '$' + pay)), sides + ' sides pay $' + pay + ' at Launch');
   }
-  assert.deepEqual([4, 5].map(sides => make(sides).bankInterest()), [60, 65], 'City Bank interest (rounded to $5)');
+  assert.deepEqual([4, 5].map(sides => make(sides).bankInterest()), [65, 65], 'City Bank interest (rounded to $5)');
   const card = make(5); await playCard(card, 'market', 'A strong opening'); assert.equal(card.active.cash, 1950 + 195, 'a $150 card pays $195 on the pentagon');
   const bill = make(5); await playCard(bill, 'market', 'Unexpected upkeep'); assert.equal(bill.active.cash, 1950 - 80, 'costs are not scaled');
   assert.equal(make(5).wheelSegments().find(slice => slice.id === 'jackpot').amount, 520, 'Wheel cash wins scale too');
@@ -664,6 +664,13 @@ test('earnings scale per board (×1.15 / ×1.3), costs unchanged, and each game 
 test('station rent climbs with each of up to three stations', () => {
   const game = new Game(players.slice(0, 2), {}, { sides: 5, random: () => .4, wait: async () => {}, earnings: 1 });
   [8, 23, 45].forEach((id, i) => { game.asset(id).owner = 1; assert.equal(game.calculateRent(8), [50, 150, 250][i], (i + 1) + ' stations'); });
+});
+test('up to six players, each with their own colour', () => {
+  const six = ['black', 'blue', 'magenta', 'lime', 'orange', 'cyan'].map((token, i) => ({ name: 'P' + i, token }));
+  assert.equal(validatePlayers(six), '', 'six players with six colours are valid');
+  assert.match(validatePlayers([...six, { name: 'P6', token: 'black' }]), /between 2 and 6/, 'a seventh is not');
+  const game = new Game(six, {}, { random: () => .4, wait: async () => {}, earnings: 1 });
+  assert.deepEqual(game.state.players.map(p => p.color), ['#17171c', '#1e40e6', '#e3008c', '#7ed321', '#ff6a00', '#00d5ff']);
 });
 test('every move-to card takes you to the space its text names', async () => {
   for (const deck of Object.values(DECKS)) for (const card of deck.filter(item => item.effect === 'advance'))

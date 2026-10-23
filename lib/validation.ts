@@ -10,7 +10,7 @@ export function roomCode(value: string) {
 }
 export function profile(value: Record<string, unknown>): Profile {
   if (typeof value.name !== 'string' || !value.name.trim() || value.name.trim().length > 20) throw new ApiError(400, 'Choose a name of 1–20 characters.');
-  if (!['black', 'blue', 'magenta', 'lime'].includes(String(value.token))) throw new ApiError(400, 'Choose a player color.');
+  if (!['black', 'blue', 'magenta', 'lime', 'orange', 'cyan'].includes(String(value.token))) throw new ApiError(400, 'Choose a player color.');
   // Only the Host's choice of board is used; anyone else's is ignored when the game starts.
   const sides = Number(value.sides);
   return { name: value.name.trim(), token: value.token, ...([4, 5].includes(sides) ? { sides } : {}) } as Profile;

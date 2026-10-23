@@ -187,7 +187,7 @@
 #game-board.poly-board .board-center .skyline-edge{display:none}
 
 /* ── Lobby: colours in use and the board choice ── */
-.lobby-colors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 16px}
+.lobby-colors{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:0 0 16px}
 .lobby-color{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border:1px solid var(--line);border-radius:10px;font-size:12px;text-align:center}
 .lobby-color .token-dot{width:22px;height:22px}
 .lobby-color b{font-size:11px;font-weight:600;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
@@ -204,7 +204,7 @@
 .board-option:has(input:focus-visible){outline:2px solid var(--red,#c0392b);outline-offset:2px}
 .board-icon{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.8}
 .board-option.selected .board-icon{fill:#c0392b22}
-@media(max-width:420px){.lobby-colors{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.lobby-colors{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 /* Pawns slide on the compositor, so moves stay smooth while the rest of the page updates. */
 .player-token{will-change:transform}

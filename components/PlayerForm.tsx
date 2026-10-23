@@ -9,6 +9,8 @@ export const TOKENS: Record<Token, { label: string; color: string }> = {
   blue: { label: 'Royal blue', color: '#1e40e6' },
   magenta: { label: 'Magenta', color: '#e3008c' },
   lime: { label: 'Lime', color: '#7ed321' },
+  orange: { label: 'Orange', color: '#ff6a00' },
+  cyan: { label: 'Cyan', color: '#00d5ff' },
 };
 const isToken = (value: unknown): value is Token => typeof value === 'string' && value in TOKENS;
 // The two boards. Each new side adds a corner, two colour groups, a station and two card or tax spaces.
@@ -63,7 +65,7 @@ export default function PlayerForm({ initial, members = [], taken: takenTokens =
         <TokenDot token={token} /><span>{TOKENS[token].label}{taken(token) ? ' · taken' : ''}</span>
       </label>)}
     </fieldset>
-    {free.length < 4 && <p className="setup-role-note" role="status">{free.length === 1 ? 'Only ' + TOKENS[free[0]].label.toLowerCase() + ' is left.' : free.length ? free.length + ' colors are still free.' : 'Every color is taken: this room is full.'}</p>}
+    {free.length < Object.keys(TOKENS).length && <p className="setup-role-note" role="status">{free.length === 1 ? 'Only ' + TOKENS[free[0]].label.toLowerCase() + ' is left.' : free.length ? free.length + ' colors are still free.' : 'Every color is taken: this room is full.'}</p>}
     {boardChoice && <BoardPicker value={player.sides || 4} onChange={sides => setPlayer({ ...player, sides })} />}
     <p className="setup-role-note">Everyone plays by the same rules. Build on your own property each time you land on it.</p>
     <button className="primary full" type="submit" disabled={busy || !free.length}>{busy ? 'Connecting…' : label}</button>

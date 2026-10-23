@@ -19,7 +19,7 @@ test('Host authorization, membership, and unchanged starting rules', () => {
   assert.throws(() => startGame(lobby(), 'guest'), /Only the Host/);
   assert.throws(() => startGame(lobby(), 'outsider'), /not a player/);
   const state = startGame(lobby(), 'host');
-  assert.deepEqual(state.players.map(p => p.cash), [1725, 1725], 'the square board starts with $1,500 × 1.15');
+  assert.deepEqual(state.players.map(p => p.cash), [1875, 1875], 'the square board starts with $1,500 × 1.25');
   assert.equal(state.phase, 'ready');
 });
 

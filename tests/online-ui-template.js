@@ -101,13 +101,14 @@ async (page) => {
   await guest.locator('.token-option.taken:has(input[value=black])').waitFor({timeout:8000});
   assert(await guest.locator('.token-option:has(input[value=black]) input').isDisabled()&&(await guest.locator('.token-option.taken').count())===1,'A joining player sees the colour already chosen by the Host as taken and cannot pick it');
   assert(await guest.locator('.board-picker').count()===0,'Only the Host chooses the board');
-  assert(await guest.locator('.token-option').count()===4,'The player form offers exactly the four colour markers');
+  assert(await guest.locator('.token-option').count()===6,'The player form offers exactly the six colour markers');
   await guest.locator('.token-option:has(input[value=blue])').click();
   await guest.getByRole('button',{name:'Join lobby',exact:true}).click();await guest.locator('#room-code-display').waitFor();
   await page.locator('.lobby-player').getByText('Guest',{exact:true}).waitFor();
   assert(await guest.getByRole('button',{name:'Start Game'}).count()===0,'Guest cannot see a Start Game button');
   assert(await guest.getByRole('button',{name:'Add bot +',exact:true}).count()===0,'Guest cannot add or remove host-managed bots');
   assert(await page.locator('.lobby-player:not(.empty-seat)').count()===2,'Host sees both connected players');
+  assert(await page.locator('.lobby-player').count()===6&&(await page.locator('.lobby-topline').textContent()).includes('2 / 6 PLAYERS')&&await page.locator('.lobby-color').count()===6,'The table seats up to six players in six colours');
   await guest.locator('.lobby-color.taken').nth(1).waitFor();
   assert(await guest.locator('.lobby-color.taken').count()===2&&(await guest.locator('.lobby-colors').textContent()).includes('Host'),'Every player sees which colours are taken, and by whom');
   await page.locator('.lobby-board .board-option:has-text("Skyline")').click();
@@ -274,8 +275,9 @@ async (page) => {
   await page.locator('#fx-stage .fx-cube').waitFor();
   assert(await page.locator('#fx-stage .fx-face').count()===6&&await page.locator('#fx-stage .fx-cube').evaluate(el=>el.getAnimations().length>0),'The card die is thrown as a tumbling 3D cube');
   assert(await page.locator('#toast-stack .toast-item',{hasText:'received $60'}).count()===0,'The result toast waits until the die has landed');
-  await page.locator('#fx-stage .fx-result:not([hidden])').waitFor({timeout:6000});await guest.locator('#fx-stage .fx-result:not([hidden])').waitFor({timeout:6000});
-  assert(await page.locator('#fx-stage .fx-result b').textContent()==='+$60'&&await guest.locator('#fx-stage .fx-result b').textContent()==='+$60'&&(await page.locator('#fx-stage .fx-result span').textContent()).includes('2 × $30'),'Every player sees the die land on the server roll and the amount it pays');
+  // Both screens at once: the guest uses reduced motion, so its die shows the result straight away and closes sooner.
+  const [hostResult,guestResult]=await Promise.all([page,guest].map(p=>p.locator('#fx-stage .fx-result:not([hidden])').waitFor({timeout:6000}).then(()=>p.locator('#fx-stage .fx-result b').textContent())));
+  assert(hostResult==='+$60'&&guestResult==='+$60'&&(await page.locator('#fx-stage .fx-result span').textContent()).includes('2 × $30'),'Every player sees the die land on the server roll and the amount it pays');
   assert(await page.locator('#fx-stage.tone-gain').count()===1,'A winning card die is shown in the gain colour');
   await page.locator('#fx-stage').screenshot({path:'output/playwright/card-die.png'});
   await page.locator('#toast-stack .toast-item.tone-gain',{hasText:'Host received $60'}).waitFor({timeout:8000});
