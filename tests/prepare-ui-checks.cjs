@@ -61,14 +61,14 @@ const {Game}=require('../lib/game-engine.cjs');
   const buildGame=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});buildGame.asset(1).owner=0;buildGame.asset(1).ready=true;
   Object.assign(buildGame.state,{phase:'end',hasRolled:true,extraRoll:false});buildGame.state.players[0].position=1;
   const buildPrompt=JSON.parse(buildGame.serialize());
-  // Pentagon and hexagon games, with a few new properties owned and pawns on the new sides.
+  // A pentagon game, with a few new properties owned and a pawn on the new side.
   const shaped=sides=>{const g=new Game(members,{}, {random:()=>.2,wait:async()=>{},sides,earnings:1});g.asset(41).owner=0;g.asset(45).owner=1;if(sides===6){g.asset(51).owner=1;g.asset(51).buildings=2;g.state.players[1].position=55;}g.state.players[0].position=43;return JSON.parse(g.serialize());};
-  const hexGame=shaped(6),pentaGame=shaped(5);
+  const pentaGame=shaped(5);
   // Guest (played as a bot here) declines Host's cash offer with a short remark.
   const tradeGame=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});tradeGame.asset(1).owner=1;
   tradeGame.proposeTrade({to:1,give:{cash:240,properties:[]},get:{cash:0,properties:[1]}});tradeGame.rejectTrade('declined','The offer is too low for it.','Close, but too low.');
   const declined=JSON.parse(tradeGame.serialize());declined.log.forEach(entry=>entry.id+=9000);
-  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed,dieCard,dieRolled,jailed,declined,buildPrompt,hexGame,pentaGame};
+  const extras={developed,auction,resold,event,debt,debtReady,wheelState,spun,freeHouse,buffed,dieCard,dieRolled,jailed,declined,buildPrompt,pentaGame};
   const botMember={name:'Bot Ada',token:'lime',user_id:'20000000-0000-4000-8000-000000000001',seat:1,type:'bot'};
   const botGame=new Game([members[0],botMember],{},{random:()=>.2,wait:async()=>{},earnings:1});botGame.state.players[1].type='bot';
   let botFace=0;botGame.random=()=>[0,.4][botFace++%2];

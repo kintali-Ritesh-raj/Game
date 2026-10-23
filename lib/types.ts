@@ -1,5 +1,5 @@
 export type Token = 'black' | 'blue' | 'magenta' | 'lime';
-export type BoardSides = 4 | 5 | 6;
+export type BoardSides = 4 | 5;
 // `sides` is the Host's board choice (only the Host's is used).
 export type Profile = { name: string; token: Token; sides?: BoardSides };
 export type Member = Profile & { user_id: string; seat: number; type?: 'human' | 'bot' };

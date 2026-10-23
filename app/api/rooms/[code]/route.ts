@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { after } from 'next/server';
+import { broadcastRoom } from '@/lib/room-broadcast';
 import { authenticate } from '@/lib/supabase-server';
 import { ApiError, apiResponse, command, jsonBody, profile, requestId, revision, roomCode } from '@/lib/validation';
 import { readGameRoom, readMemberGameRoom, readRoom, roomRpc } from '@/lib/room-store';
@@ -20,11 +22,16 @@ export async function GET(request: Request, context: Context) {
     return Response.json({ room, connections });
   } catch (error) { return apiResponse(error); }
 }
+// Reply with the room and, once the reply is on its way, push it to every player on the fast Broadcast channel.
+function sent<T extends { room?: unknown }>(body: T, init?: ResponseInit) {
+  after(() => broadcastRoom(body.room as Parameters<typeof broadcastRoom>[0]));
+  return Response.json(body, init);
+}
 export async function POST(request: Request, context: Context) {
   try {
     const { db, actor } = await authenticate(request);
     const code = roomCode((await context.params).code), body = await jsonBody(request);
-    if (body.operation === 'join') return Response.json({ room: await roomRpc(db, 'mw_join_room', { p_code: code, p_actor: actor, p_profile: profile(body) }) });
+    if (body.operation === 'join') return sent({ room: await roomRpc(db, 'mw_join_room', { p_code: code, p_actor: actor, p_profile: profile(body) }) });
     // Before joining, a player may see which colours are already in use, so they can pick a free one.
     if (body.operation === 'peek') {
       const { data, error } = await db.from('mw_rooms').select('status,members').eq('code', code).maybeSingle();
@@ -32,7 +39,7 @@ export async function POST(request: Request, context: Context) {
       if (!data || data.status === 'closed') throw new ApiError(404, 'Room not found. Check the code with the Host.');
       return Response.json({ status: data.status, players: data.members.length, taken: (data.members as { token: string }[]).map(member => member.token) });
     }
-    if (body.operation === 'reclaim') return Response.json({ room: await reclaimSeat(db, code, actor, body.rejoin_code) });
+    if (body.operation === 'reclaim') return sent({ room: await reclaimSeat(db, code, actor, body.rejoin_code) });
     // Check-ins (every 15 seconds per player) only need the member list, not the whole game state.
     if (body.operation === 'heartbeat') {
       const { data, error } = await db.from('mw_rooms').select('member_ids,status').eq('code', code).maybeSingle();
@@ -59,29 +66,29 @@ export async function POST(request: Request, context: Context) {
       requireRevision(room, expected);
       if (!state) throw new ApiError(503, 'The game state is unavailable. Try again.');
       const result = await applyGameAction({ ...room, state }, actor, action);
-      return Response.json({ room: await roomRpc(db, 'mw_commit_game', {
+      return sent({ room: await roomRpc(db, 'mw_commit_game', {
         p_code: code, p_actor: actor, p_expected: expected, p_state: result.state,
         p_transition: result.transition, p_request_id: id, p_fingerprint: fingerprint, p_start: false,
       }) });
     }
     if (body.operation === 'bot-step') {
       const { room, state } = await readMemberGameRoom(db, code, actor);
-      return Response.json({ room: await advanceBot(db, room, actor, revision(body.revision), state) });
+      return sent({ room: await advanceBot(db, room, actor, revision(body.revision), state) });
     }
     const room = await readRoom(db, code, actor);
     if (body.operation === 'rejoin-code') return Response.json({ rejoin_code: await seatKey(db, room, actor) });
     if (body.operation === 'add-bot' || body.operation === 'remove-bot') {
       const expected = revision(body.revision);
       const members = body.operation === 'add-bot' ? addBotMembers(room,actor,expected) : removeBotMembers(room,actor,expected,body.bot_id);
-      return Response.json({room:await saveLobbyMembers(db,room,members)});
+      return sent({ room:await saveLobbyMembers(db,room,members)});
     }
-    if (body.operation === 'forfeit') return Response.json({room:await forfeitGame(db,room,actor,revision(body.revision))});
-    if (body.operation === 'timeout') return Response.json({room:await expireTurn(db,room,actor,revision(body.revision))});
-    if (body.operation === 'profile') return Response.json({ room: await roomRpc(db, 'mw_profile_room', { p_code: code, p_actor: actor, p_profile: profile(body), p_expected: revision(body.revision) }) });
+    if (body.operation === 'forfeit') return sent({ room:await forfeitGame(db,room,actor,revision(body.revision))});
+    if (body.operation === 'timeout') return sent({ room:await expireTurn(db,room,actor,revision(body.revision))});
+    if (body.operation === 'profile') return sent({ room: await roomRpc(db, 'mw_profile_room', { p_code: code, p_actor: actor, p_profile: profile(body), p_expected: revision(body.revision) }) });
     if (body.operation === 'leave') {
-      if (room.status !== 'lobby') return Response.json({room:await roomRpc(db,'mw_leave_room',{p_code:code,p_actor:actor})});
+      if (room.status !== 'lobby') return sent({ room:await roomRpc(db,'mw_leave_room',{p_code:code,p_actor:actor})});
       const next = membersAfterLeaving(room,actor);
-      return Response.json({room:await saveLobbyMembers(db,room,next.members,next.host_id,next.status)});
+      return sent({ room:await saveLobbyMembers(db,room,next.members,next.host_id,next.status)});
     }
     if (body.operation !== 'start' && body.operation !== 'action') throw new ApiError(400, 'Unknown room operation.');
     const id = requestId(body.request_id), expected = revision(body.revision);
@@ -101,7 +108,7 @@ export async function POST(request: Request, context: Context) {
       authoritative = await readGameRoom(db,code,expected);
     }
     const result = action ? await applyGameAction(authoritative, actor, action) : { state: startGame(room, actor), transition: null };
-    return Response.json({ room: await roomRpc(db, 'mw_commit_game', {
+    return sent({ room: await roomRpc(db, 'mw_commit_game', {
       p_code: code, p_actor: actor, p_expected: expected, p_state: result.state,
       p_transition: result.transition, p_request_id: id, p_fingerprint: fingerprint, p_start: !action,
     }) });

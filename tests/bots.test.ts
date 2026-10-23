@@ -178,11 +178,11 @@ test('Solvent bots sell buildings and mortgage to settle off-turn debt; insolven
   const busted=playing();const g=MarketWars.Game.restore(JSON.stringify(busted.state));g.state.players[1].cash=0;g.beginPayments([{payer:1,creditor:0,amount:100,reason:'fee',category:'rent'}]);busted.state=JSON.parse(g.serialize());
   assert.equal((await step(busted)).action,'bankrupt');assert.equal(busted.state!.phase,'victory');assert.equal(busted.state!.winner,0);
 });
-test('Bots finish games on the pentagon and hexagon boards chosen by the Host',async()=>{
-  for(const sides of [5,6] as const) {
+test('Bots finish games on the pentagon board chosen by the Host',async()=>{
+  for(const sides of [5] as const) {
     const room=lobby();add(room);add(room);room.members[0].sides=sides;
     room.state=startGame(room,room.host_id);room.status='playing';
-    assert.equal(room.state!.sides,sides);assert.equal(Object.keys(room.state!.properties).length,sides===5?34:40);
+    assert.equal(room.state!.sides,sides);assert.equal(Object.keys(room.state!.properties).length,34);
     let actions=0;
     while(room.state!.phase!=='victory'&&actions++<20000) {
       await step(room);

@@ -11,11 +11,10 @@ export const TOKENS: Record<Token, { label: string; color: string }> = {
   lime: { label: 'Lime', color: '#7ed321' },
 };
 const isToken = (value: unknown): value is Token => typeof value === 'string' && value in TOKENS;
-// The three boards. Each new side adds a corner, two colour groups, a station and two card or tax spaces.
+// The two boards. Each new side adds a corner, two colour groups, a station and two card or tax spaces.
 export const BOARD_CHOICES: { sides: BoardSides; name: string; detail: string }[] = [
   { sides: 4, name: 'Classic', detail: 'Square · 40 spaces' },
   { sides: 5, name: 'Skyline', detail: 'Pentagon · 50 spaces' },
-  { sides: 6, name: 'Grand', detail: 'Hexagon · 60 spaces' },
 ];
 export function BoardIcon({ sides }: { sides: BoardSides }) {
   const points = Array.from({ length: sides }, (_, k) => { const a = (90 - 180 / sides + k * 360 / sides) * Math.PI / 180; return (12 + 10 * Math.cos(a)).toFixed(2) + ',' + (12 + 10 * Math.sin(a)).toFixed(2); }).join(' ');
@@ -46,7 +45,7 @@ export default function PlayerForm({ initial, members = [], taken: takenTokens =
     try {
       const saved = JSON.parse(localStorage.getItem('market-wars-profile') || 'null') as Profile | null;
       // The last board size the Host chose is remembered with their name and colour.
-      if (saved) setPlayer({ name: saved.name || '', token: firstFree(saved.token), ...(saved.sides === 5 || saved.sides === 6 ? { sides: saved.sides } : {}) });
+      if (saved) setPlayer({ name: saved.name || '', token: firstFree(saved.token), ...(saved.sides === 5 ? { sides: 5 as const } : {}) });
     } catch { /* Use the empty player form. */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);

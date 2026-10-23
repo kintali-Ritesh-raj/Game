@@ -177,10 +177,10 @@ test('A card die marks its move so bots and turn timers wait for the throw to pl
   assert.equal(botReadyAt({ ...room, state: result.state, transition: result.transition, updated_at: at }) - botReadyAt({ ...room, state: result.state, transition: plain.transition, updated_at: at }), CARD_DIE_MS);
 });
 
-test('Moves on the pentagon and hexagon boards accept their new property ids', () => {
-  assert.deepEqual(command({ action: 'build', id: 55 }), { action: 'build', id: 55, increment: undefined });
+test('Moves on the pentagon board accept its new property ids', () => {
+  assert.deepEqual(command({ action: 'build', id: 49 }), { action: 'build', id: 49, increment: undefined });
   for (const action of ['sell', 'mortgage', 'unmortgage', 'auction', 'free-build']) assert.equal(command({ action, id: 41 }).id, 41);
-  assert.throws(() => command({ action: 'build', id: 60 }), /Invalid property/);
-  const trade = command({ action: 'trade', trade: { to: 1, give: { cash: 0, properties: [45, 51] }, get: { cash: 100, properties: [] } } });
-  assert.deepEqual(trade.trade!.give.properties, [45, 51]);
+  assert.throws(() => command({ action: 'build', id: 50 }), /Invalid property/);
+  const trade = command({ action: 'trade', trade: { to: 1, give: { cash: 0, properties: [45, 48] }, get: { cash: 100, properties: [] } } });
+  assert.deepEqual(trade.trade!.give.properties, [45, 48]);
 });

@@ -35,10 +35,11 @@ export function useMultiplayer(initialCode?: string) {
 
   const accept = useCallback((snapshot: Snapshot) => {
     const incoming = snapshot.room;
-    if (roomRef.current?.code === incoming.code && roomRef.current.revision > incoming.revision) return;
+    if (snapshot.connections) { setConnections(snapshot.connections); connectionsRef.current = snapshot.connections; }
+    // The same revision often arrives twice (Broadcast, database change, the HTTP reply); keep the room we have.
+    if (roomRef.current?.code === incoming.code && roomRef.current.revision >= incoming.revision) return;
     roomRef.current = incoming;
     setRoom(incoming);
-    if (snapshot.connections) { setConnections(snapshot.connections); connectionsRef.current = snapshot.connections; }
   }, []);
 
   const load = useCallback(async (target: string) => {
@@ -109,7 +110,13 @@ export function useMultiplayer(initialCode?: string) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mw_rooms', filter: 'code=eq.' + code }, payload => {
         if (!disposed) accept({ room: payload.new as Room });
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mw_connections', filter: 'code=eq.' + code }, () => { void refresh(); })
+      // A check-in only changes who is online: update that list directly instead of re-downloading the room.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mw_connections', filter: 'code=eq.' + code }, payload => {
+        const row = payload.new as Connection | undefined;
+        if (disposed || !row?.client_id) return;
+        const next = [...connectionsRef.current.filter(item => item.client_id !== row.client_id), row];
+        connectionsRef.current = next; setConnections(next);
+      })
       .subscribe(status => {
         subscribed = status === 'SUBSCRIBED';
         if (disposed) return;
@@ -117,6 +124,10 @@ export function useMultiplayer(initialCode?: string) {
         if (subscribed) { void heartbeat(); void refresh(); setTimeout(() => { if (!disposed) void refresh(); }, 1500); }
         else setConnection(navigator.onLine ? 'reconnecting' : 'offline');
       });
+    // Moves arrive first on Broadcast (the server pushes each saved room); the database channel above is the backup.
+    const fast = supabase.channel('mw-room-' + code)
+      .on('broadcast', { event: 'room' }, message => { const room = (message.payload as { room?: Room })?.room; if (!disposed && room?.code === code) accept({ room }); })
+      .subscribe();
     setConnection('connecting');
     void heartbeat(); void refresh();
     // Re-fetch after subscribing and every 5 seconds to close missed-event gaps. Live updates can drop on phones and
@@ -140,7 +151,7 @@ export function useMultiplayer(initialCode?: string) {
       disposed = true; clearInterval(polling); clearInterval(heartbeats);
       window.removeEventListener('online', reconnect); window.removeEventListener('offline', offline);
       window.removeEventListener('pagehide', disconnect); document.removeEventListener('visibilitychange', reconnect);
-      void disconnect(); void supabase.removeChannel(channel);
+      void disconnect(); void supabase.removeChannel(channel); void supabase.removeChannel(fast);
     };
   }, [code, userId, isMember, accept]);
 

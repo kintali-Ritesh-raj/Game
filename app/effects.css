@@ -167,7 +167,7 @@
 @media(max-width:600px){.site-header .brand{font-size:14px;gap:8px}}
 @media(max-width:360px){.site-header .brand{font-size:12px;gap:6px}.brand>span:last-child{white-space:normal}}
 
-/* ── Pentagon and hexagon boards (lib/game-ui.js buildPolygonBoard) ──
+/* ── Pentagon board (lib/game-ui.js buildPolygonBoard) ──
    Cards sit in rotated slots around the polygon; the felt fills the middle and the centre controls are scaled to fit it. */
 #game-board.poly-board{display:block;position:relative;aspect-ratio:1;padding:0}
 #game-board.poly-board .poly-ring{position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(135deg,#e7d9b5,#cdb98e)}
@@ -195,7 +195,7 @@
 .lobby-color.taken b{color:var(--text)}
 .lobby-board{margin:0 0 18px}
 .lobby-board-choice{display:flex;align-items:center;gap:10px;font-size:14px;margin:0}
-.board-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border:0;padding:0;margin:14px 0}
+.board-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border:0;padding:0;margin:14px 0}
 .board-picker legend{font-size:13px;font-weight:600;margin-bottom:8px}
 .board-option{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;text-align:center;font-size:12px}
 .board-option b{display:block;font-size:14px}

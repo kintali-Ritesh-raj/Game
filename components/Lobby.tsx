@@ -18,7 +18,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
   const host = room.members.find(member => member.user_id === room.host_id);
   const mine = room.members.find(member => member.user_id === userId);
   const canStart = room.members.length >= 2;
-  const sides: BoardSides = host?.sides === 5 || host?.sides === 6 ? host.sides : 4, board = BOARD_CHOICES.find(choice => choice.sides === sides)!;
+  const sides: BoardSides = host?.sides === 5 ? 5 : 4, board = BOARD_CHOICES.find(choice => choice.sides === sides)!;
   const copy = async (value: string, kind: string) => {
     try { await navigator.clipboard.writeText(value); setCopied(kind + ' copied.'); }
     catch { setCopied('Select the ' + kind.toLowerCase() + ' below and copy it manually.'); }
@@ -59,7 +59,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
     </div>}
     <div className="lobby-choices"><button className="secondary" onClick={() => setEditing(!editing)} disabled={busy}>{editing ? 'Close choices' : 'Edit my name & color'}</button></div>
     {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile({ ...player, ...(room.host_id === userId ? { sides } : {}) }); setEditing(false); }} />}
-    <p className="lobby-note">Everyone starts with {sides === 6 ? '$2,175' : sides === 5 ? '$1,950' : '$1,725'} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
+    <p className="lobby-note">Everyone starts with {sides === 5 ? '$1,950' : '$1,725'} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
     <div className="setup-footer"><button className="secondary" onClick={() => void leave()} disabled={busy}>Leave lobby</button>
       {room.host_id === userId
         ? <button className="primary large" onClick={() => void start().catch(() => {})} disabled={busy || !connected || !canStart}>Start Game <span aria-hidden="true">↗</span></button>

@@ -623,55 +623,47 @@ test('the Tax Audit amount rises $100 every 10 rounds, and the banner names the 
   game.state.round = 20; game.state.city.upcoming = { kind: 'audit', round: 21 };
   assert.ok(game.cityLines().includes('Next round: Tax Audit (richest pays poorest $300).'), 'announced in round 20 for round 21, so it shows the round-21 amount');
 });
-test('pentagon and hexagon boards add whole sides and keep every classic space where it was', () => {
-  assert.deepEqual([4, 5, 6].map(n => BOARDS[n].length), [40, 50, 60]);
-  for (const n of [5, 6]) BOARD.forEach(space => assert.equal(BOARDS[n][space.id].name, space.name, space.name + ' keeps its id on the ' + n + '-sided board'));
-  for (const n of [4, 5, 6]) for (let side = 0; side < n; side++) {
-    const corner = BOARDS[n][side * 10];
-    assert.ok(!corner.price, 'each side starts with a corner on the ' + n + '-sided board');
-    if (side >= 4) assert.equal(BOARDS[n].slice(side * 10 + 1, side * 10 + 10).filter(space => space.type === 'transport').length, 1, 'each new side has one station');
-  }
-  // New colour groups: 3, 3, 3 and 2 properties, each priced above the last, never cheaper than Aurora Mile
-  const sizes = ['skyline', 'marina', 'orbit', 'crown'].map(group => BOARDS[6].filter(space => space.group === group).length);
-  assert.deepEqual(sizes, [3, 3, 3, 2]);
-  assert.ok(BOARDS[6].slice(40).filter(space => space.type === 'property').every(space => space.price > 400));
-  const game = new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {}, earnings: 1.2 });
-  assert.equal(game.board.length, 60); assert.equal(game.state.sides, 6); assert.equal(Object.keys(game.state.properties).length, 40);
-  assert.equal(new Game(players.slice(0, 2), {}, { sides: 9 }).board.length, 40, 'an unknown size falls back to the square board');
-  const saved = Game.restore(game.serialize()); assert.equal(saved.board.length, 60, 'a saved hexagon game restores as a hexagon');
+test('the pentagon board adds a whole side and keeps every classic space where it was', () => {
+  assert.deepEqual(Object.keys(BOARDS).map(Number), [4, 5], 'only the square and pentagon boards exist');
+  assert.deepEqual([4, 5].map(n => BOARDS[n].length), [40, 50]);
+  BOARD.forEach(space => assert.equal(BOARDS[5][space.id].name, space.name, space.name + ' keeps its id on the pentagon'));
+  for (let side = 0; side < 5; side++) assert.ok(!BOARDS[5][side * 10].price, 'each side starts with a corner');
+  assert.equal(BOARDS[5].slice(41, 50).filter(space => space.type === 'transport').length, 1, 'the new side has one station');
+  assert.deepEqual(['skyline', 'marina'].map(group => BOARDS[5].filter(space => space.group === group).length), [3, 3]);
+  assert.ok(BOARDS[5].slice(40).filter(space => space.type === 'property').every(space => space.price > 400));
+  const game = new Game(players.slice(0, 2), {}, { sides: 5, random: () => .4, wait: async () => {}, earnings: 1 });
+  assert.equal(game.board.length, 50); assert.equal(game.state.sides, 5); assert.equal(Object.keys(game.state.properties).length, 34);
+  assert.equal(new Game(players.slice(0, 2), {}, { sides: 6 }).board.length, 40, 'the removed hexagon (and any unknown size) falls back to the square board');
+  assert.equal(Game.restore(game.serialize()).board.length, 50, 'a saved pentagon game restores as a pentagon');
   assert.equal(Game.restore(JSON.stringify({ ...JSON.parse(create().serialize()), sides: undefined })).state.sides, 4, 'older saves are square-board games');
 });
-test('Stock Exchange pays Dividend Day, Luxury Tax charges $100 per stage, and Grand Terminal rides to a station', () => {
-  const make = () => new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {}, earnings: 1.2 });
+test('Stock Exchange pays Dividend Day and Luxury Tax charges $100 per stage', () => {
+  const make = () => new Game(players.slice(0, 2), {}, { sides: 5, random: () => .4, wait: async () => {}, earnings: 1 });
   let game = make(); [1, 2, 4].forEach(id => { game.asset(id).owner = 1; }); land(game, 40);
-  assert.equal(game.active.cash, 1815, '3 owned properties pay $15 on Dividend Day (the hexagon starts at $1,800)');
-  game = make(); game.state.round = 31; game.asset(1).owner = 1; land(game, 40); assert.equal(game.active.cash, 1815, 'stage 3 triples it: 1 property × $5 × 3');
-  game = make(); land(game, 47); assert.equal(game.active.cash, 1700, 'Luxury Tax is $100');
-  game = make(); game.state.round = 16; land(game, 58); assert.equal(game.active.cash, 1600, 'and $200 at stage 2');
-  game = make(); game.random = () => .99; land(game, 50);
-  assert.equal(game.active.position, 55, 'the Express Line ends on a station (here Starport)'); assert.equal(game.state.phase, 'offer', 'and resolves it: an unowned station can be bought');
-  game = make(); game.random = () => 0; land(game, 50);
-  assert.equal(game.active.position, 8, 'a ride round to Northline Rail passes Launch'); assert.equal(game.active.cash, 2040, 'and pays the hexagon Launch money ($240)');
+  assert.equal(game.active.cash, 1515, '3 owned properties pay $15 on Dividend Day');
+  game = make(); game.state.round = 31; game.asset(1).owner = 1; land(game, 40); assert.equal(game.active.cash, 1515, 'stage 3 triples it: 1 property x $5 x 3');
+  game = make(); land(game, 47); assert.equal(game.active.cash, 1400, 'Luxury Tax is $100');
+  game = make(); game.state.round = 16; land(game, 47); assert.equal(game.active.cash, 1300, 'and $200 at stage 2');
 });
-test('earnings scale per board (×1.15 / ×1.3 / ×1.45), costs unchanged, and each game keeps its multiplier', async () => {
+test('earnings scale per board (×1.15 / ×1.3), costs unchanged, and each game keeps its multiplier', async () => {
   const make = sides => new Game(players.slice(0, 2), {}, { sides, random: () => .99, wait: async () => {} });
-  assert.deepEqual([4, 5, 6].map(sides => make(sides).active.cash), [1725, 1950, 2175], 'starting cash');
-  for (const [sides, pay] of [[4, 230], [5, 260], [6, 290]]) {
+  assert.deepEqual([4, 5].map(sides => make(sides).active.cash), [1725, 1950], 'starting cash');
+  for (const [sides, pay] of [[4, 230], [5, 260]]) {
     const game = make(sides); game.active.position = game.board.length - 1; game.state.phase = 'ready';
     game.random = () => 0; await game.rollDice(); await drain(game); // 1 + 1 moves 2 spaces, passing Launch
     assert.ok(game.state.log.some(entry => entry.message.includes('passed Launch and received ' + '$' + pay)), sides + ' sides pay $' + pay + ' at Launch');
   }
-  assert.deepEqual([4, 5, 6].map(sides => make(sides).bankInterest()), [60, 65, 75], 'City Bank interest (rounded to $5)');
-  const card = make(6); await playCard(card, 'market', 'A strong opening'); assert.equal(card.active.cash, 2175 + 220, 'a $150 card pays $220 on the hexagon');
-  const bill = make(6); await playCard(bill, 'market', 'Unexpected upkeep'); assert.equal(bill.active.cash, 2175 - 80, 'costs are not scaled');
-  assert.equal(make(6).wheelSegments().find(slice => slice.id === 'jackpot').amount, 580, 'Wheel cash wins scale too');
-  assert.equal(make(6).wheelSegments().find(slice => slice.id === 'bad').amount, 150, 'Wheel losses do not');
+  assert.deepEqual([4, 5].map(sides => make(sides).bankInterest()), [60, 65], 'City Bank interest (rounded to $5)');
+  const card = make(5); await playCard(card, 'market', 'A strong opening'); assert.equal(card.active.cash, 1950 + 195, 'a $150 card pays $195 on the pentagon');
+  const bill = make(5); await playCard(bill, 'market', 'Unexpected upkeep'); assert.equal(bill.active.cash, 1950 - 80, 'costs are not scaled');
+  assert.equal(make(5).wheelSegments().find(slice => slice.id === 'jackpot').amount, 520, 'Wheel cash wins scale too');
+  assert.equal(make(5).wheelSegments().find(slice => slice.id === 'bad').amount, 150, 'Wheel losses do not');
   assert.equal(Game.restore(make(5).serialize()).state.earnings, 1.3, 'a saved game keeps its multiplier');
-  const old = JSON.parse(make(6).serialize()); delete old.earnings; assert.equal(Game.restore(JSON.stringify(old)).state.earnings, 1.2, 'games saved before it was stored keep their old economy');
+  const old = JSON.parse(make(5).serialize()); delete old.earnings; assert.equal(Game.restore(JSON.stringify(old)).state.earnings, 1.1, 'games saved before it was stored keep their old economy');
 });
-test('station rent climbs with each of up to four stations', () => {
-  const game = new Game(players.slice(0, 2), {}, { sides: 6, random: () => .4, wait: async () => {}, earnings: 1 });
-  [8, 23, 45, 55].forEach((id, i) => { game.asset(id).owner = 1; assert.equal(game.calculateRent(8), [50, 150, 250, 400][i], (i + 1) + ' stations'); });
+test('station rent climbs with each of up to three stations', () => {
+  const game = new Game(players.slice(0, 2), {}, { sides: 5, random: () => .4, wait: async () => {}, earnings: 1 });
+  [8, 23, 45].forEach((id, i) => { game.asset(id).owner = 1; assert.equal(game.calculateRent(8), [50, 150, 250][i], (i + 1) + ' stations'); });
 });
 test('every move-to card takes you to the space its text names', async () => {
   for (const deck of Object.values(DECKS)) for (const card of deck.filter(item => item.effect === 'advance'))

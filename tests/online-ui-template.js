@@ -96,7 +96,7 @@ async (page) => {
   assert((await page.locator('#room-link-display').inputValue()).endsWith('/game/AB12CD'),'Share link has the room route');
   await page.getByRole('button',{name:'Copy Code',exact:true}).click();
   assert((await page.locator('.copy-status').textContent()).length>0,'Copy Code gives feedback');
-  assert(await page.locator('.lobby-board .board-option').count()===3&&(await page.locator('.lobby-board .board-option.selected').textContent()).includes('Classic'),'The Host picks the board in the lobby: Classic, Skyline (5 sides) or Grand (6 sides)');
+  assert(await page.locator('.lobby-board .board-option').count()===2&&(await page.locator('.lobby-board .board-option.selected').textContent()).includes('Classic'),'The Host picks the board in the lobby: Classic or Skyline (5 sides); the hexagon is gone');
   await guest.goto('http://localhost:3000/game/AB12CD');await guest.locator('#online-name').fill('Guest');
   await guest.locator('.token-option.taken:has(input[value=black])').waitFor({timeout:8000});
   assert(await guest.locator('.token-option:has(input[value=black]) input').isDisabled()&&(await guest.locator('.token-option.taken').count())===1,'A joining player sees the colour already chosen by the Host as taken and cannot pick it');
@@ -110,9 +110,9 @@ async (page) => {
   assert(await page.locator('.lobby-player:not(.empty-seat)').count()===2,'Host sees both connected players');
   await guest.locator('.lobby-color.taken').nth(1).waitFor();
   assert(await guest.locator('.lobby-color.taken').count()===2&&(await guest.locator('.lobby-colors').textContent()).includes('Host'),'Every player sees which colours are taken, and by whom');
-  await page.locator('.lobby-board .board-option:has-text("Grand")').click();
-  await guest.locator('.lobby-board-choice:has-text("Grand")').waitFor({timeout:8000});
-  assert((await guest.locator('.lobby-board-choice').textContent()).includes('Hexagon · 60 spaces'),'The Host’s board choice is shown to every player');
+  await page.locator('.lobby-board .board-option:has-text("Skyline")').click();
+  await guest.locator('.lobby-board-choice:has-text("Skyline")').waitFor({timeout:8000});
+  assert((await guest.locator('.lobby-board-choice').textContent()).includes('Pentagon · 50 spaces'),'The Host’s board choice is shown to every player');
   await page.locator('.online-lobby').screenshot({path:'output/playwright/lobby-colors-board.png'});
   await page.locator('.lobby-board .board-option:has-text("Classic")').click();await guest.locator('.lobby-board-choice:has-text("Classic")').waitFor({timeout:8000});
   await guest.screenshot({path:'output/playwright/online-lobby-mobile.png',fullPage:true});
@@ -319,19 +319,16 @@ async (page) => {
   await page.locator('#modal [data-action=build-ignore]').click();await page.waitForTimeout(400);
   room.revision++;broadcast('mw_rooms',room);await page.waitForTimeout(600);
   assert(!(await page.locator('#modal[data-kind=build-prompt]').isVisible().catch(()=>false)),'Ignore closes the build popup and it stays closed for that landing');
-  // A 6-sided game: 60 spaces drawn as a hexagon, pawns on the board, nothing spills off the page.
-  room.state=clone(fixture.extras.hexGame);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
-  await page.locator('#game-board.poly-board').waitFor();
-  assert(await page.locator('#game-board .board-tile').count()===60&&(await page.locator('#game-board [data-id="55"]').getAttribute('aria-label')).startsWith('Starport')&&await page.locator('#game-board .poly-felt').count()===1,'A 6-sided game draws all 60 spaces as a hexagon, new spaces included');
-  await page.waitForTimeout(500);
-  const hexOk=await page.evaluate(()=>{const b=document.getElementById('game-board').getBoundingClientRect();return [...document.querySelectorAll('#token-layer .player-token:not([hidden]) .pawn-art')].every(p=>{const r=p.getBoundingClientRect();return r.left>=b.left-2&&r.right<=b.right+2&&r.top>=b.top-2&&r.bottom<=b.bottom+2;});});
-  assert(hexOk,'Pawns stand on the hexagon board');
-  await page.locator('#classic-board-view').screenshot({path:'output/playwright/board-hexagon.png'});
-  for(const width of [390,1366]){await page.setViewportSize({width,height:900});await page.waitForTimeout(300);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px hexagon board fits without page overflow');}
+  // A 5-sided game: 50 spaces drawn as a pentagon, pawns on the board, nothing spills off the page.
   room.state=clone(fixture.extras.pentaGame);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#game-board.poly-board').waitFor();
   await page.waitForFunction(()=>document.querySelectorAll('#game-board .board-tile').length===50,{},{timeout:8000});
-  assert(await page.locator('#game-board [data-id="40"]').getAttribute('aria-label')==='Stock Exchange','A 5-sided game draws 50 spaces with the Stock Exchange corner');
+  assert((await page.locator('#game-board [data-id="45"]').getAttribute('aria-label')).startsWith('Hyperloop Station')&&await page.locator('#game-board [data-id="40"]').getAttribute('aria-label')==='Stock Exchange'&&await page.locator('#game-board .poly-felt').count()===1,'A 5-sided game draws 50 spaces as a pentagon with the Stock Exchange corner');
+  await page.waitForTimeout(500);
+  const polyOk=await page.evaluate(()=>{const b=document.getElementById('game-board').getBoundingClientRect();return [...document.querySelectorAll('#token-layer .player-token:not([hidden]) .pawn-art')].every(p=>{const r=p.getBoundingClientRect();return r.left>=b.left-2&&r.right<=b.right+2&&r.top>=b.top-2&&r.bottom<=b.bottom+2;});});
+  assert(polyOk,'Pawns stand on the pentagon board');
   await page.locator('#classic-board-view').screenshot({path:'output/playwright/board-pentagon.png'});
+  for(const width of [390,1366]){await page.setViewportSize({width,height:900});await page.waitForTimeout(300);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'px pentagon board fits without page overflow');}
   room.state=clone(fixture.extras.declined);room.revision++;room.transition={action:'reject-trade',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#toast-stack .toast-item',{hasText:'declined the trade offer'}).waitFor({timeout:8000});
   assert((await page.locator('#toast-stack .toast-item',{hasText:'declined the trade offer'}).locator('.toast-title').textContent())==='Trade declined'&&(await page.locator('#toast-stack .toast-item .toast-remark').first().textContent())==='“Close, but too low.”','The decline popup carries the bot’s short remark');
