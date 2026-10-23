@@ -7,7 +7,7 @@ import './tabletop.css';
 import './board-premium.css';
 import './dark.css';
 import './effects.css';
-export const metadata: Metadata = { title: 'MARKET WARS · Classic property trading', description: 'An online strategy board game for 2–4 players. Buy land, collect color sets, build and outlast your rivals.', icons: {icon:'/icon.svg'} };
+export const metadata: Metadata = { title: 'MONOPOLY · No Mercy', description: 'An online strategy board game for 2–4 players. Buy land, collect color sets, build and outlast your rivals.', icons: {icon:'/icon.svg'} };
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#d5eaf2' };
 export default function RootLayout({ children }: { children: React.ReactNode }) { return <html lang="en" suppressHydrationWarning><head>
   {/* Apply the saved theme before first paint to avoid a light flash. */}

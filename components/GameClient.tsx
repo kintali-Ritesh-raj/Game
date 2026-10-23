@@ -6,7 +6,6 @@ import { initializeUI } from '@/lib/game-ui';
 import { useMultiplayer } from './useMultiplayer';
 import Lobby from './Lobby';
 import PlayerForm from './PlayerForm';
-import BoardView from './BoardView';
 
 export default function GameClient({ initialCode }: { initialCode?: string }) {
   const multiplayer = useMultiplayer(initialCode);
@@ -46,7 +45,6 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
   const showForm = multiplayer.screen === 'create' || multiplayer.screen === 'join';
   return <>
     <div dangerouslySetInnerHTML={{ __html: gameMarkup }} />
-    {ready && <BoardView />}
     {multiplayer.screen !== 'home' && <div className="online-notices" aria-live="polite">
       {inRoom && <p className={'network-status ' + (multiplayer.connection === 'connected' ? 'is-connected' : '')}>
         Room {multiplayer.code} · {multiplayer.connection === 'connected' ? 'Connected · Saved online' : 'Reconnecting… Your seat and game are saved.'}
@@ -83,6 +81,6 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
       start={multiplayer.start} leave={multiplayer.leave} updateProfile={multiplayer.updateProfile}
       addBot={multiplayer.addBot} removeBot={multiplayer.removeBot}
     />}
-    <noscript><p className="noscript">Enable JavaScript to play MARKET WARS online.</p></noscript>
+    <noscript><p className="noscript">Enable JavaScript to play Monopoly: No Mercy online.</p></noscript>
   </>;
 }

@@ -161,3 +161,8 @@
 .player-card.compact .player-property.mortgaged{opacity:.38;background:repeating-linear-gradient(135deg,var(--chip) 0 3px,#0000 3px 6px)}
 .turn-buffs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .turn-buffs>span{margin:0!important}
+
+/* The game name stays on one line in the header, even on phones. */
+.brand>span:last-child{white-space:nowrap}
+@media(max-width:600px){.site-header .brand{font-size:14px;gap:8px}}
+@media(max-width:360px){.site-header .brand{font-size:12px;gap:6px}.brand>span:last-child{white-space:normal}}

@@ -12,15 +12,12 @@
     "db:push": "supabase db push"
   },
   "dependencies": {
-    "@react-three/drei": "10.7.8",
-    "@react-three/fiber": "9.8.0",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.2",
     "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "0.0.1",
-    "three": "0.185.1"
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
@@ -28,7 +25,6 @@
     "@types/node": "24.10.1",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
-    "@types/three": "0.185.4",
     "supabase": "2.119.0",
     "tsx": "4.23.15",
     "typescript": "5.9.3"

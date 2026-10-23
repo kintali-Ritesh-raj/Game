@@ -1,4 +1,4 @@
-﻿# MARKET WARS — Online Multiplayer
+﻿# MONOPOLY: NO MERCY — Online Multiplayer
 
 An original strategy board game for 2–4 people playing on separate phones, tablets, laptops, or browsers. It has a tabletop-style square board that scales to the screen, light and dark modes, shared dice and card reveals, and the supplied dice and property-visit sounds.
 
@@ -82,7 +82,7 @@ The GitHub Actions workflow runs the rule, authorization, database-policy tests,
 
 The square 2D board is the default view: all 40 spaces around the edges, moving player tokens, property ownership and buildings, and dice in the center. On laptops, market activity sits on the left and players and actions on the right; tablets and phones show the board first at full width. Tap any space to read its full deed. **Your token** focuses your current space, and keyboard users can open a focused deed with Enter or Space. The ☾/☀ button in the header switches dark mode, remembered per browser.
 
-**3D board (optional).** The **2D board / 3D board** switch above the board shows a realistic tabletop: a walnut frame on a wooden table, the printed board, ivory dice, glossy pawns, owner chips and houses, event-card decks and a tray of Market Wars notes, with soft shadows and studio lighting. It is a view of the same game, and the server-confirmed state drives everything in it. The dice tumble to the values the server reports, pawns hop space by space, and tapping a space opens its deed. Drag to look around. Desktops start in 3D and phones in 2D. The choice is saved per browser. If WebGL is unavailable, the switch is disabled and the 2D board stays. If the device turns out too slow, the view falls back to 2D on its own. Reduced-motion preferences skip the dice tumble and pawn hops. All textures are drawn in code (no downloaded art), the pixel ratio is capped at 2, and the scene only redraws when something changes. Files: `components/Board3D.tsx`, `components/BoardView.tsx`, `lib/board3d-textures.ts`.
+**Popups for your turn.** When you land on your own property and are allowed to build, a popup offers **Build** (with the cost and the new rent) or **Ignore**. A jailed player's turn opens a popup with **Roll for doubles** or **Pay $X to leave** (and **Raise cash** when short); it cannot be dismissed, so nobody forgets they are in Prison.
 
 Sound can be muted in Settings; browser audio requires an initial user interaction. Animations respect the device's reduced-motion preference.
 
@@ -139,7 +139,7 @@ npx playwright-cli -s=market-online run-code --filename=output/playwright/online
 npx playwright-cli -s=market-online close
 ```
 
-These 109 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
+These 112 browser checks deliberately mock Supabase Auth, HTTP, and Realtime transport. They verify the real browser UI, permissions, synchronized dice and ownership display, top notifications, house counts, owner auctions, shared event cards, reduced motion, both audio files, rejoin codes, room-link entry, refresh, offline handling, bot turns, keyboard access, locating a token, and square-board layouts from 320px to 1440px. If a check fails, the error names the last check that passed. Screenshots are written under `output/playwright/`.
 
 For a **real internet/Supabase smoke test**, configure a test Supabase project with anonymous sign-ins and the migration, start the Next app against it, and run:
 

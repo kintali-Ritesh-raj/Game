@@ -106,16 +106,7 @@ async (page) => {
   await page.getByRole('button',{name:'Start Game'}).click();await page.locator('#game-screen').waitFor({state:'visible'});await guest.locator('#game-screen').waitFor({state:'visible'});
   await page.locator('#turn-action-card [data-action=roll]').waitFor();
   assert(await page.locator('#classic-board-view').isVisible() && await page.locator('#game-board .board-tile').count()===40,'Original square board is the default and displays all 40 spaces');
-  const toggle3d=page.locator('.board-view-toggle button',{hasText:'3D board'}),toggle2d=page.locator('.board-view-toggle button',{hasText:'2D board'});
-  assert(await toggle2d.getAttribute('aria-pressed')==='true','The board offers a 2D / 3D switch with 2D selected');
-  if(await toggle3d.isEnabled()){
-    await toggle3d.click();await page.locator('.board-3d-stage canvas').waitFor({timeout:30000});
-    assert(!(await page.locator('#classic-board-view').isVisible())&&await page.evaluate(()=>localStorage.getItem('market-wars-board-view'))==='3d','3D board replaces the 2D board and the choice is saved');
-    await page.reload();await page.locator('.board-3d-stage canvas').waitFor({timeout:30000});
-    assert(await toggle3d.getAttribute('aria-pressed')==='true','The 3D choice survives a refresh');
-    await toggle2d.click();await page.locator('#classic-board-view').waitFor({state:'visible'});
-    assert(await page.locator('.board-3d-stage').count()===0&&await page.locator('#game-board .board-tile').count()===40,'Switching back restores the unchanged 2D board');
-  } else checks.push('3D unavailable in this browser: switch disabled, 2D kept');
+  assert(await page.locator('.board-view-toggle').count()===0&&await page.locator('canvas').count()===0,'There is no 3D board or 2D/3D switch');
   assert(await page.locator('#token-layer .player-token').count()===2,'Both players have visible tokens on the square board');
   const reveal=page.getByRole('button',{name:'Show rejoin code',exact:true});if(await reveal.count())await reveal.click();
   await page.locator('.rejoin-code',{hasText:'HSTA-2345'}).waitFor();
@@ -298,6 +289,14 @@ async (page) => {
   assert((await page.locator('#city-banner').textContent()).includes('Property Boom (rents +50%), 2 rounds left.')&&(await page.locator('#city-banner').textContent()).includes('Next round: Tax Audit'),'The board header shows the active City Event and the announced one');
   assert((await page.locator('.city-status').textContent()).includes('Round 5'),'The turn card shows the round and the City Event');
   await page.locator('.board-tools').screenshot({path:'output/playwright/city-banner.png'});
+  room.state=clone(fixture.extras.buildPrompt);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
+  await page.locator('#modal[data-kind=build-prompt]').waitFor();
+  assert((await page.locator('#modal[data-kind=build-prompt] [data-action=build]').textContent()).includes('$50')&&await page.locator('#modal[data-kind=build-prompt] [data-action=build-ignore]').isVisible(),'Landing on your own buildable property opens a build popup with Build and Ignore');
+  assert(!(await guest.locator('#modal[data-kind=build-prompt]').isVisible().catch(()=>false)),'Other players do not get the build popup');
+  await page.locator('#modal').screenshot({path:'output/playwright/build-prompt.png'});
+  await page.locator('#modal [data-action=build-ignore]').click();await page.waitForTimeout(400);
+  room.revision++;broadcast('mw_rooms',room);await page.waitForTimeout(600);
+  assert(!(await page.locator('#modal[data-kind=build-prompt]').isVisible().catch(()=>false)),'Ignore closes the build popup and it stays closed for that landing');
   room.state=clone(fixture.extras.declined);room.revision++;room.transition={action:'reject-trade',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#toast-stack .toast-item',{hasText:'declined the trade offer'}).waitFor({timeout:8000});
   assert((await page.locator('#toast-stack .toast-item',{hasText:'declined the trade offer'}).locator('.toast-title').textContent())==='Trade declined'&&(await page.locator('#toast-stack .toast-item .toast-remark').first().textContent())==='“Close, but too low.”','The decline popup carries the bot’s short remark');
@@ -307,6 +306,11 @@ async (page) => {
   assert(await page.locator('#classic-token-0 .pawn-cage').isVisible()&&await page.locator('#classic-token-1.jailed').count()===0,'A jailed pawn is shown behind bars; free pawns are not');
   assert((await page.locator('#game-board [data-id="33"] .tile-kind').textContent())==='+$150 INTEREST'&&(await page.locator('#board-center [data-action=release]').textContent()).includes('Pay $150 to leave'),'In round 21 City Bank shows $150 interest and leaving Prison costs $150');
   await page.waitForTimeout(700);await page.locator('#game-board .board-tile[data-id="10"]').screenshot({path:'output/playwright/jailed-pawn.png'});
+  await page.locator('#modal[data-kind=jail]').waitFor();
+  assert(await page.locator('#modal[data-kind=jail] [data-action=roll]').isEnabled()&&(await page.locator('#modal[data-kind=jail] [data-action=release]').textContent()).includes('Pay $150 to leave')&&await page.locator('#modal[data-kind=jail] [data-action=close]').count()===0,'A jailed player gets a Prison popup: roll for doubles or pay, with no way to dismiss it');
+  await page.keyboard.press('Escape');assert(await page.locator('#modal[data-kind=jail]').isVisible(),'Escape does not dismiss the Prison popup');
+  assert(!(await guest.locator('#modal[data-kind=jail]').isVisible().catch(()=>false)),'Other players do not get the Prison popup');
+  await page.locator('#modal').screenshot({path:'output/playwright/jail-prompt.png'});
   await guest.locator('#classic-token-0.jailed').waitFor();
   assert(await guest.locator('#classic-token-0 .pawn-cage').isVisible(),'Other players see the jailed pawn behind bars too');
   room.state=clone(fixture.extras.debt);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
