@@ -28,10 +28,16 @@ export function ensureIdentity(): Promise<string> {
   return identity;
 }
 
-export async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+// `retried` marks the one automatic resend after the server rejected an expired session.
+export async function request<T>(path: string, method = 'GET', body?: unknown, retried = false): Promise<T> {
   await ensureIdentity();
   const supabase = getBrowserClient();
-  const { data } = await supabase.auth.getSession();
+  let { data } = await supabase.auth.getSession();
+  // Background tabs can miss the automatic token refresh; renew a token that is about to expire before using it.
+  if (data.session?.expires_at && data.session.expires_at * 1000 - Date.now() < 60_000) {
+    const renewed = await supabase.auth.refreshSession();
+    if (renewed.data.session) data = { session: renewed.data.session };
+  }
   if (!data.session) throw new Error('Your player session expired. Reload to reconnect.');
   let response: Response;
   try {
@@ -39,14 +45,21 @@ export async function request<T>(path: string, method = 'GET', body?: unknown): 
       method, cache: 'no-store',
       headers: { Authorization: 'Bearer ' + data.session.access_token, 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(12000),
     });
   } catch (caught) {
     if (caught instanceof DOMException && (caught.name === 'TimeoutError' || caught.name === 'AbortError')) throw new Error('The game server took too long to answer. Your game is saved; try again.');
     if (caught instanceof TypeError) throw new Error('Could not reach the game server. Check your connection; your game is saved.');
     throw caught;
   }
-  const payload = await response.json();
+  // The server rejected an expired session: renew it and send the same request once more (it is safe to resend).
+  if (response.status === 401 && !retried) {
+    const renewed = await supabase.auth.refreshSession();
+    if (renewed.data.session) return request<T>(path, method, body, true);
+  }
+  let payload: { error?: string };
+  // A reply that is not JSON (a hosting error page) is treated as a temporary server problem, so it is retried.
+  try { payload = await response.json(); } catch { throw new RequestError(response.ok ? 502 : Math.max(500, response.status), 'The game server is busy. Your game is saved; trying again.'); }
   if (!response.ok) throw new RequestError(response.status, payload.error || 'The request could not be completed.');
   return payload as T;
 }

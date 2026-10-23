@@ -120,6 +120,15 @@ async (page) => {
   await page.locator('#turn-action-card [data-action=roll]').waitFor();
   assert(await page.locator('#classic-board-view').isVisible() && await page.locator('#game-board .board-tile').count()===40,'Original square board is the default and displays all 40 spaces');
   assert(await page.locator('.board-view-toggle').count()===0&&await page.locator('canvas').count()===0,'There is no 3D board or 2D/3D switch');
+  const nameSize=()=>page.locator('#game-board [data-id="1"] .tile-name').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
+  await page.locator('[data-action=zoom-fit]').click();await page.waitForTimeout(200);
+  const nameBefore=await nameSize();
+  await page.locator('[data-action=zoom-in]').click();await page.locator('[data-action=zoom-in]').click();
+  await page.waitForFunction(()=>document.getElementById('board-viewport').classList.contains('zoomed'));
+  const zoomedSize=await nameSize();
+  assert(Math.abs(zoomedSize/nameBefore-1.5)<.08&&(await page.locator('#zoom-level').textContent())==='150%','Zooming lays the board out larger (text 1.5x at 150%), so it stays vector-sharp');
+  await page.locator('[data-action=zoom-fit]').click();
+  assert(Math.abs(await nameSize()-nameBefore)<.01&&!(await page.locator('#board-viewport').evaluate(el=>el.classList.contains('zoomed'))),'Fit returns to the whole board');
   assert(await page.locator('#token-layer .player-token').count()===2,'Both players have visible tokens on the square board');
   const reveal=page.getByRole('button',{name:'Show rejoin code',exact:true});if(await reveal.count())await reveal.click();
   await page.locator('.rejoin-code',{hasText:'HSTA-2345'}).waitFor();

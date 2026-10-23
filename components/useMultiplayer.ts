@@ -235,11 +235,14 @@ export function useMultiplayer(initialCode?: string) {
       // Resending the same request ID is safe: the server applies it at most once.
       // Retry slow or dropped responses quietly before asking the player.
       let snapshot: Snapshot | null = null;
+      // Only a definite answer (a 4xx refusal) stops the retries; dropped connections and server hiccups are retried.
+      const delays = [500, 1000, 2000, 3000];
       for (let attempt = 0; !snapshot; attempt++) {
         try { snapshot = await request<Snapshot>('/api/rooms/' + retry.code, 'POST', retry.body); }
         catch (caught) {
-          if (caught instanceof RequestError || attempt >= 2) throw caught;
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          const definite = caught instanceof RequestError && caught.status >= 400 && caught.status < 500 && caught.status !== 429;
+          if (definite || attempt >= delays.length) throw caught;
+          await new Promise(resolve => setTimeout(resolve, delays[attempt]));
         }
       }
       accept(snapshot); setPending(null); safeStorage.remove(PENDING);
@@ -255,6 +258,16 @@ export function useMultiplayer(initialCode?: string) {
       throw caught;
     } finally { setBusy(false); }
   };
+
+  // An unconfirmed move keeps retrying by itself: every few seconds, and as soon as the room changes (the move may
+  // already be in). The server applies a request ID at most once, so retrying can never repeat the move.
+  const pendingRevision = room?.revision;
+  useEffect(() => {
+    if (!pending || busy || !navigator.onLine) return;
+    const timer = setTimeout(() => { void runPending(pending).catch(() => {}); }, 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, busy, pendingRevision]);
 
   const send = async (operation: 'start' | 'action', action?: Command) => {
     if (busy || !roomRef.current) return;

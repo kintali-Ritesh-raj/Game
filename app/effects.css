@@ -208,3 +208,17 @@
 
 /* Pawns slide on the compositor, so moves stay smooth while the rest of the page updates. */
 .player-token{will-change:transform}
+
+/* ── Board zoom ── At 100% the viewport is invisible; zoomed in, it scrolls both ways and the board is laid out larger
+   (never scaled as an image), so every letter and icon stays sharp. Pinch inside it zooms the board, not the page. */
+.board-viewport{position:relative;max-width:100%}
+.board-viewport.zoomed{aspect-ratio:1;max-height:calc(100dvh - 140px);overflow:auto;overscroll-behavior:contain;border-radius:14px;scrollbar-width:thin}
+.board-viewport.zoomed>.classic-board-view{width:calc(100% * var(--board-zoom,1));max-width:none}
+.board-viewport{touch-action:pan-x pan-y}
+.board-zoom-tools{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-right:8px}
+.board-zoom-tools button{border:0;border-radius:0;min-width:38px;min-height:34px;padding:0 10px;font-size:15px;font-weight:600;background:transparent}
+.board-zoom-tools button+button{border-left:1px solid var(--line)}
+.board-zoom-tools #zoom-level{min-width:58px;font-size:12px;font-variant-numeric:tabular-nums}
+
+/* Install button for the app version (shown only where the browser offers installation). */
+.install-app{position:fixed;left:16px;bottom:16px;z-index:900;box-shadow:0 10px 24px -10px #0008}

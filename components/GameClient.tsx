@@ -19,6 +19,15 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
   const [rejoinMode, setRejoinMode] = useState(false);
   const [rejoinInput, setRejoinInput] = useState('');
   const [myRejoinCode, setMyRejoinCode] = useState('');
+  // Installable app: cache the app's files on the device, and offer an Install button where the browser supports it.
+  const [installPrompt, setInstallPrompt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  useEffect(() => {
+    if ('serviceWorker' in navigator && location.hostname !== 'localhost') void navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const offer = (event: Event) => { event.preventDefault(); setInstallPrompt(event as Event & { prompt: () => Promise<void> }); };
+    const installed = () => setInstallPrompt(null);
+    window.addEventListener('beforeinstallprompt', offer); window.addEventListener('appinstalled', installed);
+    return () => { window.removeEventListener('beforeinstallprompt', offer); window.removeEventListener('appinstalled', installed); };
+  }, []);
   // Colours already taken in the room being joined, refreshed while the join form is open.
   const [takenTokens, setTakenTokens] = useState<Token[]>([]);
   useEffect(() => {
@@ -65,12 +74,13 @@ export default function GameClient({ initialCode }: { initialCode?: string }) {
           : <button className="text-button" onClick={() => void showRejoinCode()} title="Use this code to get your seat back on another device or after clearing browser data">Show rejoin code</button>}
       </p>}
       {multiplayer.error && <p className="form-error" role="alert">{multiplayer.error}</p>}
-      {multiplayer.pending && <div className="pending-action"><span>An action is awaiting confirmation.</span>
+      {multiplayer.pending && <div className="pending-action"><span>Confirming your last move… retrying automatically.</span>
         <button className="secondary" disabled={multiplayer.busy} onClick={() => void multiplayer.retry().catch(() => {})}>Retry confirmation</button>
         <button className="text-button" disabled={multiplayer.busy} onClick={multiplayer.dismissPending}>Dismiss & use latest state</button>
       </div>}
     </div>}
     {multiplayer.loading && multiplayer.screen === 'room' && <main className="online-entry" aria-busy="true"><div className="eyebrow">NORTHSTAR CITY</div><h1>Opening your room…</h1><p>Your player identity and saved market are being restored.</p></main>}
+    {installPrompt && multiplayer.screen === 'home' && <button className="install-app secondary" onClick={() => { void installPrompt.prompt(); setInstallPrompt(null); }}>Install app ↓</button>}
     {showForm && <main className="online-entry">
       <div className="eyebrow">{multiplayer.screen === 'create' ? 'OPEN AN ONLINE TABLE' : 'YOUR RIVALS ARE WAITING'}</div>
       <h1>{multiplayer.screen === 'create' ? 'Create Game' : 'Join Game'}</h1>
