@@ -8,8 +8,31 @@ import type { Command, GameState } from './types';
 // The AI only makes the judgement calls a person would think about: buy or skip, accept a trade, how high to bid,
 // build now or keep the cash. Dice, rent, debts and every hard trading rule stay with the rule bot, which is also the
 // fallback whenever the API is missing, slow or wrong. The key lives only in the server environment (ANTHROPIC_API_KEY).
+// Provider, first key found wins: Groq (free tier) → OpenRouter → Claude. BOT_AI_MODEL overrides the model name.
 const MODEL = 'claude-haiku-5-5';
-const client = process.env.ANTHROPIC_API_KEY ? new Anthropic({ timeout: 4000, maxRetries: 0 }) : null;
+const OPEN_PROVIDERS = [
+  { key: process.env.GROQ_API_KEY, url: 'https://api.groq.com/openai/v1/chat/completions', model: 'openai/gpt-oss-20b' },
+  { key: process.env.OPENROUTER_API_KEY, url: 'https://openrouter.ai/api/v1/chat/completions', model: 'openai/gpt-oss-20b:free' },
+];
+const open = OPEN_PROVIDERS.find(provider => provider.key);
+const anthropic = !open && process.env.ANTHROPIC_API_KEY ? new Anthropic({ timeout: 4000, maxRetries: 0 }) : null;
+const client = open || anthropic;
+
+// Groq and OpenRouter speak the OpenAI chat format. gpt-oss reasons before answering, so it gets room and a low effort.
+async function askOpen(provider: NonNullable<typeof open>, prompt: string): Promise<string | null> {
+  const response = await fetch(provider.url, {
+    method: 'POST', signal: AbortSignal.timeout(6000),
+    headers: { Authorization: 'Bearer ' + provider.key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: process.env.BOT_AI_MODEL || provider.model, max_tokens: 600, reasoning_effort: 'low',
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'system', content: SYSTEM + '\nReply as {"yes": boolean, "value": integer, "remark": string}.' }, { role: 'user', content: prompt }],
+    }),
+  });
+  if (!response.ok) throw new Error(provider.url.split('/')[2] + ' ' + response.status);
+  const body = await response.json() as { choices?: { message?: { content?: string } }[] };
+  return body.choices?.[0]?.message?.content ?? null;
+}
 
 type Engine = InstanceType<typeof MarketWars.Game>;
 type Verdict = { yes: boolean; value: number; remark: string };
@@ -36,7 +59,12 @@ const SCHEMA = {
 async function ask(question: string, facts: object): Promise<Verdict | null> {
   if (!client) return null;
   try {
-    const response = await client.messages.create({
+    if (open) {
+      const content = await askOpen(open, question + '\n' + JSON.stringify(facts));
+      const parsed = content ? JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)) as Verdict : null;
+      return parsed && typeof parsed.yes === 'boolean' ? { yes: parsed.yes, value: Math.round(Number(parsed.value) || 0), remark: String(parsed.remark || '').slice(0, 60) } : null;
+    }
+    const response = await anthropic!.messages.create({
       model: MODEL,
       max_tokens: 200,
       thinking: { type: 'disabled' },
