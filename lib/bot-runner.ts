@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyGameAction, memberIndex, requireRevision } from './game-actions';
 import { botReadyAt, botSeat } from './bot-timing';
-import { chooseBotAction } from './bot-strategy';
+import { smartBotAction } from './bot-brain';
 import { readGameRoom, roomRpc } from './room-store';
 import { ApiError } from './validation';
 import type { GameState, Room } from './types';
@@ -17,7 +17,7 @@ export async function advanceBot(db:SupabaseClient, room:Room, requester:string,
   const authoritative = preloaded ? {...room,state:preloaded} : await readGameRoom(db,room.code,expected);
   const seat = botSeat(authoritative);
   if (seat === null) return room;
-  const command = chooseBotAction(authoritative.state!);
+  const command = await smartBotAction(authoritative.state!, room.code);
   if (!command) return room;
   const actor = authoritative.members[seat].user_id;
   const result = await applyGameAction(authoritative,actor,command);
