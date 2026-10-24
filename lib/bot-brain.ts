@@ -56,8 +56,20 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-async function ask(question: string, facts: object): Promise<Verdict | null> {
+// Each bot plays (and talks) in its own style; the hard rules are the same for all of them.
+const PERSONAS: Record<string, string> = {
+  'Bot Ada': 'You are a careful accountant: keep a healthy cash cushion and only pay for clear value.',
+  'Bot Atlas': 'You are an empire builder: grab land and build aggressively, accept some risk.',
+  'Bot Nova': 'You are a shrewd dealmaker: hunt for trades that complete your sets and drive hard bargains.',
+  'Bot Quinn': 'You are a spoiler: above all, deny rivals the colour sets they are close to.',
+  'Bot Echo': 'You are a patient collector: focus on one or two colours and wait for the right moment.',
+  'Bot Vega': 'You are a gambler: love auctions and bold bids, quick to take a chance.',
+};
+
+async function ask(question: string, facts: { you?: string }): Promise<Verdict | null> {
   if (!client) return null;
+  const persona = PERSONAS[facts.you || ''];
+  if (persona) question = persona + '\n' + question;
   try {
     if (open) {
       const content = await askOpen(open, question + '\n' + JSON.stringify(facts));
