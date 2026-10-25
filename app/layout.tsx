@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import '../style.css';
 import './multiplayer.css';
 import './readable-board.css';
@@ -12,4 +13,4 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1, them
 export default function RootLayout({ children }: { children: React.ReactNode }) { return <html lang="en" suppressHydrationWarning><head>
   {/* Apply the saved theme before first paint to avoid a light flash. */}
   <script dangerouslySetInnerHTML={{ __html: "try{if(localStorage.getItem('market-wars-theme')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}" }} />
-</head><body>{children}</body></html>; }
+</head><body>{children}<SpeedInsights /></body></html>; }
