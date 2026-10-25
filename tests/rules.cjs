@@ -418,10 +418,10 @@ test('City Events: Boom, Recession and Audit, never the same twice in a row, ann
   const advance = (game, rounds) => { for (let i = 0; i < rounds * game.state.players.filter(player => !player.bankrupt).length; i++) { game.state.phase = 'end'; game.state.extraRoll = false; game.nextTurn(); } };
   let game = create(); game.random = () => .1; own(game, 1); advance(game, 3);
   assert.equal(game.state.round, 4); assert.deepEqual({ ...game.state.city.upcoming }, { kind: 'boom', round: 5 }); assert.ok(game.state.log.some(entry => /Coming next round: Property Boom/.test(entry.message)));
-  assert.deepEqual([...game.cityLines()], ['Next round: Property Boom (rents +50%).']); assert.equal(game.calculateRent(1), 8);
+  assert.deepEqual([...game.cityLines()].filter(line => !/single-die/i.test(line)), ['Next round: Property Boom (rents +50%).']); assert.equal(game.calculateRent(1), 8);
   advance(game, 1); assert.equal(game.state.round, 5); assert.deepEqual({ ...game.state.city.active }, { kind: 'boom', until: 6 }); assert.equal(game.calculateRent(1), 12, 'rents +50%');
-  assert.deepEqual([...game.cityLines()], ['Property Boom (rents +50%), 2 rounds left.']);
-  advance(game, 1); assert.equal(game.state.city.active.kind, 'boom', 'still active in round 6'); assert.deepEqual([...game.cityLines()].slice(0, 1), ['Property Boom (rents +50%), 1 round left.']);
+  assert.deepEqual([...game.cityLines()].filter(line => !/single-die/i.test(line)), ['Property Boom (rents +50%), 2 rounds left.']);
+  advance(game, 1); assert.equal(game.state.city.active.kind, 'boom', 'still active in round 6'); assert.deepEqual([...game.cityLines()].filter(line => !/single-die/i.test(line)).slice(0, 1), ['Property Boom (rents +50%), 1 round left.']);
   advance(game, 1); assert.equal(game.state.city.active, null, 'over in round 7'); assert.equal(game.calculateRent(1), 8);
   // never the same event twice in a row, even when the dice would pick it
   game = create(2, randomSeed(9)); const kinds = [];
@@ -545,6 +545,21 @@ test('a player in debt can leave (assets go to the creditor) or auction a proper
   game.auctionBid(10); while (game.state.auction) game.auctionPass();
   assert.equal(game.player(0).cash, 15, 'the winning bid is paid to the seller');
   assert.equal(game.state.phase, 'debt', 'the payment screen returns after the auction');
+});
+test('every 3rd round is a single-die round: one die, no doubles, and only a 6 leaves Prison', async () => {
+  const at = (round, draws) => { const g = create(); g.state.round = round; let k = 0; g.random = () => draws[k++] ?? .3; return g; };
+  assert.deepEqual([1, 2, 3, 4, 6, 9].map(round => create().singleDieRound(round)), [false, false, true, false, true, true]);
+  let g = at(3, [.5]); await g.rollDice(); await drain(g);
+  assert.deepEqual([...g.state.dice], [4], 'one die'); assert.equal(g.active.position, 4); assert.equal(g.state.extraRoll, false, 'no doubles with one die');
+  g = at(3, [.99]); g.active.penalty = { kind: 'prison', attempts: 0 }; g.active.position = 10; await g.rollDice(); await drain(g);
+  assert.equal(g.active.penalty, null, 'a 6 walks out'); assert.equal(g.active.position, 16);
+  g = at(3, [.7]); g.active.penalty = { kind: 'prison', attempts: 0 }; g.active.position = 10; await g.rollDice(); await drain(g);
+  assert.equal(g.active.penalty.attempts, 1, 'a 5 stays inside');
+  g = at(3, [.5, .99]); g.active.perks.tailwind = 1; await g.rollDice(); await drain(g);
+  assert.deepEqual([...g.state.dice], [6], 'Nitro Dice keeps the better of two'); assert.equal(g.state.droppedDie, 4);
+  g = create(); g.state.round = 2; assert.ok(g.cityLines().some(line => /Next round: single-die round/.test(line)), 'announced a round ahead');
+  g.state.round = 3; assert.ok(g.cityLines().some(line => /Single-die round/.test(line)));
+  const saved = create(); saved.state.dice = [5]; assert.deepEqual([...Game.restore(saved.serialize()).state.dice], [5], 'a one-die save loads');
 });
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
