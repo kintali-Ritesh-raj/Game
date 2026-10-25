@@ -74,7 +74,9 @@ async function ask(question: string, facts: { you?: string; [detail: string]: un
     if (open) {
       const content = await askOpen(open, question + '\n' + JSON.stringify(facts));
       const parsed = content ? JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)) as Verdict : null;
-      return parsed && typeof parsed.yes === 'boolean' ? { yes: parsed.yes, value: Math.round(Number(parsed.value) || 0), remark: String(parsed.remark || '').slice(0, 60) } : null;
+      if (!parsed || typeof parsed.yes !== 'boolean') return null;
+      console.info('AI bot', process.env.BOT_AI_MODEL || open.model, facts.you, question.split('\n').pop()?.slice(0, 50), '->', parsed.yes, parsed.value || '', parsed.remark || '');
+      return { yes: parsed.yes, value: Math.round(Number(parsed.value) || 0), remark: String(parsed.remark || '').slice(0, 60) };
     }
     const response = await anthropic!.messages.create({
       model: MODEL,
