@@ -535,6 +535,17 @@ test('rejected and invalid trades change nothing', () => {
   const left = create(3); own(left, 4, 1); left.proposeTrade({ to: 1, give: { cash: 10, properties: [] }, get: { cash: 0, properties: [4] } });
   left.forfeit(2); assert.equal(left.state.trade, null); assert.equal(left.state.phase, 'ready');
 });
+test('a player in debt can leave (assets go to the creditor) or auction a property to raise the cash', () => {
+  let game = create(3); own(game, 1, 1); own(game, 3 + 1, 0); game.player(0).cash = 5; land(game, 1);
+  assert.equal(game.state.phase, 'debt'); assert.equal(game.state.pending.payer, 0);
+  game.forfeit(0); assert.equal(game.player(0).bankrupt, true); assert.equal(game.asset(4).owner, 1, 'the property goes to the player owed');
+  assert.equal(game.player(1).cash, 1505, 'and so does the cash'); assert.equal(game.state.pending, null); assert.notEqual(game.state.currentPlayer, 0, 'the turn passes on');
+  game = create(3); own(game, 1, 1); own(game, 4, 0); game.player(0).cash = 5; land(game, 1);
+  game.startAuction(4); assert.equal(game.state.phase, 'auction', 'an owner in debt can auction on their turn');
+  game.auctionBid(10); while (game.state.auction) game.auctionPass();
+  assert.equal(game.player(0).cash, 15, 'the winning bid is paid to the seller');
+  assert.equal(game.state.phase, 'debt', 'the payment screen returns after the auction');
+});
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
   game.forfeit(0);
