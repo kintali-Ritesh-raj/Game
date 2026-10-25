@@ -78,7 +78,7 @@ test('Bots never hand over a set for cash, but swap for one, and offer cash for 
   room.state!.phase='trade';room.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:150,properties:[]},get:{cash:0,properties:[2]}};
   assert.equal(chooseBotAction(room.state!)!.action,'reject-trade','$150 is too little for the property that completes the rival set');
   room.state!.trade.give.cash=2000;const refusal=chooseBotAction(room.state!)!;
-  assert.equal(refusal.action,'reject-trade','no amount of cash buys the last property of a set');assert.match(refusal.note!,/will not hand over the last Tidehaven property/);assert.equal(refusal.remark,'That would finish your set.');
+  assert.equal(refusal.action,'reject-trade','no amount of cash buys the last property of a set');assert.match(refusal.note!,/will not hand over the last Bihar property/);assert.equal(refusal.remark,'That would finish your set.');
   room.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:0,properties:[1]},get:{cash:0,properties:[9]}};
   assert.equal(chooseBotAction(room.state!)!.action,'accept-trade','a property that completes the bot set is worth more to it');
   const proposer=playing();proposer.state!.currentPlayer=1;proposer.state!.phase='end';proposer.state!.properties[1].owner=1;proposer.state!.properties[2].owner=0;
@@ -111,11 +111,11 @@ test('Bots price their land by the board and their position, and get warier when
   // Collecting: with 2 of a color, cash will not buy one; the bot names what it would want instead.
   const collector=playing();for(const id of [4,6])collector.state!.properties[id].owner=1;collector.state!.properties[7].owner=0;collector.state!.properties[14].owner=1;
   const no=offer(collector,1000,[4]);
-  assert.equal(no.action,'reject-trade');assert.match(no.note!,/collecting Canal Quarter/);assert.match(no.note!,/consider a trade for Waterwheel Row/);assert.equal(no.remark,"I'm collecting this color.");
+  assert.equal(no.action,'reject-trade');assert.match(no.note!,/collecting Odisha/);assert.match(no.note!,/consider a trade for Bhubaneswar/);assert.equal(no.remark,"I'm collecting this color.");
   assert.equal(offer(collector,0,[14],[7]).action,'accept-trade','the property that finishes its color buys another of its properties');
   // It never breaks a set it owns, and keeps a cash reserve when buying.
   const owner=playing();owner.state!.properties[1].owner=1;owner.state!.properties[2].owner=1;
-  assert.match(offer(owner,3000,[1]).note!,/will not break up its full Tidehaven set/);assert.equal(offer(owner,3000,[1]).remark,'Not breaking my set.');
+  assert.match(offer(owner,3000,[1]).note!,/will not break up its full Bihar set/);assert.equal(offer(owner,3000,[1]).remark,'Not breaking my set.');
   const buyer=playing();buyer.state!.properties[9].owner=0;buyer.state!.players[1].cash=300;
   buyer.state!.phase='trade';buyer.state!.trade={from:0,to:1,returnPhase:'ready',give:{cash:0,properties:[9]},get:{cash:250,properties:[]}};
   assert.match(chooseBotAction(buyer.state!)!.note!,/keeps at least \$150 in cash/);assert.equal(chooseBotAction(buyer.state!)!.remark,'I need that cash for rent.');
@@ -134,15 +134,15 @@ test('A timed-out Prison turn pays the $50 fine, mortgaging the lowest-rent land
   for(const id of [1,37,39])poor.state!.properties[id].owner=0; // rents $8, $34 and $42
   room.state=poor.state;const steps=[];
   for(let i=0;i<6&&room.state!.currentPlayer===0;i++)steps.push(await forced());
-  assert.deepEqual(steps.map(c=>c.action+(('id' in c && c.id)||'')),['release','mortgage1','settle','timeout'],'only Beacon Wharf (lowest rent) is mortgaged');
+  assert.deepEqual(steps.map(c=>c.action+(('id' in c && c.id)||'')),['release','mortgage1','settle','timeout'],'only Patna Ghat (lowest rent) is mortgaged');
   assert.equal(room.state!.properties[1].mortgaged,true);assert.equal(room.state!.properties[37].mortgaged,false);assert.equal(room.state!.players[0].cash,22,'the Fire Sale bonus applies to automatic mortgages too');
   assert.equal(room.state!.players[0].penalty,null);
   const broke=playing();broke.state!.players[0].penalty={kind:'prison',attempts:0};broke.state!.players[0].cash=20;room.state=broke.state;
   assert.equal((await forced()).action,'release');assert.equal((await forced()).action,'bankrupt');assert.equal(room.state!.phase,'victory');
 });
 test('Bots do not spam human players with trade offers',async()=>{
-  const room=playing();const s=room.state!;s.properties[1].owner=1;s.properties[2].owner=0; // the bot needs Sailmaker Lane to finish Tidehaven
-  s.properties[4].owner=1;s.properties[6].owner=0; // Canal Quarter is split 1-1 with one unowned: no set to finish, so no offer
+  const room=playing();const s=room.state!;s.properties[1].owner=1;s.properties[2].owner=0; // the bot needs Bodh Gaya to finish Bihar
+  s.properties[4].owner=1;s.properties[6].owner=0; // Odisha is split 1-1 with one unowned: no set to finish, so no offer
   let offers=0;
   for(let turn=1;turn<=40;turn++){
     Object.assign(room.state!,{turn,currentPlayer:1,phase:'end',hasRolled:true,extraRoll:false,tradesThisTurn:0,trade:null});
@@ -165,7 +165,7 @@ test('Bots and timeouts place the Free house on the lowest-built eligible proper
   for(const id of [1,2])game.asset(id).owner=1;game.asset(1).buildings=2;game.asset(2).buildings=2;for(const id of [4,6])game.asset(id).owner=1;game.asset(4).buildings=1;
   game.state.currentPlayer=1;game.state.phase='moving';game.active.position=30;game.resolveSpace();game.spinWheel();
   assert.equal(game.state.phase,'freebuild');const state=JSON.parse(game.serialize());
-  assert.deepEqual(chooseBotAction(state),{action:'free-build',id:6},'Ripple Arcade (no buildings) is the lowest-built');
+  assert.deepEqual(chooseBotAction(state),{action:'free-build',id:6},'Chilika Lake (no buildings) is the lowest-built');
   assert.deepEqual(timeoutCommand(state),{action:'free-build',id:6});
   const room=playing();room.state=state;assert.equal((await step(room)).action,'free-build');assert.equal(room.state!.properties[6].buildings,1);assert.equal(room.state!.phase,'end');
   await assert.rejects(applyGameAction(playing(),'host',{action:'free-build',id:6}),/./,'only valid during the Free house prize');

@@ -19,7 +19,7 @@ test('Host authorization, membership, and unchanged starting rules', () => {
   assert.throws(() => startGame(lobby(), 'guest'), /Only the Host/);
   assert.throws(() => startGame(lobby(), 'outsider'), /not a player/);
   const state = startGame(lobby(), 'host');
-  assert.deepEqual(state.players.map(p => p.cash), [1875, 1875], 'the square board starts with $1,500 × 1.25');
+  assert.deepEqual(state.players.map(p => p.cash), [1500, 1500], 'the square board starts with $1,500');
   assert.equal(state.phase, 'ready');
 });
 
@@ -95,7 +95,7 @@ test('Only the current player proposes a trade and only its recipient answers it
     assert.throws(() => command({ action: 'trade', trade: bad }), /Invalid trade/);
 });
 
-test('Only the current player can spin the Wheel of Fortune, and the spin is decided by the server', async () => {
+test('Only the current player can spin the Konark Wheel, and the spin is decided by the server', async () => {
   const room = playing(), game = fixture();
   game.state.phase = 'moving'; game.state.players[0].position = 30; game.resolveSpace(); room.state = saved(game);
   assert.equal(room.state.phase, 'wheel');
@@ -167,7 +167,7 @@ test('Revision and input validation reject stale or malformed requests', () => {
 test('A card die marks its move so bots and turn timers wait for the throw to play', async () => {
   const { botReadyAt, CARD_DIE_MS } = await import('../lib/bot-timing');
   const room = playing(), game = fixture();
-  Object.assign(game.state, { event: { deck: 'market', index: MarketWars.DECKS.market.findIndex(card => card.title === 'Lucky customer') }, phase: 'event' });
+  Object.assign(game.state, { event: { deck: 'market', index: MarketWars.DECKS.market.findIndex(card => card.title === 'IPL fever') }, phase: 'event' });
   room.state = saved(game);
   const result = await applyGameAction(room, 'host', { action: 'apply-event' });
   assert.equal(result.transition.die, 1); assert.ok([1, 2, 3, 4, 5, 6].includes(result.state.lastDie!.value), 'the server rolled the card die');

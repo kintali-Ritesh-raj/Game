@@ -5,14 +5,14 @@ const {Game}=require('../lib/game-engine.cjs');
 (async()=>{
   const members=[{name:'Host',token:'black',user_id:'10000000-0000-4000-8000-000000000001',seat:0},{name:'Guest',token:'blue',user_id:'10000000-0000-4000-8000-000000000002',seat:1}];
   const game=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});
-  // Roll 1 + 3 = 4 (not doubles, so the landing resolves) onto Lockside Walk.
+  // Roll 1 + 3 = 4 (not doubles, so the landing resolves) onto Puri Beach.
   let face=0;game.random=()=>[0,.4][face++%2];
   const states=[JSON.parse(game.serialize())];
   await game.rollDice();states.push(JSON.parse(game.serialize()));
   game.purchaseProperty();states.push(JSON.parse(game.serialize()));
   game.nextTurn();states.push(JSON.parse(game.serialize()));
   await game.rollDice();states.push(JSON.parse(game.serialize()));
-  // Host owns the whole canal set and has since landed on Lockside Walk again, so building is allowed.
+  // Host owns the whole canal set and has since landed on Puri Beach again, so building is allowed.
   game.asset(4).ready=true;
   game.state.currentPlayer=0;game.state.phase='end';game.state.hasRolled=true;game.state.extraRoll=false;
   const group=require('../lib/game-engine.cjs').BOARD[4].group;
@@ -27,15 +27,15 @@ const {Game}=require('../lib/game-engine.cjs');
   // Host owes $150 rent with only $20 cash, holding a developed Tidehaven pair to liquidate.
   const debtor=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});
   debtor.asset(1).owner=0;debtor.asset(2).owner=0;landBuild(debtor,1);landBuild(debtor,2);debtor.active.cash=20;
-  debtor.beginPayments([{payer:0,creditor:1,amount:150,reason:'Beacon Wharf rent',category:'rent'}]);
+  debtor.beginPayments([{payer:0,creditor:1,amount:150,reason:'Patna Ghat rent',category:'rent'}]);
   const debt=JSON.parse(debtor.serialize());
   const debtReady=JSON.parse(debtor.serialize());debtReady.players[0].cash=160;
-  // Host stands on the Wheel of Fortune; the second state is after a spin that landed on the -$100 slice.
+  // Host stands on the Konark Wheel; the second state is after a spin that landed on the -$100 slice.
   const wheelGame=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});
   wheelGame.state.phase='moving';wheelGame.active.position=30;wheelGame.resolveSpace();
   const wheelState=JSON.parse(wheelGame.serialize());
-  wheelGame.random=()=>.2;wheelGame.spinWheel();const spun=JSON.parse(wheelGame.serialize()); // the Bad spin slice: -$150
-  // Host owns a Tidehaven pair (one house on Beacon Wharf) and lands a Free house on the wheel.
+  wheelGame.random=()=>.2;wheelGame.spinWheel();const spun=JSON.parse(wheelGame.serialize()); // the Tax Notice slice: -$200
+  // Host owns a Tidehaven pair (one house on Patna Ghat) and lands a Free house on the wheel.
   const houseGame=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});
   houseGame.asset(1).owner=0;houseGame.asset(2).owner=0;houseGame.asset(1).buildings=1;
   houseGame.state.phase='moving';houseGame.active.position=30;houseGame.resolveSpace();houseGame.random=()=>.53;houseGame.spinWheel();
@@ -46,9 +46,9 @@ const {Game}=require('../lib/game-engine.cjs');
   Object.assign(buffGame.state,{round:5,city:{upcoming:{kind:'audit',round:10},active:{kind:'boom',until:6},last:'audit'}});
   Object.assign(buffGame.player(0).perks,{tailwind:2,shield:1,launch:2});
   const buffed=JSON.parse(buffGame.serialize());
-  // A die card waits for the player to roll: Lucky customer (roll one die, receive $30 x the number).
+  // A die card waits for the player to roll: IPL fever (roll one die, receive $30 x the number).
   const dieGame=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});
-  dieGame.state.event={deck:'market',index:require('../lib/game-engine.cjs').DECKS.market.findIndex(card=>card.title==='Lucky customer')};dieGame.state.phase='event';
+  dieGame.state.event={deck:'market',index:require('../lib/game-engine.cjs').DECKS.market.findIndex(card=>card.title==='IPL fever')};dieGame.state.phase='event';
   const dieCard=JSON.parse(dieGame.serialize());
   // The same card after Host presses Roll the die: the server rolls a 2, so 2 x $30 = $60.
   await dieGame.applyCard();const dieRolled=JSON.parse(dieGame.serialize());
@@ -57,7 +57,7 @@ const {Game}=require('../lib/game-engine.cjs');
   // Host is in Prison.
   const jailGame=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});jailGame.state.players[0].position=10;jailGame.state.players[0].penalty={kind:'prison',attempts:1};jailGame.state.round=21;
   const jailed=JSON.parse(jailGame.serialize());
-  // Host has landed (again) on Beacon Wharf, which they own: building is allowed, so the build prompt appears.
+  // Host has landed (again) on Patna Ghat, which they own: building is allowed, so the build prompt appears.
   const buildGame=new Game(members,{}, {random:()=>.2,wait:async()=>{},earnings:1});buildGame.asset(1).owner=0;buildGame.asset(1).ready=true;
   Object.assign(buildGame.state,{phase:'end',hasRolled:true,extraRoll:false});buildGame.state.players[0].position=1;
   const buildPrompt=JSON.parse(buildGame.serialize());

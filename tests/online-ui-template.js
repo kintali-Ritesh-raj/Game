@@ -151,9 +151,9 @@ async (page) => {
   assert((await guest.locator('#game-board [data-id="4"]').getAttribute('aria-label')).includes('owned by Host'),'Property ownership synchronized');
   await guest.locator('#game-board [data-id="4"][aria-label*="owned by Host"]').waitFor();
   assert(await guest.locator('#classic-token-0').getAttribute('data-space')==='4','Host token moves to the purchased space on both boards');
-  await guest.locator('#toast-stack .toast-item',{hasText:'Host purchased Lockside Walk'}).waitFor();
+  await guest.locator('#toast-stack .toast-item',{hasText:'Host purchased Puri Beach'}).waitFor();
   assert(await guest.locator('#ownership-notice').count()===0,'Purchase appears as a top notification for the other player, with no duplicate corner card');
-  assert(await guest.locator('#toast-stack .toast-item.tone-deal',{hasText:'Host purchased Lockside Walk'}).count()===1&&(await guest.locator('#toast-stack .toast-item.tone-deal .toast-title').first().textContent())==='Purchased','A purchase notification is styled as a deal and names the buyer');
+  assert(await guest.locator('#toast-stack .toast-item.tone-deal',{hasText:'Host purchased Puri Beach'}).count()===1&&(await guest.locator('#toast-stack .toast-item.tone-deal .toast-title').first().textContent())==='Purchased','A purchase notification is styled as a deal and names the buyer');
   await page.locator('#turn-action-card [data-action=end]').click();
   await guest.waitForFunction(()=>!document.querySelector('#board-center [data-action=roll]').disabled);
   assert(await page.locator('#board-center [data-action=roll]').isDisabled(),'Host cannot roll during guest turn');
@@ -242,7 +242,7 @@ async (page) => {
   assert((await page.locator('.player-property[data-id="4"]').textContent())==='2'&&(await page.locator('.player-property[data-id="4"]').getAttribute('title')).includes('2 houses'),'The player card chip for this property shows its 2 houses');
   await guest.locator('#game-board [data-id="4"]').click();
   assert(await guest.locator('#modal [data-buildings="2"] .house-icon').count()===2,'Property deed shows the owner and individual house icons');
-  assert((await guest.locator('#modal .rent-table thead').textContent()).includes('All 3 owned')&&(await guest.locator('#modal .rent-table tbody tr').nth(3).textContent()).includes('$120')&&(await guest.locator('#modal .rent-table tbody tr').nth(3).textContent()).includes('$240'),'The deed shows every rent doubled for owning the full color set');
+  assert((await guest.locator('#modal .rent-table thead').textContent()).includes('All 3 owned')&&(await guest.locator('#modal .rent-table tbody tr').nth(3).textContent()).includes('$288')&&(await guest.locator('#modal .rent-table tbody tr').nth(3).textContent()).includes('$576'),'The deed shows every rent doubled for owning the full color set');
   await guest.locator('#modal [data-action=close]').last().click();
   await page.locator('.player-property[data-id="4"]').click();await page.locator('#modal [data-action=manager]').click();
   await page.locator('#modal [data-action=auction][data-id="4"]').click();
@@ -268,7 +268,7 @@ async (page) => {
   assert(await guest.locator('#modal .event-card').evaluate(el=>el.getAnimations().length===0),'Reduced motion suppresses card animation and preserves event state');
   assert(await page.locator('#modal .rarity-tag').count()===1&&/^(COMMON|UNCOMMON|RARE)$/.test(await page.locator('#modal .rarity-tag').textContent()),'The event card shows its rarity');
   room.state=clone(fixture.extras.dieCard);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
-  await page.locator('#modal [data-action=apply-event]:has-text("Roll the die")').waitFor();await guest.locator('#modal .event-card h3:has-text("Lucky customer")').waitFor();
+  await page.locator('#modal [data-action=apply-event]:has-text("Roll the die")').waitFor();await guest.locator('#modal .event-card h3:has-text("IPL fever")').waitFor();
   assert((await page.locator('#modal [data-action=apply-event]').textContent()).includes('Roll the die')&&(await page.locator('#modal').textContent()).includes('Nothing is rolled until you press the button'),'A die card waits for the player to press Roll the die');
   assert(await page.locator('#modal [data-action=apply-event]').isEnabled()&&await guest.locator('#modal [data-action=apply-event]').isDisabled()&&(await guest.locator('#modal').textContent()).includes('rolls the die'),'Only the drawing player can roll the card die; the others see who must roll');
   room.state=clone(fixture.extras.dieRolled);room.revision++;room.transition={action:'apply-event',player:0,dice:room.state.dice,path:[],sounds:['income']};broadcast('mw_rooms',room);
@@ -287,7 +287,7 @@ async (page) => {
   await page.locator('#toast-stack').screenshot({path:'output/playwright/toast-gain.png'});
   room.state=clone(fixture.extras.wheelState);room.revision++;room.transition={action:'roll',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#modal [data-action=spin]').waitFor();await guest.locator('#modal [data-action=spin]').waitFor();
-  assert(await page.locator('#modal [data-action=spin]').isEnabled()&&await guest.locator('#modal [data-action=spin]').isDisabled(),'Only the player standing on the Wheel of Fortune can spin it');
+  assert(await page.locator('#modal [data-action=spin]').isEnabled()&&await guest.locator('#modal [data-action=spin]').isDisabled(),'Only the player standing on the Konark Wheel can spin it');
   assert(await page.locator('#modal .wheel-disc svg text').count()===8,'The wheel shows its eight slices');
   await page.locator('#modal').screenshot({path:'output/playwright/wheel-spin.png'});
   room.state=clone(fixture.extras.spun);room.revision++;room.transition={action:'spin',player:0,dice:room.state.dice,path:[],sounds:['event']};broadcast('mw_rooms',room);
@@ -295,9 +295,9 @@ async (page) => {
   await page.waitForFunction(()=>/rotate\(\d{4}/.test(document.getElementById('wheel-disc')?.style.transform||''),{},{timeout:5000});checks.push('The wheel turns to the slice the server chose');
   await page.locator('#wheel-outcome:not([hidden])').waitFor({timeout:12000});await guest.locator('#wheel-outcome:not([hidden])').waitFor({timeout:12000});
   await page.locator('#modal').screenshot({path:'output/playwright/wheel-result.png'});
-  assert((await page.locator('#wheel-outcome').textContent()).includes('Lost $150')&&(await guest.locator('#wheel-outcome').textContent()).includes('Lost $150'),'Every player sees the same wheel result');
+  assert((await page.locator('#wheel-outcome').textContent()).includes('Lost $200')&&(await guest.locator('#wheel-outcome').textContent()).includes('Lost $200'),'Every player sees the same wheel result');
   await page.locator('#modal [data-action=wheel-continue]').click();await page.locator('#modal').waitFor({state:'hidden'});
-  assert((await page.locator('#game-board [data-id="20"] .tile-kind').textContent()).includes('POT $175'),'The Free Market tile shows the jackpot, fed by the wheel loss');
+  assert((await page.locator('#game-board [data-id="20"] .tile-kind').textContent()).includes('POT $200'),'The Taj Mahal tile shows the jackpot, fed by the wheel loss');
   assert((await page.locator('#modal').count())===0||!(await page.locator('#modal').isVisible()),'The wheel result closes');
   room.state=clone(fixture.extras.freeHouse);room.revision++;room.transition={action:'spin',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#modal [data-action=wheel-continue]').waitFor();await page.locator('#modal [data-action=wheel-continue]').click();
@@ -308,7 +308,7 @@ async (page) => {
   assert(await guest.locator('#modal [data-action=free-build]').count()===0,'Other players do not see the free-house choice');
   room.state=clone(fixture.extras.buffed);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('.perk-badge').first().waitFor();
-  assert((await page.locator('#turn-action-card .perk-badge').allTextContents()).join('|')==='Launch Boost ×2|Tailwind ×2|Shield ×1'&&(await page.locator('.player-card').first().getAttribute('title')).includes('Tailwind ×2'),'Power-ups show on the turn card and in the player card tooltip with their remaining uses');
+  assert((await page.locator('#turn-action-card .perk-badge').allTextContents()).join('|')==='Bonus Salary ×2|Nitro Dice ×2|Neta Pass ×1'&&(await page.locator('.player-card').first().getAttribute('title')).includes('Nitro Dice ×2'),'Power-ups show on the turn card and in the player card tooltip with their remaining uses');
   assert(await page.locator('.player-card').first().locator('.perk-badge').count()===0,'Player cards stay compact: no badges inside');
   assert((await page.locator('#city-banner').textContent()).includes('Property Boom (rents +50%), 2 rounds left.')&&(await page.locator('#city-banner').textContent()).includes('Next round: Tax Audit'),'The board header shows the active City Event and the announced one');
   assert((await page.locator('.city-status').textContent()).includes('Round 5'),'The turn card shows the round and the City Event');
@@ -325,7 +325,7 @@ async (page) => {
   room.state=clone(fixture.extras.pentaGame);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#game-board.poly-board').waitFor();
   await page.waitForFunction(()=>document.querySelectorAll('#game-board .board-tile').length===50,{},{timeout:8000});
-  assert((await page.locator('#game-board [data-id="45"]').getAttribute('aria-label')).startsWith('Hyperloop Station')&&await page.locator('#game-board [data-id="40"]').getAttribute('aria-label')==='Stock Exchange'&&await page.locator('#game-board .poly-felt').count()===1,'A 5-sided game draws 50 spaces as a pentagon with the Stock Exchange corner');
+  assert((await page.locator('#game-board [data-id="45"]').getAttribute('aria-label')).startsWith('Chennai Central')&&await page.locator('#game-board [data-id="40"]').getAttribute('aria-label')==='Dalal Street'&&await page.locator('#game-board .poly-felt').count()===1,'A 5-sided game draws 50 spaces as a pentagon with the Dalal Street corner');
   await page.waitForTimeout(500);
   const polyOk=await page.evaluate(()=>{const b=document.getElementById('game-board').getBoundingClientRect();return [...document.querySelectorAll('#token-layer .player-token:not([hidden]) .pawn-art')].every(p=>{const r=p.getBoundingClientRect();return r.left>=b.left-2&&r.right<=b.right+2&&r.top>=b.top-2&&r.bottom<=b.bottom+2;});});
   assert(polyOk,'Pawns stand on the pentagon board');
@@ -338,7 +338,7 @@ async (page) => {
   room.state=clone(fixture.extras.jailed);room.revision++;room.transition={action:'end',player:0,dice:room.state.dice,path:[],sounds:[]};broadcast('mw_rooms',room);
   await page.locator('#classic-token-0.jailed').waitFor();
   assert(await page.locator('#classic-token-0 .pawn-cage').isVisible()&&await page.locator('#classic-token-1.jailed').count()===0,'A jailed pawn is shown behind bars; free pawns are not');
-  assert((await page.locator('#game-board [data-id="33"] .tile-kind').textContent())==='+$150 INTEREST'&&(await page.locator('#board-center [data-action=release]').textContent()).includes('Pay $150 to leave'),'In round 21 City Bank shows $150 interest and leaving Prison costs $150');
+  assert((await page.locator('#game-board [data-id="33"] .tile-kind').textContent())==='+$150 INTEREST'&&(await page.locator('#board-center [data-action=release]').textContent()).includes('Pay $150 to leave'),'In round 21 Reserve Bank shows $150 interest and leaving Prison costs $150');
   await page.waitForTimeout(700);await page.locator('#game-board .board-tile[data-id="10"]').screenshot({path:'output/playwright/jailed-pawn.png'});
   await page.locator('#modal[data-kind=jail]').waitFor();
   assert(await page.locator('#modal[data-kind=jail] [data-action=roll]').isEnabled()&&(await page.locator('#modal[data-kind=jail] [data-action=release]').textContent()).includes('Pay $150 to leave')&&await page.locator('#modal[data-kind=jail] [data-action=close]').count()===0,'A jailed player gets a Prison popup: roll for doubles or pay, with no way to dismiss it');
