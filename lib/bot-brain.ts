@@ -98,7 +98,7 @@ async function ask(question: string, facts: { you?: string; [detail: string]: un
 
 // What the bot can see, kept short: every call is billed by its size.
 function facts(game: Engine, state: GameState, seat: number) {
-  const holdings = (id: number) => game.board.filter(space => game.asset(space.id).owner === id)
+  const holdings = (id: number) => game.board.filter(space => game.asset(space.id)?.owner === id)
     .map(space => space.name + (game.asset(space.id).buildings ? ' (' + game.asset(space.id).buildings + ' bld)' : '') + (game.asset(space.id).mortgaged ? ' (mortgaged)' : ''));
   return {
     round: state.round ?? state.turn,
