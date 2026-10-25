@@ -1,5 +1,5 @@
 import MarketWars from './game-engine.cjs';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { memberIndex, requireRevision } from './game-actions';
 import { ApiError } from './validation';
@@ -14,7 +14,9 @@ function hostLobby(room:Room, actor:string, expected:number) {
 export function addBotMembers(room:Room, actor:string, expected:number):Member[] {
   hostLobby(room,actor,expected);
   if (room.members.length >= MarketWars.MAX_PLAYERS) throw new ApiError(409,'This room is full. Bots count toward the ' + MarketWars.MAX_PLAYERS + '-player limit.');
-  const name = ['Bot Ada','Bot Atlas','Bot Nova','Bot Quinn','Bot Echo','Bot Vega'].find(name => !room.members.some(m => m.name.toLowerCase() === name.toLowerCase()))!;
+  // A random free name each time, so a new table doesn't always start with the same bot (and personality).
+  const free = ['Bot Ada','Bot Atlas','Bot Nova','Bot Quinn','Bot Echo','Bot Vega'].filter(name => !room.members.some(m => m.name.toLowerCase() === name.toLowerCase()));
+  const name = free[randomInt(free.length)];
   const token = (['lime','magenta','blue','black','orange','cyan'] as Token[]).find(token => !room.members.some(m => m.token === token))!;
   // This identifier is a game seat, never a Supabase Auth account or credential.
   return [...room.members,{name,token,user_id:randomUUID(),seat:room.members.length,type:'bot'}];
