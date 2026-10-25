@@ -161,7 +161,9 @@ test('Revision and input validation reject stale or malformed requests', () => {
   assert.throws(() => command({ action: 'bid', increment: 10.5 }), /whole amount/);
   assert.throws(() => command({ action: 'replace-state' }), /Unknown/);
   assert.throws(() => profile({ name: 'A', token: 'admin' }), /color/);
-  assert.deepEqual(profile({ name: ' A ', role: 'monopolist', token: 'blue' }), { name: 'A', token: 'blue' }, 'Legacy role fields are dropped');
+  assert.deepEqual(profile({ name: ' A ', role: 'monopolist', token: 'blue' }), { name: 'A', token: 'blue', mode: null }, 'Legacy role fields are dropped');
+  assert.deepEqual(profile({ name: 'A', token: 'blue', sides: 4, mode: 'buffed' }), { name: 'A', token: 'blue', sides: 4, mode: 'buffed' }, 'Classic Super Buffed is kept');
+  assert.equal(profile({ name: 'A', token: 'blue', sides: 5, mode: 'buffed' }).mode, null, 'but only on the square board');
 });
 
 test('A card die marks its move so bots and turn timers wait for the throw to play', async () => {

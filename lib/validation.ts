@@ -13,7 +13,8 @@ export function profile(value: Record<string, unknown>): Profile {
   if (!['black', 'blue', 'magenta', 'lime', 'orange', 'cyan'].includes(String(value.token))) throw new ApiError(400, 'Choose a player color.');
   // Only the Host's choice of board is used; anyone else's is ignored when the game starts.
   const sides = Number(value.sides);
-  return { name: value.name.trim(), token: value.token, ...([4, 5].includes(sides) ? { sides } : {}) } as Profile;
+  return { name: value.name.trim(), token: value.token, ...([4, 5].includes(sides) ? { sides } : {}), // mode is always sent (null when off): the room merges profiles, so an omitted key would keep an old 'buffed'.
+    mode: value.mode === 'buffed' && sides !== 5 ? 'buffed' : null } as unknown as Profile;
 }
 export function requestId(value: unknown) {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) throw new ApiError(400, 'Invalid request identifier.');

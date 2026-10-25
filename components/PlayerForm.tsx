@@ -13,20 +13,25 @@ export const TOKENS: Record<Token, { label: string; color: string }> = {
   cyan: { label: 'Cyan', color: '#00d5ff' },
 };
 const isToken = (value: unknown): value is Token => typeof value === 'string' && value in TOKENS;
-// The two boards. Each new side adds a corner, two colour groups, a station and two card or tax spaces.
-export const BOARD_CHOICES: { sides: BoardSides; name: string; detail: string }[] = [
-  { sides: 4, name: 'Classic', detail: 'Square · 40 spaces' },
-  { sides: 5, name: 'Skyline', detail: 'Pentagon · 50 spaces' },
+// The boards. Skyline adds a side (a corner, two colour groups, a station and two card or tax spaces);
+// Classic Super Buffed is the square board with big money, build-to-tower and a flat $500 jail fine.
+export type BoardId = 'classic' | 'skyline' | 'buffed';
+export const BOARD_CHOICES: { id: BoardId; sides: BoardSides; mode?: 'buffed'; name: string; detail: string; start: string }[] = [
+  { id: 'classic', sides: 4, name: 'Classic', detail: 'Square · 40 spaces', start: '$1,500' },
+  { id: 'skyline', sides: 5, name: 'Skyline', detail: 'Pentagon · 50 spaces', start: '$1,575' },
+  { id: 'buffed', sides: 4, mode: 'buffed', name: 'Classic Super Buffed', detail: '$5k start · $3k Launch · build to tower', start: '$5,000' },
 ];
+export const boardOf = (profile?: { sides?: BoardSides; mode?: string }): BoardId => profile?.sides === 5 ? 'skyline' : profile?.mode === 'buffed' ? 'buffed' : 'classic';
+export const boardProfile = (id: BoardId) => { const choice = BOARD_CHOICES.find(item => item.id === id)!; return { sides: choice.sides, ...(choice.mode ? { mode: choice.mode } : {}) }; };
 export function BoardIcon({ sides }: { sides: BoardSides }) {
   const points = Array.from({ length: sides }, (_, k) => { const a = (90 - 180 / sides + k * 360 / sides) * Math.PI / 180; return (12 + 10 * Math.cos(a)).toFixed(2) + ',' + (12 + 10 * Math.sin(a)).toFixed(2); }).join(' ');
   return <svg className="board-icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points={points} /></svg>;
 }
-export function BoardPicker({ value, onChange, disabled }: { value: BoardSides; onChange: (sides: BoardSides) => void; disabled?: boolean }) {
+export function BoardPicker({ value, onChange, disabled }: { value: BoardId; onChange: (board: BoardId) => void; disabled?: boolean }) {
   return <fieldset className="board-picker" id="online-board">
     <legend>Board size</legend>
-    {BOARD_CHOICES.map(choice => <label key={choice.sides} className={'board-option' + (value === choice.sides ? ' selected' : '')}>
-      <input type="radio" name="online-board" value={choice.sides} checked={value === choice.sides} disabled={disabled} onChange={() => onChange(choice.sides)} />
+    {BOARD_CHOICES.map(choice => <label key={choice.id} className={'board-option' + (value === choice.id ? ' selected' : '')}>
+      <input type="radio" name="online-board" value={choice.id} checked={value === choice.id} disabled={disabled} onChange={() => onChange(choice.id)} />
       <BoardIcon sides={choice.sides} /><span><b>{choice.name}</b>{choice.detail}</span>
     </label>)}
   </fieldset>;
@@ -47,7 +52,7 @@ export default function PlayerForm({ initial, members = [], taken: takenTokens =
     try {
       const saved = JSON.parse(localStorage.getItem('market-wars-profile') || 'null') as Profile | null;
       // The last board size the Host chose is remembered with their name and colour.
-      if (saved) setPlayer({ name: saved.name || '', token: firstFree(saved.token), ...(saved.sides === 5 ? { sides: 5 as const } : {}) });
+      if (saved) setPlayer({ name: saved.name || '', token: firstFree(saved.token), ...(saved.sides === 5 ? { sides: 5 as const } : {}), ...(saved.mode === 'buffed' && saved.sides !== 5 ? { mode: 'buffed' as const } : {}) });
     } catch { /* Use the empty player form. */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
@@ -66,7 +71,7 @@ export default function PlayerForm({ initial, members = [], taken: takenTokens =
       </label>)}
     </fieldset>
     {free.length < Object.keys(TOKENS).length && <p className="setup-role-note" role="status">{free.length === 1 ? 'Only ' + TOKENS[free[0]].label.toLowerCase() + ' is left.' : free.length ? free.length + ' colors are still free.' : 'Every color is taken: this room is full.'}</p>}
-    {boardChoice && <BoardPicker value={player.sides || 4} onChange={sides => setPlayer({ ...player, sides })} />}
+    {boardChoice && <BoardPicker value={boardOf(player)} onChange={board => setPlayer({ name: player.name, token: player.token, ...boardProfile(board) })} />}
     <p className="setup-role-note">Everyone plays by the same rules. Build on your own property each time you land on it.</p>
     <button className="primary full" type="submit" disabled={busy || !free.length}>{busy ? 'Connecting…' : label}</button>
   </form>;

@@ -23,8 +23,8 @@ export function startGame(room: Room, actor: string) {
   const error = MarketWars.validatePlayers(room.members);
   if (error) throw new ApiError(400, error);
   // The Host picks the board in the lobby (stored on their member entry): 4 sides (40 spaces) or 5 (50).
-  const sides = room.members.find(member => member.user_id === room.host_id)?.sides;
-  const game = new MarketWars.Game(room.members, {}, { ...options, sides: sides === 5 ? 5 : 4 });
+  const host = room.members.find(member => member.user_id === room.host_id), sides = host?.sides;
+  const game = new MarketWars.Game(room.members, {}, { ...options, sides: sides === 5 ? 5 : 4, mode: sides !== 5 && host?.mode === 'buffed' ? 'buffed' : undefined });
   game.state.players.forEach((player, seat) => { player.type = room.members[seat].type === 'bot' ? 'bot' : 'human'; });
   return JSON.parse(game.serialize()) as GameState;
 }

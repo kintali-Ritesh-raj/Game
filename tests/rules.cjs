@@ -561,6 +561,27 @@ test('every 3rd round is a single-die round: one die, no doubles, and only a 6 l
   g.state.round = 3; assert.ok(g.cityLines().some(line => /Single-die round/.test(line)));
   const saved = create(); saved.state.dice = [5]; assert.deepEqual([...Game.restore(saved.serialize()).state.dice], [5], 'a one-die save loads');
 });
+test('Classic Super Buffed: $5,000 start, $3,000 Launch, build to the tower in one visit, flat $500 jail, 3 tries', async () => {
+  const make = (random = () => .4) => new Game(players.slice(0, 2), {}, { mode: 'buffed', random, wait: async () => {} });
+  let game = make(); assert.equal(game.state.mode, 'buffed'); assert.deepEqual(game.state.players.map(p => p.cash), [5000, 5000]); assert.equal(game.board.length, 40);
+  game.active.position = 39; await game.movePlayer(1, { resolve: false }); assert.equal(game.active.cash, 8000, 'passing Gateway of India pays $3,000');
+  game = make(); own(game, 1); own(game, 2);
+  for (let level = 1; level <= 5; level++) { assert.equal(build(game, 1), undefined); game.state.turn--; }
+  assert.equal(game.asset(1).buildings, 5, 'one property goes all the way to a tower'); assert.equal(game.asset(2).buildings, 0, 'no even-building rule');
+  game = make(); own(game, 1); Object.assign(game.state, { phase: 'end', hasRolled: true, extraRoll: false }); game.active.position = 1;
+  game.buildStructure(1); game.buildStructure(1); game.buildStructure(1); assert.equal(game.asset(1).buildings, 3, 'several levels on the same landing');
+  game.sellBuilding(1); assert.equal(game.asset(1).buildings, 2);
+  game = make(); game.asset(1).owner = 0; game.asset(1).ready = false; Object.assign(game.state, { phase: 'end', hasRolled: true }); game.active.position = 1;
+  assert.match(game.buildReason(game.active, 1), /again/, 'a just-bought property still needs another landing first');
+  game = make(); game.state.round = 100; assert.equal(game.prisonFine(), 500, 'the jail fine is a flat $500, even late');
+  assert.equal(game.prisonTries(), 3);
+  game = make(() => 0); game.active.penalty = { kind: 'prison', attempts: 2 }; game.active.position = 10; game.state.phase = 'ready';
+  let k = 0; const draws = [0, .2]; game.random = () => draws[k++] ?? .5; await game.rollDice(); await drain(game);
+  assert.equal(game.active.penalty, null, 'after 3 failed rolls you walk out free');
+  assert.equal(Game.restore(make().serialize()).state.mode, 'buffed', 'a saved game keeps its mode');
+  assert.equal(new Game(players.slice(0, 2), {}, { mode: 'buffed', sides: 5 }).state.mode, undefined, 'only on the square board');
+  const plain = create(); assert.equal(plain.state.mode, undefined); assert.equal(plain.prisonTries(), 5);
+});
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
   game.forfeit(0);

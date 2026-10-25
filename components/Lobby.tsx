@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import PlayerForm, { BOARD_CHOICES, BoardIcon, BoardPicker, TOKENS, TokenDot } from './PlayerForm';
+import PlayerForm, { BOARD_CHOICES, BoardIcon, BoardPicker, TOKENS, TokenDot, boardOf, boardProfile } from './PlayerForm';
 // Up to six players per table, bots included.
 const MAX_SEATS = 6;
-import type { BoardSides, Connection, Profile, Room, Token } from '@/lib/types';
+import type { Connection, Profile, Room, Token } from '@/lib/types';
 
 export default function Lobby({ room, userId, connections, busy, connected, start, leave, updateProfile, addBot, removeBot }: {
   room: Room; userId: string; connections: Connection[]; busy: boolean; connected: boolean;
@@ -20,7 +20,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
   const host = room.members.find(member => member.user_id === room.host_id);
   const mine = room.members.find(member => member.user_id === userId);
   const canStart = room.members.length >= 2;
-  const sides: BoardSides = host?.sides === 5 ? 5 : 4, board = BOARD_CHOICES.find(choice => choice.sides === sides)!;
+  const boardId = boardOf(host), board = BOARD_CHOICES.find(choice => choice.id === boardId)!;
   const copy = async (value: string, kind: string) => {
     try { await navigator.clipboard.writeText(value); setCopied(kind + ' copied.'); }
     catch { setCopied('Select the ' + kind.toLowerCase() + ' below and copy it manually.'); }
@@ -39,8 +39,8 @@ export default function Lobby({ room, userId, connections, busy, connected, star
     </div>
     <div className="lobby-board">
       {room.host_id === userId && mine
-        ? <BoardPicker value={sides} disabled={busy || !connected} onChange={next => { if (next !== sides) void updateProfile({ name: mine.name, token: mine.token, sides: next }).catch(() => {}); }} />
-        : <p className="lobby-board-choice"><BoardIcon sides={sides} /><span>Board: <b>{board.name}</b> · {board.detail}</span></p>}
+        ? <BoardPicker value={boardId} disabled={busy || !connected} onChange={next => { if (next !== boardId) void updateProfile({ name: mine.name, token: mine.token, ...boardProfile(next) }).catch(() => {}); }} />
+        : <p className="lobby-board-choice"><BoardIcon sides={board.sides} /><span>Board: <b>{board.name}</b> · {board.detail}</span></p>}
     </div>
     <ul className="lobby-players" aria-label="Lobby players">
       {room.members.map(member => {
@@ -60,8 +60,8 @@ export default function Lobby({ room, userId, connections, busy, connected, star
       <p>{room.members.length >= MAX_SEATS ? 'Table full. Remove a bot to free a seat.' : 'Bots buy, build and bid automatically. Up to six players, including bots.'}</p>
     </div>}
     <div className="lobby-choices"><button className="secondary" onClick={() => setEditing(!editing)} disabled={busy}>{editing ? 'Close choices' : 'Edit my name & color'}</button></div>
-    {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile({ ...player, ...(room.host_id === userId ? { sides } : {}) }); setEditing(false); }} />}
-    <p className="lobby-note">Everyone starts with {sides === 5 ? '$1,575' : '$1,500'} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
+    {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile({ ...player, ...(room.host_id === userId ? boardProfile(boardId) : {}) }); setEditing(false); }} />}
+    <p className="lobby-note">Everyone starts with {board.start} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
     <div className="setup-footer"><button className="secondary" onClick={() => void leave()} disabled={busy}>Leave lobby</button>
       {room.host_id === userId
         ? <button className="primary large" onClick={() => void start().catch(() => {})} disabled={busy || !connected || !canStart}>Start Game <span aria-hidden="true">↗</span></button>

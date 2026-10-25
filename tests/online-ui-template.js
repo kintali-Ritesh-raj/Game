@@ -96,7 +96,7 @@ async (page) => {
   assert((await page.locator('#room-link-display').inputValue()).endsWith('/game/AB12CD'),'Share link has the room route');
   await page.getByRole('button',{name:'Copy Code',exact:true}).click();
   assert((await page.locator('.copy-status').textContent()).length>0,'Copy Code gives feedback');
-  assert(await page.locator('.lobby-board .board-option').count()===2&&(await page.locator('.lobby-board .board-option.selected').textContent()).includes('Classic'),'The Host picks the board in the lobby: Classic or Skyline (5 sides); the hexagon is gone');
+  assert(await page.locator('.lobby-board .board-option').count()===3&&(await page.locator('.lobby-board .board-option.selected').textContent()).includes('Classic'),'The Host picks the board in the lobby: Classic or Skyline (5 sides); the hexagon is gone');
   await guest.goto('http://localhost:3000/game/AB12CD');await guest.locator('#online-name').fill('Guest');
   await guest.locator('.token-option.taken:has(input[value=black])').waitFor({timeout:8000});
   assert(await guest.locator('.token-option:has(input[value=black]) input').isDisabled()&&(await guest.locator('.token-option.taken').count())===1,'A joining player sees the colour already chosen by the Host as taken and cannot pick it');
@@ -115,7 +115,7 @@ async (page) => {
   await guest.locator('.lobby-board-choice:has-text("Skyline")').waitFor({timeout:8000});
   assert((await guest.locator('.lobby-board-choice').textContent()).includes('Pentagon · 50 spaces'),'The Host’s board choice is shown to every player');
   await page.locator('.online-lobby').screenshot({path:'output/playwright/lobby-colors-board.png'});
-  await page.locator('.lobby-board .board-option:has-text("Classic")').click();await guest.locator('.lobby-board-choice:has-text("Classic")').waitFor({timeout:8000});
+  await page.locator('.lobby-board .board-option:has-text("Square · 40 spaces")').click();await guest.locator('.lobby-board-choice:has-text("Classic")').waitFor({timeout:8000});
   await guest.screenshot({path:'output/playwright/online-lobby-mobile.png',fullPage:true});
   await page.getByRole('button',{name:'Start Game'}).click();await page.locator('#game-screen').waitFor({state:'visible'});await guest.locator('#game-screen').waitFor({state:'visible'});
   await page.locator('#turn-action-card [data-action=roll]').waitFor();

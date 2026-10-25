@@ -1,12 +1,14 @@
 export type Token = 'black' | 'blue' | 'magenta' | 'lime' | 'orange' | 'cyan';
 export type BoardSides = 4 | 5;
 // `sides` is the Host's board choice (only the Host's is used).
-export type Profile = { name: string; token: Token; sides?: BoardSides };
+// `mode: 'buffed'` on the square board is Classic Super Buffed.
+export type GameMode = 'buffed';
+export type Profile = { name: string; token: Token; sides?: BoardSides; mode?: GameMode };
 export type Member = Profile & { user_id: string; seat: number; type?: 'human' | 'bot' };
 export type Stats = Record<'propertiesPurchased' | 'rentEarned' | 'rentPaid' | 'buildingsBuilt' | 'taxesPaid' | 'startBonuses' | 'auctionWins' | 'cardsDrawn' | 'turnsPlayed' | 'bonusIncome', number>;
 export type Player = Profile & { id: number; type?: 'human' | 'bot'; cash: number; position: number; bankrupt: boolean; penalty: { kind: 'prison'; attempts: number } | null; jailFree?: number; perks?: Record<'launch' | 'tailwind' | 'shield' | 'doubler' | 'reversal', number>; stats: Stats; color: string };
 export type GameState = {
-  sides?: BoardSides; earnings?: number;
+  sides?: BoardSides; mode?: GameMode; earnings?: number;
   version: number; players: Player[]; properties: Record<string, { owner: number | null; buildings: number; mortgaged: boolean; ready?: boolean }>;
   currentPlayer: number; turn: number; phase: 'ready' | 'end' | 'offer' | 'auction' | 'trade' | 'wheel' | 'freebuild' | 'event' | 'debt' | 'victory' | 'rolling' | 'moving';
   dice: number[]; offer: number | null; extraRoll: boolean; hasRolled: boolean; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
