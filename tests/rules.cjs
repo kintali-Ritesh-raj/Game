@@ -35,7 +35,7 @@ test('2, 3 and 4 players start with valid state and $1,500 each', () => {
     assert.equal(game.active.id, 0);
   }
   assert.equal(BOARD.length, 40);
-  assert.equal(DECKS.market.length, 52); assert.equal(DECKS.economic.length, 52);
+  assert.equal(DECKS.market.length, 53, '52 + Hostile Takeover (Super Buffed only)'); assert.equal(DECKS.economic.length, 52);
   assert.equal(game0().state.jackpot, 100); assert.equal(game0().state.round, 1); assert.ok(game0().state.players.every(player => player.jailFree === 0));
 });
 test('setup rejects repeated names, repeated tokens and blank names; no roles are needed', () => {
@@ -226,7 +226,7 @@ test('every event resolves, and effects cannot apply twice', async () => {
     for (let index = 0; index < cards.length; index++) {
       const game = create(4); own(game, 4, 1); game.asset(4).buildings = 2;
       game.state.event = { deck: name, index }; game.state.phase = 'event';
-      await game.applyCard(); await drain(game);
+      await game.applyCard(cards[index].effect === 'hijack' ? 4 : undefined); await drain(game);
       assert.ok(['end', 'offer', 'debt', 'auction', 'event', 'wheel'].includes(game.state.phase), cards[index].title + ' ended in ' + game.state.phase);
       assert.ok(game.state.players.every(player => player.cash >= 0));
       if (game.state.phase !== 'event') await assert.rejects(game.applyCard());
@@ -235,7 +235,7 @@ test('every event resolves, and effects cannot apply twice', async () => {
 });
 test('52 cards per deck are drawn by rarity (70/25/5) and never repeat within 12 draws', () => {
   for (const [name, cards] of Object.entries(DECKS)) {
-    assert.equal(cards.length, 52);
+    assert.equal(cards.filter(card => !card.buffedOnly).length, 52);
     for (const tier of Object.keys(RARITY_WEIGHTS)) assert.ok(cards.some(card => card.rarity === tier), name + ' has ' + tier + ' cards');
     assert.ok(cards.every(card => card.title && card.text && card.effect));
     const game = create(2, randomSeed(7)), draws = [], tiers = { common: 0, uncommon: 0, rare: 0 };
@@ -581,6 +581,19 @@ test('Classic Super Buffed: $5,000 start, $3,000 Launch, build to the tower in o
   assert.equal(Game.restore(make().serialize()).state.mode, 'buffed', 'a saved game keeps its mode');
   assert.equal(new Game(players.slice(0, 2), {}, { mode: 'buffed', sides: 5 }).state.mode, undefined, 'only on the square board');
   const plain = create(); assert.equal(plain.state.mode, undefined); assert.equal(plain.prisonTries(), 5);
+});
+test('Hostile Takeover: Super Buffed only; seize any rival property with its buildings, then land on it again to build', async () => {
+  const index = DECKS.market.findIndex(card => card.effect === 'hijack');
+  assert.equal(DECKS.market[index].title, 'Hostile Takeover');
+  const plain = create(); for (let i = 0; i < 300; i++) { plain.drawCard('market'); assert.notEqual(plain.state.event.index, index, 'never drawn outside Super Buffed'); plain.state.phase = 'end'; }
+  const make = () => new Game(players.slice(0, 3), {}, { mode: 'buffed', random: () => .4, wait: async () => {} });
+  let game = make(); own(game, 1, 1); own(game, 39, 2); game.asset(39).buildings = 3; own(game, 3 + 3, 0);
+  assert.deepEqual([...game.hijackTargets().map(space => space.id)], [39, 1], 'rival properties, highest rent first; never your own');
+  game.state.event = { deck: 'market', index }; game.state.phase = 'event';
+  await assert.rejects(() => game.applyCard(), /Choose a rival property/); await assert.rejects(() => game.applyCard(6), /Choose a rival property/);
+  await game.applyCard(39); assert.equal(game.asset(39).owner, 0); assert.equal(game.asset(39).buildings, 3, 'buildings come too'); assert.equal(game.asset(39).ready, false, 'land on it again before building');
+  assert.equal(game.state.phase, 'end'); assert.ok(game.state.log.some(entry => /Hostile Takeover! Ritesh seizes Marine Drive with its buildings from/.test(entry.message)));
+  game = make(); game.state.event = { deck: 'market', index }; game.state.phase = 'event'; await game.applyCard(); assert.equal(game.state.phase, 'end', 'nothing to seize: the card passes');
 });
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;

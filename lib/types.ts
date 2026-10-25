@@ -11,7 +11,7 @@ export type GameState = {
   sides?: BoardSides; mode?: GameMode; earnings?: number;
   version: number; players: Player[]; properties: Record<string, { owner: number | null; buildings: number; mortgaged: boolean; ready?: boolean }>;
   currentPlayer: number; turn: number; phase: 'ready' | 'end' | 'offer' | 'auction' | 'trade' | 'wheel' | 'freebuild' | 'event' | 'debt' | 'victory' | 'rolling' | 'moving';
-  dice: number[]; offer: number | null; extraRoll: boolean; hasRolled: boolean; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
+  dice: number[]; offer: number | null; event?: { deck: string; index: number } | null; extraRoll: boolean; hasRolled: boolean; pending: { payer: number; creditor: number | null; amount: number; reason: string } | null;
   log: { id: number; turn: number; message: string; kind: string; tone?: 'gain' | 'loss' | 'power' | 'prison' | 'deal' | 'city'; player?: number; remark?: string }[];
   auction: { bidder: number; property: number; seller?: number | null; returnPhase?: 'ready' | 'end'; bid: number; leader: number | null; order: number[]; passed: number[] } | null;
   round?: number; jackpot?: number;

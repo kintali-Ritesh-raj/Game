@@ -146,6 +146,12 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
   return offers[0]?.offer || null;
 }
 
+/** Resolve the drawn card; a Hostile Takeover seizes the rival property with the highest rent. */
+function eventCommand(game:Engine):Command {
+  const event = game.state.event, card = event && MarketWars.DECKS[event.deck as 'market' | 'economic'][event.index];
+  if (card?.effect === 'hijack') { const target = game.hijackTargets()[0]; if (target) return {action:'apply-event', id:target.id}; }
+  return {action:'apply-event'};
+}
 /** The Free house prize: bots (and timeouts) build on the lowest-built eligible property, lowest property first on ties. */
 function freeHouse(game:Engine, player:Seat):Command {
   const target = game.freeBuildTargets(player).sort((a,b) => game.asset(a.id).buildings-game.asset(b.id).buildings || a.id-b.id)[0];
@@ -171,7 +177,7 @@ export function timeoutCommand(state: GameState): Command | { action: 'timeout' 
     const developed = game.owned(player).filter(space => !game.sellReason(player, space.id)).sort((a, b) => rent(a.id) - rent(b.id))[0];
     return developed ? {action:'sell', id:developed.id} : {action:'bankrupt'};
   }
-  if (state.phase === 'event') return {action:'apply-event'};
+  if (state.phase === 'event') return eventCommand(game);
   if (state.phase === 'wheel') return {action:'spin'};
   if (state.phase === 'freebuild') return freeHouse(game, player);
   if (state.phase === 'ready' && player.penalty) return {action:'release'};
@@ -199,7 +205,7 @@ export function chooseBotAction(state: GameState): Command | null {
       const value = (completesWith(game, player.id, property.id) ? property.price * 1.5 : property.price) + game.asset(property.id).buildings * property.buildingCost * .5;
       return auction.bid + 10 <= Math.min(value, player.cash - reserve) ? {action:'bid',increment:10} : {action:'pass'};
     }
-    case 'event': return {action:'apply-event'};
+    case 'event': return eventCommand(game);
     case 'wheel': return {action:'spin'};
     case 'freebuild': return freeHouse(game, player);
     case 'debt': {
