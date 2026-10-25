@@ -66,7 +66,7 @@ const PERSONAS: Record<string, string> = {
   'Bot Vega': 'You are a gambler: love auctions and bold bids, quick to take a chance.',
 };
 
-async function ask(question: string, facts: { you?: string }): Promise<Verdict | null> {
+async function ask(question: string, facts: { you?: string; [detail: string]: unknown }): Promise<Verdict | null> {
   if (!client) return null;
   const persona = PERSONAS[facts.you || ''];
   if (persona) question = persona + '\n' + question;
