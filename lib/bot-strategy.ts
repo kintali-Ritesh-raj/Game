@@ -150,6 +150,7 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
 function eventCommand(game:Engine):Command {
   const event = game.state.event, card = event && MarketWars.DECKS[event.deck as 'market' | 'economic'][event.index];
   if (card?.effect === 'hijack') { const target = game.hijackTargets()[0]; if (target) return {action:'apply-event', id:target.id}; }
+  if (card?.effect === 'swap') { const target = game.swapTargets()[0]; if (target) return {action:'apply-event', id:target.id}; }
   return {action:'apply-event'};
 }
 /** The Free house prize: bots (and timeouts) build on the lowest-built eligible property, lowest property first on ties. */

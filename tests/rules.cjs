@@ -35,7 +35,7 @@ test('2, 3 and 4 players start with valid state and $1,500 each', () => {
     assert.equal(game.active.id, 0);
   }
   assert.equal(BOARD.length, 40);
-  assert.equal(DECKS.market.length, 53, '52 + Hostile Takeover (Super Buffed only)'); assert.equal(DECKS.economic.length, 52);
+  assert.equal(DECKS.market.length, 53, '52 + Hostile Takeover (Super Buffed only)'); assert.equal(DECKS.economic.length, 53, '52 + Grand Swap (Super Buffed only)');
   assert.equal(game0().state.jackpot, 100); assert.equal(game0().state.round, 1); assert.ok(game0().state.players.every(player => player.jailFree === 0));
 });
 test('setup rejects repeated names, repeated tokens and blank names; no roles are needed', () => {
@@ -226,7 +226,7 @@ test('every event resolves, and effects cannot apply twice', async () => {
     for (let index = 0; index < cards.length; index++) {
       const game = create(4); own(game, 4, 1); game.asset(4).buildings = 2;
       game.state.event = { deck: name, index }; game.state.phase = 'event';
-      await game.applyCard(cards[index].effect === 'hijack' ? 4 : undefined); await drain(game);
+      await game.applyCard(cards[index].effect === 'hijack' ? 4 : cards[index].effect === 'swap' ? 1 : undefined); await drain(game);
       assert.ok(['end', 'offer', 'debt', 'auction', 'event', 'wheel'].includes(game.state.phase), cards[index].title + ' ended in ' + game.state.phase);
       assert.ok(game.state.players.every(player => player.cash >= 0));
       if (game.state.phase !== 'event') await assert.rejects(game.applyCard());
@@ -594,6 +594,63 @@ test('Hostile Takeover: Super Buffed only; seize any rival property with its bui
   await game.applyCard(39); assert.equal(game.asset(39).owner, 0); assert.equal(game.asset(39).buildings, 3, 'buildings come too'); assert.equal(game.asset(39).ready, false, 'land on it again before building');
   assert.equal(game.state.phase, 'end'); assert.ok(game.state.log.some(entry => /Hostile Takeover! Ritesh seizes Marine Drive with its buildings from/.test(entry.message)));
   game = make(); game.state.event = { deck: 'market', index }; game.state.phase = 'event'; await game.applyCard(); assert.equal(game.state.phase, 'end', 'nothing to seize: the card passes');
+});
+test('Grand Swap: Super Buffed only; swap every property (buildings too) with a chosen rival, cash stays', async () => {
+  const index = DECKS.economic.findIndex(card => card.effect === 'swap');
+  assert.equal(DECKS.economic[index].title, 'Grand Swap'); assert.equal(DECKS.economic[index].rarity, 'rare');
+  const make = () => new Game(players.slice(0, 3), {}, { mode: 'buffed', random: () => .4, wait: async () => {} });
+  const game = make(); own(game, 1, 0); own(game, 39, 2); own(game, 37, 2); game.asset(39).buildings = 4; game.player(2).cash = 9000;
+  game.state.event = { deck: 'economic', index }; game.state.phase = 'event';
+  await assert.rejects(() => game.applyCard(0), /Choose a rival/);
+  await game.applyCard(2);
+  assert.deepEqual([game.asset(1).owner, game.asset(39).owner, game.asset(37).owner], [2, 0, 0], 'every property changes hands');
+  assert.equal(game.asset(39).buildings, 4, 'with its buildings'); assert.equal(game.asset(39).ready, false);
+  assert.deepEqual([game.player(0).cash, game.player(2).cash], [5000, 9000], 'cash stays put');
+});
+test('Today’s Buff: the date picks one twist (Wildcard picks two); a game keeps its twist', () => {
+  const day = 86400000, start = Date.UTC(2026, 9, 26) - 5.5 * 3600000;
+  const week = Array.from({ length: 14 }, (_, i) => context.MarketWars.twistsFor(start + i * day));
+  assert.equal(new Set(week.filter(list => list.length === 1).map(list => list[0])).size, 13, '13 single twists in a fortnight');
+  const wild = week.find(list => list.length === 2); assert.ok(wild && wild[0] !== wild[1], 'Wildcard is two different twists');
+  assert.deepEqual(context.MarketWars.twistsFor(start + 3600000), context.MarketWars.twistsFor(start + 20 * 3600000), 'the same all day');
+  const game = new Game(players.slice(0, 2), {}, { mode: 'buffed', twists: ['monsoon'] });
+  assert.deepEqual([...Game.restore(game.serialize()).state.twists], ['monsoon']); assert.deepEqual(create().state.twists, undefined, 'no twists outside Super Buffed');
+  assert.ok(game.cityLines().some(line => /Today’s Buff: Monsoon/.test(line)));
+});
+test('the 14 twists each change the game as described', async () => {
+  const make = (twists, random = () => .4, count = 2) => new Game(players.slice(0, count), {}, { mode: 'buffed', twists, random, wait: async () => {} });
+  const roll = async (game, draws) => { let k = 0; game.random = () => draws[k++] ?? .4; game.state.phase = 'ready'; game.state.hasRolled = false; await game.rollDice(); await drain(game); };
+  // Gold Rush
+  let g = make(['goldrush']); own(g, 1, 1); land(g, 1); assert.equal(g.state.jackpot, 200, 'rent adds $100 to the pot');
+  // Mega Dice: three dice; three of a kind goes to the Taj Mahal; a pair frees a prisoner
+  g = make(['megadice']); await roll(g, [.1, .2, .5]); assert.equal(g.state.dice.length, 3); assert.equal(g.active.position, 7, '1 + 2 + 4');
+  g = make(['megadice']); await roll(g, [.5, .5, .5]); assert.equal(g.active.position, 20, 'three of a kind jumps to the Taj Mahal');
+  g = make(['megadice']); g.active.penalty = { kind: 'prison', attempts: 0 }; g.active.position = 10; await roll(g, [.1, .1, .5]); assert.equal(g.active.penalty, null);
+  // Monsoon
+  g = make(['monsoon']); own(g, 1, 1); assert.equal(g.calculateRent(1), 4); assert.equal(g.buildingCost(g.active, BOARD[1]), 25);
+  // Diwali Dhamaka
+  g = make(['dhamaka']); await playCard(g, 'market', 'Startup unicorn'); assert.equal(g.active.cash, 5300, 'card wins doubled');
+  // Double Trouble
+  g = make(['doubletrouble']); await roll(g, [.5, .5]); assert.equal(g.active.cash, 5500, 'doubles pay $500');
+  g = make(['doubletrouble']); g.state.doublesCount = 2; await roll(g, [0, 0]); assert.equal(g.active.penalty, null, 'three doubles: no jail');
+  // Tower Rush
+  g = make(['towerrush']); own(g, 39); g.asset(39).ready = false; g.state.phase = 'ready';
+  assert.equal(g.buildReason(g.active, 39), '', 'build without landing'); g.buildStructure(39); g.buildStructure(39); assert.equal(g.asset(39).buildings, 2);
+  // Tax Holiday
+  g = make(['taxholiday']); land(g, 5); land(g, 25); assert.equal(g.active.cash, 5000);
+  // Robin Hood Day: every 5 rounds 30% of the richest player's cash goes to the poorest
+  g = make(['robinhood']); g.player(0).cash = 10000; g.player(1).cash = 1000; g.state.round = 4; g.advanceRound();
+  assert.deepEqual([g.player(0).cash, g.player(1).cash], [7000, 4000]);
+  // Railway Boom
+  g = make(['railway']); own(g, 8, 1); assert.equal(g.calculateRent(8), 150);
+  // Jackpot Fever
+  g = make(['jackpotfever']); assert.equal(g.state.jackpot, 5000); g.state.currentPlayer = 1; land(g, 20); assert.equal(g.player(1).cash, 10000); assert.equal(g.state.jackpot, 5000);
+  // Bollywood Night: a surprise $0–$5,000 on top of the $3,000
+  g = make(['bollywood'], () => .5); g.active.position = 39; await g.movePlayer(1, { resolve: false }); assert.equal(g.active.cash, 5000 + 3000 + 2500);
+  // Speed Run: one die, plus 6 spaces
+  g = make(['speedrun']); await roll(g, [.5]); assert.deepEqual([...g.state.dice], [4]); assert.equal(g.active.position, 10, '4 + 6 spaces');
+  // Mafia Mode: the player with the most properties collects double
+  g = make(['mafia']); own(g, 1, 1); own(g, 3 + 1, 1); assert.equal(g.calculateRent(1), 16); own(g, 6, 0); own(g, 7, 0); own(g, 9, 0); assert.equal(g.calculateRent(1), 8);
 });
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;

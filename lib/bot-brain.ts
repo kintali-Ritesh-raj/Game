@@ -66,10 +66,26 @@ const PERSONAS: Record<string, string> = {
   'Bot Vega': 'You are a gambler: love auctions and bold bids, quick to take a chance.',
 };
 
-async function ask(question: string, facts: { you?: string; [detail: string]: unknown }): Promise<Verdict | null> {
+// Classic Super Buffed plays very differently: big money, tower-in-one-visit building, flat jail fine. The bot is told so.
+function modeBriefing(state: GameState) {
+  if (state.mode !== 'buffed') return '';
+  const twists = (state.twists || []).map(id => MarketWars.TWISTS[id as keyof typeof MarketWars.TWISTS]).filter(Boolean);
+  return `MODE: Classic Super Buffed. These rules REPLACE the normal ones:
+- Everyone starts with $5,000 and gets $3,000 every time they pass Gateway of India. Cash is plentiful; property and towers win the game.
+- After you land on a property you own (once it is bought, land on it again), you may build as many levels as you can afford in ONE visit, straight to the tower. No even-building rule.
+- A tower's rent is about 25x a single house, so building a tower immediately on a busy property is usually right. Keep only about $1,000 spare.
+- Buy almost every property you land on; each one is a future tower.
+- Jail costs a flat $500 to leave, or roll doubles; after 3 failed rolls you walk out free.
+- Rare cards: Hostile Takeover (seize any rival property) and Grand Swap (swap every property with a rival).` + (twists.length ? '\nTODAY\'S TWIST: ' + twists.map(twist => twist.name + ' - ' + twist.text).join(' | ') : '');
+}
+// The game the bot is deciding a move in; set by smartBotAction so every question carries the mode briefing.
+let deciding: GameState | null = null;
+async function ask(question: string, facts: { you?: string; [detail: string]: unknown }, state: GameState | null = deciding): Promise<Verdict | null> {
   if (!client) return null;
   const persona = PERSONAS[facts.you || ''];
   if (persona) question = persona + '\n' + question;
+  const briefing = state ? modeBriefing(state) : '';
+  if (briefing) question = briefing + '\n' + question;
   try {
     if (open) {
       const content = await askOpen(open, question + '\n' + JSON.stringify(facts));
@@ -119,6 +135,7 @@ function remember(key: string, value: number) { memory.set(key, value); if (memo
 
 export async function smartBotAction(state: GameState, room: string): Promise<Command | null> {
   const base = chooseBotAction(state);
+  deciding = state;
   if (!client || !base) return base;
   const game = MarketWars.Game.restore(JSON.stringify(state)), seat = actingSeat(state), bot = game.player(seat);
   const key = room + ':' + state.turn + ':' + seat + ':';
@@ -126,7 +143,7 @@ export async function smartBotAction(state: GameState, room: string): Promise<Co
   if (state.phase === 'offer') {
     const space = game.board[state.offer!], price = game.purchasePrice(bot, space);
     if (bot.cash < price + 75) return { action: 'skip' };   // never buy into bankruptcy
-    const verdict = await ask('Buy this property for $' + price + '?', { property: property(game, space.id), ...facts(game, state, seat) });
+    const verdict = await ask('Buy this property for $' + price + '?', { property: property(game, space.id), ...facts(game, state, seat) }, state);
     return verdict ? { action: verdict.yes ? 'buy' : 'skip' } : base;
   }
 
@@ -148,7 +165,7 @@ export async function smartBotAction(state: GameState, room: string): Promise<Co
     const auction = state.auction!, slot = key + 'bid:' + auction.property;
     let ceiling = memory.get(slot);
     if (ceiling === undefined) {
-      const verdict = await ask('Auction: what is the most you would pay in total? Current bid $' + auction.bid + '.', { property: property(game, auction.property), ...facts(game, state, seat) });
+      const verdict = await ask('Auction: what is the most you would pay in total? Current bid $' + auction.bid + '.', { property: property(game, auction.property), ...facts(game, state, seat) }, state);
       if (!verdict) return base;
       ceiling = verdict.yes ? Math.max(0, verdict.value) : 0;
       remember(slot, ceiling);

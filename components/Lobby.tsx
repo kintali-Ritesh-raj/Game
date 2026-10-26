@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import MarketWars from '@/lib/game-engine.cjs';
 import PlayerForm, { BOARD_CHOICES, BoardIcon, BoardPicker, TOKENS, TokenDot, boardOf, boardProfile } from './PlayerForm';
 // Up to six players per table, bots included.
 const MAX_SEATS = 6;
@@ -61,6 +62,7 @@ export default function Lobby({ room, userId, connections, busy, connected, star
     </div>}
     <div className="lobby-choices"><button className="secondary" onClick={() => setEditing(!editing)} disabled={busy}>{editing ? 'Close choices' : 'Edit my name & color'}</button></div>
     {editing && mine && <PlayerForm initial={mine} members={room.members.filter(m => m.user_id !== userId)} busy={busy} label="Save my choices" onSubmit={async player => { await updateProfile({ ...player, ...(room.host_id === userId ? boardProfile(boardId) : {}) }); setEditing(false); }} />}
+    {boardId === 'buffed' && <p className="lobby-note lobby-buff"><b>Today’s Buff:</b> {MarketWars.twistsFor(Date.now()).map(id => MarketWars.TWISTS[id].name + ' — ' + MarketWars.TWISTS[id].text).join(' + ')}</p>}
     <p className="lobby-note">Everyone starts with {board.start} and plays by the same rules. At least 2 players are needed. A disconnected player keeps their seat and can reconnect using this link.</p>
     <div className="setup-footer"><button className="secondary" onClick={() => void leave()} disabled={busy}>Leave lobby</button>
       {room.host_id === userId
