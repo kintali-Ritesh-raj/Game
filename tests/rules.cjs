@@ -435,15 +435,15 @@ test('City Events: Boom, Recession and Audit, never the same twice in a row, ann
   // The City Event multiplier is applied first, then Doubler, its $400 cap, then Reversal or Shield
   game = create(); game.random = () => .4; own(game, 4, 0); own(game, 6, 0); game.asset(4).buildings = 1; advance(game, 4); game.player(0).perks.doubler = 1;
   assert.equal(game.calculateRent(4), 72, '$96 less 25%'); game.state.currentPlayer = 1; land(game, 4); assert.equal(game.player(1).cash, 1500 - 144, 'doubled after the recession cut (not capped first)');
-  // Audit: instant, the richest pays the poorest $100; ties go to the lower seat
+  // Audit: instant, the richest pays the poorest 30% of their cash; ties go to the lower seat
   game = create(); game.random = () => .9; game.player(0).cash = 2000; game.player(1).cash = 1000; advance(game, 4);
-  assert.equal(game.state.city.active, null); assert.equal(game.player(0).cash, 1900); assert.equal(game.player(1).cash, 1100, 'the richest pays the poorest');
+  assert.equal(game.state.city.active, null); assert.equal(game.player(0).cash, 1400); assert.equal(game.player(1).cash, 1600, 'the richest pays the poorest 30% of their cash');
   game = create(3); game.random = () => .9; [game.player(0).cash, game.player(1).cash, game.player(2).cash] = [1500, 1500, 1000]; advance(game, 4);
-  assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1400, 1500, 1100], 'tied richest: the lower seat pays');
+  assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1050, 1500, 1450], 'tied richest: the lower seat pays');
   game = create(3); game.random = () => .9; [game.player(0).cash, game.player(1).cash, game.player(2).cash] = [2000, 1500, 1500]; advance(game, 4);
-  assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1900, 1600, 1500], 'tied poorest: the lower seat receives');
+  assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1400, 2100, 1500], 'tied poorest: the lower seat receives');
   game = create(3); game.random = () => .9; advance(game, 4); assert.deepEqual([game.player(0).cash, game.player(1).cash, game.player(2).cash], [1500, 1500, 1500], 'everyone level: nothing to redistribute');
-  game = create(); game.random = () => .9; game.player(0).cash = 60; game.player(1).cash = 40; advance(game, 4); assert.equal(game.player(0).cash, 0, 'the richest pays only what they have'); assert.equal(game.player(1).cash, 100);
+  game = create(); game.random = () => .9; game.player(0).cash = 60; game.player(1).cash = 40; advance(game, 4); assert.equal(game.player(0).cash, 42, '30% of $60'); assert.equal(game.player(1).cash, 58);
   game = create(3); game.random = () => .9; advance(game, 4); assert.equal(game.state.round, 5, 'a round is every player taking a turn');
   game = create(3); game.player(2).bankrupt = true; game.random = () => .1; for (let i = 0; i < 8; i++) { game.state.phase = 'end'; game.nextTurn(); } assert.equal(game.state.round, 5, 'bankrupt players are skipped without changing the count');
 });
@@ -732,11 +732,15 @@ test('Reserve Bank interest rises $50 every 7 rounds and the Prison fine rises $
   const draws = [0, .2]; let k = 0; stuck.random = () => draws[k++] ?? .5; // rolls 1 + 2: no doubles
   await stuck.rollDice(); await drain(stuck); assert.equal(stuck.active.cash, 1500, 'the third failed roll costs nothing, even in round 41'); assert.equal(stuck.active.penalty, null);
 });
-test('the Tax Audit amount rises $100 every 10 rounds, and the banner names the amount for its round', () => {
-  const game = create();
+test('the Tax Audit takes 30% of the richest player’s cash; Super Buffed keeps the fixed amount growing $100 every 10 rounds', () => {
+  let game = create(); game.state.round = 25; game.player(0).cash = 3000; game.player(1).cash = 1000; game.applyAudit();
+  assert.deepEqual([game.player(0).cash, game.player(1).cash], [2100, 1900], 'the richest pays the poorest 30% of $3,000');
+  game.state.city.upcoming = { kind: 'audit', round: 26 };
+  assert.ok(game.cityLines().includes('Next round: Tax Audit (richest pays poorest 30% of their cash).'));
+  game = new Game(players.slice(0, 2), {}, { mode: 'buffed' });
   assert.deepEqual([1, 10, 11, 20, 21, 40, 41, 200].map(round => game.auditAmount(round)), [100, 100, 200, 200, 200, 200, 200, 200], 'capped at $200 from round 11');
   game.state.round = 25; game.player(0).cash = 3000; game.player(1).cash = 1000; game.applyAudit();
-  assert.deepEqual([game.player(0).cash, game.player(1).cash], [2800, 1200], 'in round 25 the richest pays the poorest $200');
+  assert.deepEqual([game.player(0).cash, game.player(1).cash], [2800, 1200], 'Super Buffed: the richest pays the poorest $200');
   game.state.round = 20; game.state.city.upcoming = { kind: 'audit', round: 21 };
   assert.ok(game.cityLines().includes('Next round: Tax Audit (richest pays poorest $200).'), 'announced in round 20 for round 21, so it shows the round-21 amount');
 });
