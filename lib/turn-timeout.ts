@@ -6,8 +6,20 @@ import { actingSeat, idleSeat, turnDeadline } from './bot-timing';
 import { timeoutCommand } from './bot-strategy';
 import { readGameRoom, roomRpc } from './room-store';
 import { ApiError } from './validation';
-import type { Room, Transition } from './types';
+import type { GameState, Room, Transition } from './types';
 
+export const MISSED_TURNS_LIMIT = 3;
+// Counts a turn the server had to play for an offline player; on the 3rd in a row they are removed and their
+// properties go back to the bank. (A move they make themselves resets the count; see applyGameAction.)
+export function recordMissedTurn(state: GameState, seat: number): GameState {
+  const next = structuredClone(state), player = next.players[seat];
+  player.missed = (player.missed || 0) + 1;
+  if (player.missed < MISSED_TURNS_LIMIT) return next;
+  const game = MarketWars.Game.restore(JSON.stringify(next), { wait: async () => {} });
+  try { game.log(player.name + ' missed ' + MISSED_TURNS_LIMIT + ' turns in a row and is removed from the game.', 'important', 'loss', seat); game.forfeit(seat); }
+  catch { return next; } // mid-payment or auction: removed on the next missed turn instead
+  return JSON.parse(game.serialize()) as GameState;
+}
 // Any connected human can expire an idle player's turn once the deadline passes.
 // The server decides the forced moves; the room revision allows only one commit.
 export async function expireTurn(db: SupabaseClient, room: Room, requester: string, expected: number) {
@@ -18,18 +30,19 @@ export async function expireTurn(db: SupabaseClient, room: Room, requester: stri
   let current = await readGameRoom(db, room.code, expected);
   const seat = idleSeat(current);
   if (seat === null) return room;
-  const actor = current.members[seat].user_id;
+  const actor = current.members[seat].user_id, ownTurn = current.state!.currentPlayer === seat;
   let transition: Transition | null = null;
   for (let step = 0; step < 40; step++) {
     const state = current.state!;
     const acting = actingSeat(state);
     if (acting !== seat || state.phase === 'victory') break;
-    const result = await applyGameAction(current, actor, timeoutCommand(state));
+    const result = await applyGameAction(current, actor, timeoutCommand(state), true);
     current = { ...current, state: result.state };
     transition = result.transition;
     // An auction pass, an unanswered trade or an off-turn debt only releases this player; the turn itself continues.
     if (state.auction || state.trade || (state.pending && state.pending.payer !== state.currentPlayer && !result.state.pending)) break;
   }
+  if (ownTurn && current.state && current.state.phase !== 'victory') current = { ...current, state: recordMissedTurn(current.state, seat) };
   const hash = createHash('sha256').update('timeout:' + room.code + ':' + expected).digest('hex');
   const id = `${hash.slice(0,8)}-${hash.slice(8,12)}-4${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
   return roomRpc(db, 'mw_commit_game', {

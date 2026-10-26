@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyGameAction, requireRevision, startGame } from '../lib/game-actions';
+import { recordMissedTurn } from '../lib/turn-timeout';
 import { command, profile, revision, roomCode } from '../lib/validation';
 import MarketWars from '../lib/game-engine.cjs';
 import type { GameState, Room } from '../lib/types';
@@ -185,4 +186,18 @@ test('Moves on the pentagon board accept its new property ids', () => {
   assert.throws(() => command({ action: 'build', id: 50 }), /Invalid property/);
   const trade = command({ action: 'trade', trade: { to: 1, give: { cash: 0, properties: [45, 48] }, get: { cash: 100, properties: [] } } });
   assert.deepEqual(trade.trade!.give.properties, [45, 48]);
+});
+
+test('A player whose turn runs out 3 times in a row is removed and their properties go back to the bank', async () => {
+  const room = playing(), seat = 0;
+  room.state!.properties[1].owner = seat; room.state!.properties[2].owner = seat;
+  let state = recordMissedTurn(room.state!, seat); state = recordMissedTurn(state, seat);
+  assert.equal(state.players[seat].missed, 2); assert.equal(state.players[seat].bankrupt, false, 'two misses: still at the table');
+  // A move the player makes themselves resets the count.
+  room.state = state; const own = await applyGameAction(room, room.members[seat].user_id, { action: 'roll' });
+  assert.equal(own.state.players[seat].missed, 0);
+  state = recordMissedTurn(recordMissedTurn(recordMissedTurn(room.state!, seat), seat), seat);
+  assert.equal(state.players[seat].bankrupt, true, 'the third miss in a row removes them');
+  assert.equal(state.properties[1].owner, null); assert.equal(state.properties[2].owner, null, 'their properties return to the bank');
+  assert.ok(state.log.some(entry => /missed 3 turns in a row and is removed/.test(entry.message)));
 });

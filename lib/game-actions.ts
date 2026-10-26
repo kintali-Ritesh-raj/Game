@@ -29,7 +29,8 @@ export function startGame(room: Room, actor: string) {
   return JSON.parse(game.serialize()) as GameState;
 }
 
-export async function applyGameAction(room: Room, actor: string, command: Command | { action: 'timeout' }) {
+// `forced` marks a move the server makes for a player whose time ran out; any other move shows they are still here.
+export async function applyGameAction(room: Room, actor: string, command: Command | { action: 'timeout' }, forced = false) {
   const seat = memberIndex(room, actor);
   if (room.status !== 'playing' || !room.state) throw new ApiError(409, 'This game is not accepting turns.');
   const state = room.state;
@@ -84,7 +85,9 @@ export async function applyGameAction(room: Room, actor: string, command: Comman
     if (game.busy) throw new Error('The move did not finish. Try again.');
     transition.dice = [...game.state.dice];
     if ((game.state.lastDie?.id || 0) > (state.lastDie?.id || 0)) transition.die = game.state.lastDie!.id;
-    return { state: JSON.parse(game.serialize()) as GameState, transition };
+    const next = JSON.parse(game.serialize()) as GameState;
+    if (!forced && next.players[seat]?.missed) next.players[seat].missed = 0;
+    return { state: next, transition };
   } catch (error) {
     throw new ApiError(400, error instanceof Error ? error.message : 'This action is unavailable.');
   }
