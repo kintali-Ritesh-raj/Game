@@ -1,3 +1,4 @@
+import MarketWars from './game-engine.cjs';
 import { ACTIONS, type Command, type Profile, type TradeOffer } from './types';
 
 export class ApiError extends Error {
@@ -41,7 +42,7 @@ function tradeOffer(value: unknown): TradeOffer {
       || !Array.isArray(item.properties) || item.properties.length > 34 || item.properties.some(id => !Number.isInteger(id) || id < 0 || id > MAX_SPACE)) throw new ApiError(400, 'Invalid trade offer.');
     return { cash: Number(item.cash), properties: [...item.properties] as number[] };
   };
-  if (!offer || typeof offer !== 'object' || !Number.isInteger(offer.to) || Number(offer.to) < 0 || Number(offer.to) > 3) throw new ApiError(400, 'Invalid trade offer.');
+  if (!offer || typeof offer !== 'object' || !Number.isInteger(offer.to) || Number(offer.to) < 0 || Number(offer.to) >= MarketWars.MAX_PLAYERS) throw new ApiError(400, 'Invalid trade offer.');
   return { to: Number(offer.to), give: side(offer.give), get: side(offer.get) };
 }
 export async function jsonBody(request: Request): Promise<Record<string, unknown>> {

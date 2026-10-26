@@ -201,3 +201,9 @@ test('A player whose turn runs out 3 times in a row is removed and their propert
   assert.equal(state.properties[1].owner, null); assert.equal(state.properties[2].owner, null, 'their properties return to the bank');
   assert.ok(state.log.some(entry => /missed 3 turns in a row and is removed/.test(entry.message)));
 });
+
+test('Trade offers can go to any of the six seats', () => {
+  const offer = (to: number) => command({ action: 'trade', trade: { to, give: { cash: 100, properties: [] }, get: { cash: 0, properties: [1] } } });
+  for (const to of [0, 1, 2, 3, 4, 5]) assert.equal((offer(to) as { trade: { to: number } }).trade.to, to, 'seat ' + to);
+  assert.throws(() => offer(6), /Invalid trade offer/);
+});
