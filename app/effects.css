@@ -41,7 +41,7 @@
   border-radius:18px;background:linear-gradient(160deg,#1f4745,#0f2524);border:1px solid #c9a24a99;
   box-shadow:0 30px 70px -20px #000,inset 0 1px 0 #ffffff26;color:#fbf5e3;animation:fx-panel-in .4s cubic-bezier(.2,1.4,.4,1) both}
 @keyframes fx-panel-in{from{transform:translateY(16px) scale(.9);opacity:0}to{transform:none;opacity:1}}
-.fx-kicker{font:600 11px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.24em;color:#e6c06a;margin:0}
+.fx-kicker{font:600 11px/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.24em;color:#e6c06a;margin:0}
 .fx-title{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:600;margin:0;line-height:1.35;color:#fbf5e3!important}
 .fx-scene{position:relative;width:150px;height:150px;perspective:600px;display:grid;place-items:center;margin:8px 0 4px}
 .fx-cube{--s:74px;position:relative;width:var(--s);height:var(--s);transform-style:preserve-3d;transform:rotateX(-15deg) rotateY(-19deg)}
@@ -56,7 +56,7 @@
 .fx-face.bottom{transform:rotateX(-90deg) translateZ(calc(var(--s) / 2))}
 .fx-shadow{position:absolute;bottom:14px;left:50%;width:96px;height:18px;margin-left:-48px;border-radius:50%;background:radial-gradient(closest-side,#000c,#0000);opacity:.7}
 .fx-result{display:flex;flex-direction:column;align-items:center;gap:2px;animation:fx-result-in .45s cubic-bezier(.2,1.6,.4,1) both}
-.fx-result b{font:700 34px/1.05 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;color:var(--tone);text-shadow:0 0 22px color-mix(in srgb,var(--tone) 55%,transparent)}
+.fx-result b{font:700 34px/1.05 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;color:var(--tone);text-shadow:0 0 22px color-mix(in srgb,var(--tone) 55%,transparent)}
 .fx-result span{font-size:13px;color:#d9d0b8}
 @keyframes fx-result-in{from{opacity:0;transform:translateY(10px) scale(.6)}to{opacity:1;transform:none}}
 .fx-stage.tone-gain .fx-panel{--tone:#4fe08f}
@@ -90,11 +90,11 @@
 @keyframes toast-icon-in{0%{transform:scale(.2) rotate(-40deg);opacity:0}100%{transform:none;opacity:1}}
 .toast-body{min-width:0;flex:1}
 .toast-head{display:flex;align-items:center;gap:8px;margin-bottom:2px}
-.toast-title{font:700 11px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--tone)}
+.toast-title{font:700 11px/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--tone)}
 .toast-who{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#e9e1cb;padding:2px 8px 2px 4px;border-radius:999px;background:#ffffff14}
 .toast-who .token-dot{width:11px;height:11px}
 .toast-item.mine .toast-who{background:color-mix(in srgb,var(--tone) 26%,transparent);color:#fff}
-.toast-amount{margin-left:auto;font:700 20px/1 'Barlow Condensed',system-ui,sans-serif;color:var(--tone);font-variant-numeric:tabular-nums;text-shadow:0 0 16px color-mix(in srgb,var(--tone) 45%,transparent)}
+.toast-amount{margin-left:auto;font:700 20px/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;color:var(--tone);font-variant-numeric:tabular-nums;text-shadow:0 0 16px color-mix(in srgb,var(--tone) 45%,transparent)}
 .toast-text{margin:0;color:#e3dcc8!important;font-size:13px!important;line-height:1.35!important;overflow-wrap:anywhere}
 .toast-life{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--tone);opacity:.75;transform-origin:left;animation:toast-life var(--life,4300ms) linear both}
 .toast-item:hover .toast-life{animation-play-state:paused}
@@ -111,7 +111,7 @@
 
 /* Cash changes float up from the player's balance. */
 #fx-floats{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:990}
-.cash-float{position:fixed;z-index:990;pointer-events:none;transform:translate(-50%,-50%);font:700 17px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;
+.cash-float{position:fixed;z-index:990;pointer-events:none;transform:translate(-50%,-50%);font:700 17px/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em;
   padding:3px 8px;border-radius:999px;animation:cash-float 1.5s cubic-bezier(.2,.8,.3,1) both;box-shadow:0 6px 16px -6px #000c}
 .cash-float.gain{color:#0c2a19;background:#4fe08f}
 .cash-float.loss{color:#2f0b07;background:#ff6b5e}

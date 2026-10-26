@@ -90,7 +90,7 @@
 :is(#game-board,#preview-board) .board-tile.mortgaged::after{
   content:'MORTGAGED';position:absolute;left:50%;top:50%;z-index:2;pointer-events:none;
   transform:translate(-50%,-50%) rotate(-24deg);padding:.1cqw .5cqw;
-  font:700 .95cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.12em;color:#8e2f24;
+  font:700 .95cqw/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.12em;color:#8e2f24;
   border:.14cqw solid #8e2f24;border-radius:.2cqw;opacity:.78;background:#f6eedd8c;
 }
 
@@ -118,13 +118,13 @@
 :is(#game-board,#preview-board) .tile-name{
   --name-size:1.55cqw;
   display:block;width:100%;margin:0;
-  font:700 calc(var(--name-size) * var(--name-fit,1))/1 'Barlow Condensed',system-ui,sans-serif;
+  font:700 calc(var(--name-size) * var(--name-fit,1))/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;
   text-transform:uppercase;letter-spacing:.015em;text-align:center;color:#17180f;
   overflow-wrap:normal;word-break:normal;hyphens:none;text-wrap:balance;
   text-shadow:0 1px 0 #fffbea99;
 }
-:is(#game-board,#preview-board) .tile-price{font:600 1.28cqw/1 'Barlow Condensed',system-ui,sans-serif;color:#3a3221;margin:0;letter-spacing:.02em}
-:is(#game-board,#preview-board) .tile-kind{font:600 .86cqw/1.1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.1em;color:#5d5340;text-transform:uppercase;text-align:center;max-width:100%}
+:is(#game-board,#preview-board) .tile-price{font:600 1.28cqw/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;color:#3a3221;margin:0;letter-spacing:.02em}
+:is(#game-board,#preview-board) .tile-kind{font:600 .86cqw/1.1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.1em;color:#5d5340;text-transform:uppercase;text-align:center;max-width:100%}
 :is(#game-board,#preview-board) .tile-owner,:is(#game-board,#preview-board) .tile-buildings,:is(#game-board,#preview-board) .owner-mark{display:none}
 
 /* Special-space icons and the larger corner compositions. */
@@ -162,7 +162,7 @@
 /* MARKET WARS: a gold-on-teal plate with embossed metallic lettering. */
 :is(#game-board,#preview-board) .board-center .board-wordmark{
   isolation:isolate;transform:rotate(-7deg);margin:0 0 2.2cqw;padding:1.3cqw 3.2cqw 1.1cqw;
-  font:800 5cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap;
+  font:800 5cqw/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap;
   color:transparent;-webkit-text-stroke:.02em #5a3d1080;
   background:linear-gradient(180deg,#fff4c6 0%,#f2d184 30%,#c99a40 52%,#f6dc95 66%,#b0802c 100%),linear-gradient(160deg,#1f5554,#0f3132);
   -webkit-background-clip:text,padding-box;background-clip:text,padding-box;
@@ -182,7 +182,7 @@
   background:linear-gradient(90deg,#0000,#d6b060 30%,#d6b060 46%,#0000 46% 54%,#d6b060 54%,#d6b060 70%,#0000) center/100% .14cqw no-repeat;
 }
 :is(#game-board,#preview-board) .board-center .eyebrow::after{content:'';position:absolute;left:50%;top:50%;width:.8cqw;height:.8cqw;transform:translate(-50%,-50%) rotate(45deg);background:#e6c06a;box-shadow:.06cqw .08cqw 0 #00000066}
-:is(#game-board,#preview-board) .center-role{font:600 1.15cqw/1.2 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.2em;color:#e6c06a!important;margin:0 0 .5cqw;opacity:1}
+:is(#game-board,#preview-board) .center-role{font:600 1.15cqw/1.2 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.2em;color:#e6c06a!important;margin:0 0 .5cqw;opacity:1}
 :is(#game-board,#preview-board) .center-player{font-size:3.3cqw;line-height:1.1;color:#fbf3df!important;text-shadow:.12cqw .2cqw .3cqw #000000a6}
 :is(#game-board,#preview-board) .center-player *{color:#fbf3df!important}
 :is(#game-board,#preview-board) .center-player>span{opacity:.72;font-size:.78em}
@@ -194,11 +194,11 @@
   box-shadow:inset .1cqw .1cqw 0 #fff,inset -.15cqw -.2cqw .3cqw #8a7a5a59,var(--sx) var(--sy) .5cqw #000000a6,.08cqw .14cqw 0 #b9ad92;
 }
 :is(#game-board,#preview-board) .board-center .pip{width:1cqw;height:1cqw;background:radial-gradient(circle at 40% 35%,#4a4a44,#111 70%)}
-:is(#game-board,#preview-board) .board-center .dice-total{font:600 1cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.18em;color:#e6c06a;margin-top:1.1cqw}
+:is(#game-board,#preview-board) .board-center .dice-total{font:600 1cqw/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.18em;color:#e6c06a;margin-top:1.1cqw}
 /* Centre controls keep their behaviour; they are restyled to sit on the leather. */
 :is(#game-board,#preview-board) .board-center .center-controls{gap:1.4cqw;margin-top:2.4cqw}
 :is(#game-board,#preview-board) .board-center .center-controls button{
-  font:700 1.4cqw/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;
+  font:700 1.4cqw/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;
   min-height:4.4cqw;padding:0 2.4cqw;border-radius:.45cqw;border:.18cqw solid #d6b060;color:#fff6e4;
   box-shadow:inset 0 .12cqw 0 #ffffff59,0 .3cqw 0 #00000080,var(--sx) var(--sy) .8cqw #00000099;
 }
