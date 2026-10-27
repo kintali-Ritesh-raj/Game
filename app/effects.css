@@ -226,3 +226,10 @@
 /* Hostile Takeover: one row per rival property (name, owner, price, rent), wrapping on narrow screens. */
 .hijack-list{display:grid;gap:8px;width:100%;max-height:46vh;overflow:auto}
 .hijack-list .hijack-option{white-space:normal;text-align:left;justify-content:flex-start;line-height:1.35}
+
+/* Coupons (Super Buffed): each pawn carries its letter; while choosing, your two coupons pulse and can be tapped. */
+.player-token .coupon-label{position:absolute;left:50%;top:-6px;transform:translateX(-50%);min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:#fff;color:#1b1b1f;border:1.5px solid var(--piece-color,#333);font:800 10px/12px system-ui,sans-serif;text-align:center;pointer-events:none}
+.player-token.coupon-pick{pointer-events:auto;cursor:pointer;animation:coupon-pulse 1s ease-in-out infinite;outline:3px solid #ffd54a;outline-offset:2px;border-radius:50%}
+@keyframes coupon-pulse{50%{filter:drop-shadow(0 0 8px #ffd54a)}}
+@media (prefers-reduced-motion:reduce){.player-token.coupon-pick{animation:none}}
+.coupon-choices{display:grid;gap:8px;margin:10px 0}

@@ -146,6 +146,20 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
   return offers[0]?.offer || null;
 }
 
+/** Which coupon a bot moves: the free one over a jailed one, and the landing that costs least or gains most. */
+function couponChoice(game:Engine, player:Seat):number {
+  const rolled = game.state.rolled!, size = game.board.length;
+  const score = (position:number, penalty:unknown) => {
+    if (penalty && !rolled.doubles && !(rolled.single && rolled.total === 6) && !(rolled.pair && game.state.dice.length === 3)) return -1e6; // stays in jail
+    const target = game.board[(position + rolled.total) % size], asset = target.price ? game.asset(target.id) : null;
+    if (!asset) return 0;
+    if (asset.owner === null) return player.cash >= target.price ? target.price : 0;      // land worth buying
+    if (asset.owner === player.id) return 200 + game.asset(target.id).buildings * 50;     // own land: room to build
+    return -game.calculateRent(target.id, rolled.total);                                  // a rival's rent
+  };
+  const here = score(player.position, player.penalty), there = score(player.alt!.position, player.alt!.penalty);
+  return there > here ? 1 - (player.coupon ?? 0) : player.coupon ?? 0;
+}
 /** Resolve the drawn card; a Hostile Takeover seizes the rival property with the highest rent. */
 function eventCommand(game:Engine):Command {
   const event = game.state.event, card = event && MarketWars.DECKS[event.deck as 'market' | 'economic'][event.index];
@@ -178,6 +192,7 @@ export function timeoutCommand(state: GameState): Command | { action: 'timeout' 
     const developed = game.owned(player).filter(space => !game.sellReason(player, space.id)).sort((a, b) => rent(a.id) - rent(b.id))[0];
     return developed ? {action:'sell', id:developed.id} : {action:'bankrupt'};
   }
+  if (state.phase === 'coupon') return { action: 'coupon', id: player.coupon ?? 0 };
   if (state.phase === 'event') return eventCommand(game);
   if (state.phase === 'wheel') return {action:'spin'};
   if (state.phase === 'freebuild') return freeHouse(game, player);
@@ -193,6 +208,7 @@ export function chooseBotAction(state: GameState): Command | null {
   const reserve = 200;
   switch (state.phase) {
     case 'trade': { const verdict = judgeTrade(game, state.trade!); return verdict.accept ? {action:'accept-trade'} : {action:'reject-trade', note: verdict.note, remark: verdict.remark}; }
+    case 'coupon': return { action: 'coupon', id: couponChoice(game, player) };
     case 'ready':
       if (player.penalty && player.cash >= game.prisonFine() + 300) return {action:'release'};
       return {action:'roll'};

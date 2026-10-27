@@ -30,6 +30,7 @@ const MAX_SPACE = 49;
 export function command(value: Record<string, unknown>): Command {
   if (!ACTIONS.includes(value.action as Command['action'])) throw new ApiError(400, 'Unknown game action.');
   if (['build', 'sell', 'mortgage', 'unmortgage', 'auction', 'free-build'].includes(String(value.action)) && (!Number.isInteger(value.id) || Number(value.id) < 0 || Number(value.id) > MAX_SPACE)) throw new ApiError(400, 'Invalid property.');
+  if (value.action === 'coupon' && value.id !== 0 && value.id !== 1) throw new ApiError(400, 'Choose coupon A or B.');
   if (value.action === 'bid' && (!Number.isSafeInteger(value.increment) || Number(value.increment) < 10)) throw new ApiError(400, 'The bid increment must be a whole amount of at least $10.');
   if (value.action === 'trade') return { action: 'trade', trade: tradeOffer(value.trade) };
   return { action: value.action, id: value.id, increment: value.increment } as Command;

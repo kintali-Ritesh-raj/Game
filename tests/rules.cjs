@@ -561,7 +561,7 @@ test('every 3rd round is a single-die round: one die, no doubles, and only a 6 l
   g.state.round = 3; assert.ok(g.cityLines().some(line => /Single-die round/.test(line)));
   const saved = create(); saved.state.dice = [5]; assert.deepEqual([...Game.restore(saved.serialize()).state.dice], [5], 'a one-die save loads');
 });
-test('Classic Super Buffed: $5,000 start, $3,000 Launch, build to the tower in one visit, flat $500 jail, 3 tries', async () => {
+test('Classic Super Buffed: $5,000 start, $3,000 Launch, build to the tower in one visit, flat $5,000 jail, 6 tries', async () => {
   const make = (random = () => .4) => new Game(players.slice(0, 2), {}, { mode: 'buffed', random, wait: async () => {} });
   let game = make(); assert.equal(game.state.mode, 'buffed'); assert.deepEqual(game.state.players.map(p => p.cash), [5000, 5000]); assert.equal(game.board.length, 40);
   game.active.position = 39; await game.movePlayer(1, { resolve: false }); assert.equal(game.active.cash, 8000, 'passing Gateway of India pays $3,000');
@@ -573,11 +573,11 @@ test('Classic Super Buffed: $5,000 start, $3,000 Launch, build to the tower in o
   game.sellBuilding(1); assert.equal(game.asset(1).buildings, 2);
   game = make(); game.asset(1).owner = 0; game.asset(1).ready = false; Object.assign(game.state, { phase: 'end', hasRolled: true }); game.active.position = 1;
   assert.match(game.buildReason(game.active, 1), /again/, 'a just-bought property still needs another landing first');
-  game = make(); game.state.round = 100; assert.equal(game.prisonFine(), 500, 'the jail fine is a flat $500, even late');
-  assert.equal(game.prisonTries(), 3);
-  game = make(() => 0); game.active.penalty = { kind: 'prison', attempts: 2 }; game.active.position = 10; game.state.phase = 'ready';
-  let k = 0; const draws = [0, .2]; game.random = () => draws[k++] ?? .5; await game.rollDice(); await drain(game);
-  assert.equal(game.active.penalty, null, 'after 3 failed rolls you walk out free');
+  game = make(); game.state.round = 100; assert.equal(game.prisonFine(), 5000, 'the jail fine is a flat $5,000, even late');
+  assert.equal(game.prisonTries(), 6);
+  game = make(() => 0); game.active.penalty = { kind: 'prison', attempts: 5 }; game.active.position = 10; game.state.phase = 'ready';
+  let k = 0; const draws = [0, .2]; game.random = () => draws[k++] ?? .5; await game.rollDice(); await drain(game); await game.chooseCoupon(0); await drain(game);
+  assert.equal(game.active.penalty, null, 'after 6 failed rolls you walk out free');
   assert.equal(Game.restore(make().serialize()).state.mode, 'buffed', 'a saved game keeps its mode');
   assert.equal(new Game(players.slice(0, 2), {}, { mode: 'buffed', sides: 5 }).state.mode, undefined, 'only on the square board');
   const plain = create(); assert.equal(plain.state.mode, undefined); assert.equal(plain.prisonTries(), 5);
@@ -619,7 +619,7 @@ test('Today’s Buff: the date picks one twist (Wildcard picks two); a game keep
 });
 test('the 14 twists each change the game as described', async () => {
   const make = (twists, random = () => .4, count = 2) => new Game(players.slice(0, count), {}, { mode: 'buffed', twists, random, wait: async () => {} });
-  const roll = async (game, draws) => { let k = 0; game.random = () => draws[k++] ?? .4; game.state.phase = 'ready'; game.state.hasRolled = false; await game.rollDice(); await drain(game); };
+  const roll = async (game, draws) => { let k = 0; game.random = () => draws[k++] ?? .4; game.state.phase = 'ready'; game.state.hasRolled = false; await game.rollDice(); await drain(game); if (game.state.phase === 'coupon') { await game.chooseCoupon(0); await drain(game); } };
   // Gold Rush
   let g = make(['goldrush']); own(g, 1, 1); land(g, 1); assert.equal(g.state.jackpot, 200, 'rent adds $100 to the pot');
   // Mega Dice: three dice; three of a kind goes to the Taj Mahal; a pair frees a prisoner
@@ -651,6 +651,24 @@ test('the 14 twists each change the game as described', async () => {
   g = make(['speedrun']); await roll(g, [.5]); assert.deepEqual([...g.state.dice], [4]); assert.equal(g.active.position, 10, '4 + 6 spaces');
   // Mafia Mode: the player with the most properties collects double
   g = make(['mafia']); own(g, 1, 1); own(g, 3 + 1, 1); assert.equal(g.calculateRent(1), 16); own(g, 6, 0); own(g, 7, 0); own(g, 9, 0); assert.equal(g.calculateRent(1), 8);
+});
+test('Coupons (Super Buffed): two pieces each; after rolling the player picks coupon A or B to move; jail is per coupon', async () => {
+  const make = () => new Game(players.slice(0, 2), {}, { mode: 'buffed', random: () => .4, wait: async () => {} });
+  let game = make(); assert.deepEqual({ ...game.active.alt }, { position: 0, penalty: null }); assert.equal(game.active.coupon, 0);
+  assert.equal(create().active.alt, undefined, 'Classic has one piece');
+  let k = 0; game.random = () => [.5, .2][k++] ?? .3; await game.rollDice(); await drain(game); // 4 + 2 = 6
+  assert.equal(game.state.phase, 'coupon', 'the roll waits for a coupon'); assert.equal(game.active.position, 0);
+  await assert.rejects(() => game.chooseCoupon(2), /coupon A or B/);
+  await game.chooseCoupon(1); await drain(game);
+  assert.equal(game.active.coupon, 1, 'coupon B moved'); assert.equal(game.active.position, 6); assert.equal(game.active.alt.position, 0, 'coupon A stayed on Gateway of India');
+  assert.equal(game.couponLabel(game.active), 'B'); assert.equal(game.couponLabel(game.active, false), 'A');
+  await assert.rejects(() => game.chooseCoupon(0), /no roll waiting/);
+  // A jailed coupon does not block the other one.
+  game = make(); game.active.penalty = { kind: 'prison', attempts: 0 }; game.active.position = 10;
+  k = 0; game.random = () => [.1, .3][k++] ?? .3; await game.rollDice(); await drain(game); // 1 + 2, no doubles
+  await game.chooseCoupon(1); await drain(game);
+  assert.equal(game.active.position, 3, 'the free coupon moves 3'); assert.equal(game.active.alt.penalty.kind, 'prison', 'the jailed coupon stays in jail'); assert.equal(game.active.alt.penalty.attempts, 0, 'and uses no attempt');
+  const saved = Game.restore(game.serialize()); assert.equal(saved.active.alt.position, 10); assert.equal(saved.active.coupon, 1);
 });
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
