@@ -35,7 +35,7 @@ test('2, 3 and 4 players start with valid state and $1,500 each', () => {
     assert.equal(game.active.id, 0);
   }
   assert.equal(BOARD.length, 40);
-  assert.equal(DECKS.market.length, 53, '52 + Hostile Takeover (Super Buffed only)'); assert.equal(DECKS.economic.length, 53, '52 + Grand Swap (Super Buffed only)');
+  assert.equal(DECKS.market.length, 55, '52 + 3 Hostile Takeovers (Super Buffed only)'); assert.equal(DECKS.economic.length, 56, '52 + 3 Hostile Takeovers + Grand Swap (Super Buffed only)');
   assert.equal(game0().state.jackpot, 100); assert.equal(game0().state.round, 1); assert.ok(game0().state.players.every(player => player.jailFree === 0));
 });
 test('setup rejects repeated names, repeated tokens and blank names; no roles are needed', () => {
