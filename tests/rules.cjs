@@ -35,7 +35,7 @@ test('2, 3 and 4 players start with valid state and $1,500 each', () => {
     assert.equal(game.active.id, 0);
   }
   assert.equal(BOARD.length, 40);
-  assert.equal(DECKS.market.length, 74, '52 + 3 Hostile Takeovers (Super Buffed only) + 18 new + Great Reset'); assert.equal(DECKS.economic.length, 74, '52 + 3 Hostile Takeovers + Grand Swap + 17 new + Great Reset');
+  assert.equal(DECKS.market.length, 87, 'the market deck'); assert.equal(DECKS.economic.length, 87, 'the economic deck');
   assert.equal(game0().state.jackpot, 100); assert.equal(game0().state.round, 1); assert.ok(game0().state.players.every(player => player.jailFree === 0));
 });
 test('setup rejects repeated names, repeated tokens and blank names; no roles are needed', () => {
@@ -715,6 +715,36 @@ test('The Great Reset sells every property back to the bank and pays the owners;
   g.advanceRound(); assert.equal(g.asset(1).owner, null, 'round 75: it strikes on its own'); assert.equal(g.player(1).cash, 1600);
   own(g, 1, 1); g.advanceRound(); assert.equal(g.asset(1).owner, 1, 'only once');
   g = create(); g.state.resetDone = true; own(g, 1, 1); g.state.round = 74; g.advanceRound(); assert.equal(g.asset(1).owner, 1, 'not again after a card already reset the board');
+});
+test('18 more power-ups each work once per charge', async () => {
+  const give = (game, key, n = 1, seat = 0) => { game.player(seat).perks[key] = n; return game; };
+  let g = give(create(), 'halftax'); land(g, 5); assert.equal(g.active.cash, 1475, 'Half Tax: $50 toll halved');
+  g = give(create(), 'kickback', 1, 1); g.state.offer = 1; g.state.phase = 'offer'; g.purchaseProperty(); assert.equal(g.player(1).cash, 1550, 'Kickback');
+  g = give(create(), 'jailbird'); g.active.penalty = { kind: 'prison', attempts: 0 }; g.active.position = 10; { let k = 0; g.random = () => [.1, .3][k++] ?? .4; } await g.rollDice(); await drain(g); assert.equal(g.active.penalty, null, 'Jailbreak');
+  g = create(); g.player(1).perks.pension = 1; g.state.phase = 'end'; g.nextTurn(); assert.equal(g.player(1).cash, 1550, 'Pension');
+  g = give(create(), 'freeland'); g.state.offer = 39; g.state.phase = 'offer'; g.purchaseProperty(); assert.equal(g.active.cash, 1500, 'Free Land'); assert.equal(g.asset(39).owner, 0);
+  g = give(create(), 'repairkit'); own(g, 1); g.asset(1).buildings = 3; await playCard(g, 'market', 'Municipal inspection'); assert.equal(g.active.cash, 1500, 'Repair Kit');
+  g = give(create(), 'antiaudit'); g.player(0).cash = 3000; g.applyAudit(); assert.equal(g.player(0).cash, 3000, 'Audit Shield');
+  g = give(create(), 'diversion'); own(g, 1, 1); land(g, 1); assert.equal(g.player(1).cash, 1500, 'Rent Diversion: the owner gets nothing'); assert.equal(g.active.cash, 1492);
+  g = give(create(), 'bulk'); own(g, 1); build(g, 1); assert.equal(g.asset(1).buildings, 2, 'Bulk Builder');
+  g = give(create(), 'hedge'); g.random = () => 0; await playCard(g, 'market', 'Mega lottery'); assert.equal(g.active.cash, 1500, 'Hedge Fund');
+  g = create(); g.state.mode = 'buffed'; own(g, 39, 1); give(g, 'chakra', 1, 1); g.state.event = { deck: 'market', index: DECKS.market.findIndex(card => card.effect === 'hijack') }; g.state.phase = 'event'; await g.applyCard(39); assert.equal(g.asset(39).owner, 1, 'Sudarshan Chakra');
+  g = give(create(), 'kismet'); g.random = () => .9; land(g, 30); g.spinWheel(); assert.match(g.state.lastWheel.label, /Maha Jackpot/, 'Kismet');
+  g = give(create(), 'bookie'); g.random = () => 0; await playCard(g, 'market', 'Mega lottery'); assert.equal(g.active.cash, 2700, 'Bookie rolls a 6');
+  g = give(create(), 'redcarpet'); g.state.sides = 5; { const p = new Game(players.slice(0, 2), {}, { sides: 5, random: () => .4, wait: async () => {}, earnings: 1 }); give(p, 'redcarpet'); land(p, 47); assert.equal(p.active.cash, 1540, 'Red Carpet: the guest pays you'); }
+  g = give(create(), 'freeride'); own(g, 8, 1); land(g, 8); assert.equal(g.active.cash, 1500, 'Free Ride');
+  g = give(create(), 'mirror'); own(g, 1, 1); land(g, 1); assert.equal(g.active.cash, 1500, 'Mirror Rent: paid back'); assert.equal(g.player(1).cash, 1508);
+  g = give(create(), 'midas'); g.state.offer = 1; g.state.phase = 'offer'; g.purchaseProperty(); assert.equal(g.asset(1).buildings, 1, 'Midas Touch');
+  g = give(create(), 'pilgrim'); land(g, 20); assert.equal(g.active.cash, 1900, 'Pilgrim: pot + $300');
+});
+test('more new cards: pickpocket, Robin of Sherwood Bazaar, mystery box, lockdown, power surge, amnesty, Taj Mahal mela', async () => {
+  let g = create(); g.player(1).perks.rocket = 1; g.random = () => .4; await playCard(g, 'market', 'Pickpocket at the mela'); assert.equal(g.player(0).perks.rocket, 1); assert.equal(g.player(1).perks.rocket, 0);
+  g = create(); g.player(1).cash = 3000; await playCard(g, 'market', 'Robin of Sherwood Bazaar'); assert.deepEqual([g.player(0).cash, g.player(1).cash], [1800, 2700]);
+  g = create(); await playCard(g, 'market', 'Mystery box'); assert.equal(Object.values(g.active.perks).reduce((a, b) => a + b, 0) > 0, true);
+  g = create(); g.player(1).cash = 5000; await playCard(g, 'market', 'Lockdown'); assert.equal(g.player(1).penalty.kind, 'prison');
+  g = create(3); await playCard(g, 'economic', 'Power surge'); assert.ok([0, 1, 2].every(id => Object.values(g.player(id).perks).some(value => value > 0)));
+  g = create(); g.player(1).penalty = { kind: 'prison', attempts: 1 }; await playCard(g, 'economic', 'Jail amnesty'); assert.equal(g.player(1).penalty, null);
+  g = create(); g.state.jackpot = 400; await playCard(g, 'economic', 'Taj Mahal mela'); assert.deepEqual([g.player(0).cash, g.player(1).cash, g.state.jackpot], [1700, 1700, 100]);
 });
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
