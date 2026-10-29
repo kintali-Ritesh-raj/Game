@@ -229,20 +229,24 @@
 
 /* Coupons (Super Buffed): each pawn carries its letter; while choosing, your two coupons pulse and can be tapped. */
 .player-token .coupon-label{position:absolute;left:50%;top:-6px;transform:translateX(-50%);min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:#fff;color:#1b1b1f;border:1.5px solid var(--piece-color,#333);font:800 10px/12px system-ui,sans-serif;text-align:center;pointer-events:none}
-.player-token.coupon-pick{pointer-events:auto;cursor:pointer;animation:coupon-pulse 1s ease-in-out infinite;outline:3px solid #ffd54a;outline-offset:2px;border-radius:50%}
-@keyframes coupon-pulse{50%{filter:drop-shadow(0 0 8px #ffd54a)}}
-@media (prefers-reduced-motion:reduce){.player-token.coupon-pick{animation:none}}
+.player-token.coupon-pick{pointer-events:auto;cursor:pointer;outline:3px solid #ffd54a;outline-offset:2px;border-radius:50%;filter:drop-shadow(0 0 6px #ffd54a)}
+.player-token.coupon-pick .coupon-label{animation:coupon-pulse 1s ease-in-out infinite;will-change:transform}
+@keyframes coupon-pulse{50%{transform:translateX(-50%) scale(1.35)}}
+@media (prefers-reduced-motion:reduce){.player-token.coupon-pick .coupon-label{animation:none}}
 .coupon-choices{display:grid;gap:8px;margin:10px 0}
 /* Coupon landing preview: each coupon's landing space glows in its colour with what would happen there. */
 :root{--coupon-a:#29b6f6;--coupon-b:#ff9800}
-#game-board .board-tile.land-preview{position:relative;z-index:3;outline:3px solid var(--land-color);outline-offset:-3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--land-color) 35%,transparent),0 0 18px var(--land-color);animation:land-glow 1.2s ease-in-out infinite alternate}
+/* The glow is a fixed ring on ::before and only its opacity pulses: an opacity animation runs on the compositor, with no repaints. */
+#game-board .board-tile.land-preview{position:relative;z-index:3;outline:3px solid var(--land-color);outline-offset:-3px}
+#game-board .board-tile.land-preview::before{content:'';position:absolute;inset:-3px;border-radius:inherit;box-shadow:0 0 0 3px color-mix(in srgb,var(--land-color) 40%,transparent),0 0 20px var(--land-color);pointer-events:none;animation:land-glow 1.2s ease-in-out infinite alternate;will-change:opacity}
 #game-board .board-tile.land-a{--land-color:var(--coupon-a)}
 #game-board .board-tile.land-b{--land-color:var(--coupon-b)}
 #game-board .board-tile.land-a.land-b{--land-color:#ab47bc}
 #game-board .board-tile.land-preview::after{content:attr(data-land);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;max-width:180%;padding:2px 6px;border-radius:999px;background:var(--land-color);color:#111;font:800 clamp(9px,1.5cqw,13px)/1.2 system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 6px rgb(0 0 0/.35);pointer-events:none}
-#game-board[data-coupon-focus=A] .land-b:not(.land-a),#game-board[data-coupon-focus=B] .land-a:not(.land-b){opacity:.55;animation:none}
-@keyframes land-glow{from{box-shadow:0 0 0 2px color-mix(in srgb,var(--land-color) 30%,transparent),0 0 8px var(--land-color)}to{box-shadow:0 0 0 4px color-mix(in srgb,var(--land-color) 45%,transparent),0 0 22px var(--land-color)}}
-@media(prefers-reduced-motion:reduce){#game-board .board-tile.land-preview{animation:none}}
+#game-board[data-coupon-focus=A] .land-b:not(.land-a),#game-board[data-coupon-focus=B] .land-a:not(.land-b){opacity:.55}
+#game-board[data-coupon-focus=A] .land-b:not(.land-a)::before,#game-board[data-coupon-focus=B] .land-a:not(.land-b)::before{animation:none;opacity:0}
+@keyframes land-glow{from{opacity:.35}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){#game-board .board-tile.land-preview::before{animation:none}}
 .coupon-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:3px solid var(--land-color)!important}
 .coupon-btn small{font-size:12px;font-weight:700;opacity:.9}
 .coupon-btn.coupon-a{--land-color:var(--coupon-a)}
@@ -264,3 +268,19 @@
 .mobile-coupons .coupon-tip{grid-column:1/-1;font-size:11px}
 /* The landing label may be wider than its space. */
 #game-board .board-tile.land-preview,#game-board .board-tile.land-preview .tile-face{overflow:visible}
+/* Phone camera: the board view is moved by a GPU transform inside a clipping viewport. */
+.board-viewport.camera{overflow:hidden;border-radius:14px}
+#classic-board-view{transform-origin:0 0;transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+@media(prefers-reduced-motion:reduce){#classic-board-view{transition:none}}
+/* The game dialog opens non-modally (see game-ui.js): it is placed like a modal, above a scrim that blocks the page.
+   No backdrop blur: blurring the whole screen every frame behind a moving board is costly on phones. */
+#modal[open]{position:fixed;inset:0;margin:auto;height:fit-content;max-height:90dvh;overflow:auto;z-index:1101}
+.modal-scrim{position:fixed;inset:0;z-index:1100;background:#263b4e8c}
+:root[data-theme=dark] .modal-scrim{background:#000a}
+#modal:focus{outline:none}
+/* Containment: a change inside one of these boxes (an owner name, the dice, the turn timer, a new log row) is laid out
+   and restyled inside it alone, instead of dirtying the whole board, whose sizes all depend on its width. */
+#game-board .board-tile,#game-board .board-center{contain:layout style}
+.players-panel,.actions-panel,.mobile-controls{contain:layout style}
+/* The activity log sits below the board on phones: skip laying it out while it is off screen. */
+.activity-panel{content-visibility:auto;contain-intrinsic-size:auto 480px}
