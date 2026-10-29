@@ -150,7 +150,7 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
 function couponChoice(game:Engine, player:Seat):number {
   const rolled = game.state.rolled!, size = game.board.length;
   const score = (position:number, penalty:unknown) => {
-    if (penalty && !rolled.doubles && !(rolled.single && rolled.total === 6) && !(rolled.pair && game.state.dice.length === 3)) return -1e6; // stays in jail
+    if (penalty) return -1e6; // picking a jailed coupon costs the $5,000 fine and wastes the roll
     const target = game.board[(position + rolled.total) % size], asset = target.price ? game.asset(target.id) : null;
     if (!asset) return 0;
     if (asset.owner === null) return player.cash >= target.price ? target.price : 0;      // land worth buying

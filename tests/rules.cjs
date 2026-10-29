@@ -667,8 +667,17 @@ test('Coupons (Super Buffed): two pieces each; after rolling the player picks co
   game = make(); game.active.penalty = { kind: 'prison', attempts: 0 }; game.active.position = 10;
   k = 0; game.random = () => [.1, .3][k++] ?? .3; await game.rollDice(); await drain(game); // 1 + 2, no doubles
   await game.chooseCoupon(1); await drain(game);
-  assert.equal(game.active.position, 3, 'the free coupon moves 3'); assert.equal(game.active.alt.penalty.kind, 'prison', 'the jailed coupon stays in jail'); assert.equal(game.active.alt.penalty.attempts, 0, 'and uses no attempt');
+  assert.equal(game.active.position, 3, 'the free coupon moves 3'); assert.equal(game.active.alt.penalty.kind, 'prison', 'the jailed coupon stays in jail'); assert.equal(game.active.alt.penalty.attempts, 1, 'and waits one turn');
   const saved = Game.restore(game.serialize()); assert.equal(saved.active.alt.position, 10); assert.equal(saved.active.coupon, 1);
+  // Picking the jailed coupon pays $5,000 at once; it stays put this turn and is free next turn.
+  game = make(); game.active.penalty = { kind: 'prison', attempts: 0 }; game.active.position = 10;
+  k = 0; game.random = () => [.1, .3][k++] ?? .3; await game.rollDice(); await drain(game);
+  await game.chooseCoupon(0); await drain(game);
+  assert.equal(game.player(0).cash, 0, '$5,000 debited'); assert.equal(game.player(0).penalty, null, 'released'); assert.equal(game.player(0).position, 10, 'no move this turn');
+  // Left alone, a jailed coupon walks free after 8 turns.
+  game = make(); game.active.alt.penalty = { kind: 'prison', attempts: 7 }; game.active.alt.position = 10;
+  k = 0; game.random = () => [.1, .3][k++] ?? .3; await game.rollDice(); await drain(game);
+  await game.chooseCoupon(0); await drain(game); assert.equal(game.player(0).alt.penalty, null, 'free after 8 turns');
 });
 test('the 20 new power-ups each work once per charge', async () => {
   const give = (game, key, n = 1) => { game.active.perks[key] = n; return game; };

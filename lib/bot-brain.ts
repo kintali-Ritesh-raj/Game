@@ -75,7 +75,7 @@ function modeBriefing(state: GameState) {
 - After you land on a property you own (once it is bought, land on it again), you may build as many levels as you can afford in ONE visit, straight to the tower. No even-building rule.
 - A tower's rent is about 25x a single house, so building a tower immediately on a busy property is usually right. Keep only about $1,000 spare.
 - Buy almost every property you land on; each one is a future tower.
-- Jail costs a flat $500 to leave, or roll doubles; after 3 failed rolls you walk out free.
+- You move one of two coupons each turn. Picking a jailed coupon costs $5,000 and spends the roll; a jailed coupon left alone walks free after 8 turns.
 - Rare cards: Hostile Takeover (seize any rival property) and Grand Swap (swap every property with a rival).` + (twists.length ? '\nTODAY\'S TWIST: ' + twists.map(twist => twist.name + ' - ' + twist.text).join(' | ') : '');
 }
 // The game the bot is deciding a move in; set by smartBotAction so every question carries the mode briefing.
