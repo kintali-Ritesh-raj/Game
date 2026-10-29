@@ -284,3 +284,11 @@
 .players-panel,.actions-panel,.mobile-controls{contain:layout style}
 /* The activity log sits below the board on phones: skip laying it out while it is off screen. */
 .activity-panel{content-visibility:auto;contain-intrinsic-size:auto 480px}
+/* Opening animation (see playIntro in game-ui.js): a page-coloured layer with two thrown dice, lifted after they land. */
+.intro-layer{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;align-content:center;gap:18px;background:var(--bg);cursor:pointer}
+.intro-layer .intro-dice{display:flex;gap:22px}
+.intro-layer .die.die3d{--s:clamp(64px,14vw,104px)}
+.intro-call{font:800 clamp(30px,6vw,52px)/1 var(--font-barlow),'Barlow Condensed',system-ui,sans-serif;letter-spacing:.08em;color:var(--gold);opacity:0}
+.hero-copy h1 .intro-line{display:inline-block}
+.hero-copy h1>.intro-line{color:inherit}
+.hero-copy h1>.intro-line.intro-gold{color:var(--gold)}
