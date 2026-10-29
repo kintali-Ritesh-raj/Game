@@ -233,3 +233,34 @@
 @keyframes coupon-pulse{50%{filter:drop-shadow(0 0 8px #ffd54a)}}
 @media (prefers-reduced-motion:reduce){.player-token.coupon-pick{animation:none}}
 .coupon-choices{display:grid;gap:8px;margin:10px 0}
+/* Coupon landing preview: each coupon's landing space glows in its colour with what would happen there. */
+:root{--coupon-a:#29b6f6;--coupon-b:#ff9800}
+#game-board .board-tile.land-preview{position:relative;z-index:3;outline:3px solid var(--land-color);outline-offset:-3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--land-color) 35%,transparent),0 0 18px var(--land-color);animation:land-glow 1.2s ease-in-out infinite alternate}
+#game-board .board-tile.land-a{--land-color:var(--coupon-a)}
+#game-board .board-tile.land-b{--land-color:var(--coupon-b)}
+#game-board .board-tile.land-a.land-b{--land-color:#ab47bc}
+#game-board .board-tile.land-preview::after{content:attr(data-land);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;max-width:180%;padding:2px 6px;border-radius:999px;background:var(--land-color);color:#111;font:800 clamp(9px,1.5cqw,13px)/1.2 system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 6px rgb(0 0 0/.35);pointer-events:none}
+#game-board[data-coupon-focus=A] .land-b:not(.land-a),#game-board[data-coupon-focus=B] .land-a:not(.land-b){opacity:.55;animation:none}
+@keyframes land-glow{from{box-shadow:0 0 0 2px color-mix(in srgb,var(--land-color) 30%,transparent),0 0 8px var(--land-color)}to{box-shadow:0 0 0 4px color-mix(in srgb,var(--land-color) 45%,transparent),0 0 22px var(--land-color)}}
+@media(prefers-reduced-motion:reduce){#game-board .board-tile.land-preview{animation:none}}
+.coupon-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:3px solid var(--land-color)!important}
+.coupon-btn small{font-size:12px;font-weight:700;opacity:.9}
+.coupon-btn.coupon-a{--land-color:var(--coupon-a)}
+.coupon-btn.coupon-b{--land-color:var(--coupon-b)}
+.coupon-btn.armed{box-shadow:0 0 0 3px var(--land-color),0 0 16px var(--land-color);transform:scale(1.03)}
+.coupon-tip{margin:0;font-size:12px;text-align:center;opacity:.8}
+.player-token.coupon-pick[data-coupon=A]{outline-color:var(--coupon-a)}
+.player-token.coupon-pick[data-coupon=B]{outline-color:var(--coupon-b)}
+/* The auto camera is a phone feature. */
+.follow-camera{display:none}
+@media(max-width:760px){.follow-camera{display:inline-flex}.follow-camera[aria-pressed=false]{background:#ffd54a;color:#111}}
+/* Phones: the coupon choice lives in the fixed bottom bar while it is open. */
+.mobile-coupons{display:none}
+.mobile-controls.choosing>button{display:none}
+.mobile-controls.choosing>.mobile-coupons{display:block;flex:1 1 100%;width:100%;grid-column:1/-1}
+.mobile-coupons .coupon-choices{grid-template-columns:1fr 1fr;margin:0;gap:6px}
+.mobile-coupons .coupon-btn{padding:8px 6px;font-size:14px;line-height:1.15;min-height:56px}
+.mobile-coupons .coupon-btn small{font-size:11px}
+.mobile-coupons .coupon-tip{grid-column:1/-1;font-size:11px}
+/* The landing label may be wider than its space. */
+#game-board .board-tile.land-preview,#game-board .board-tile.land-preview .tile-face{overflow:visible}
