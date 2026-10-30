@@ -239,7 +239,7 @@ export function chooseBotAction(state: GameState): Command | null {
     }
     case 'end': {
       if (state.extraRoll) return {action:'roll'};
-      const trade = tradeOffer(game, state, player);
+      const trade = game.buffed ? null : tradeOffer(game, state, player);   // Super Buffed has no trading
       if (trade) return {action:'trade', trade};
       const mortgage = owned.find(space => game.asset(space.id).mortgaged && player.cash >= game.unmortgageCost(space.id) + reserve);
       if (mortgage) return {action:'unmortgage',id:mortgage.id};

@@ -72,6 +72,7 @@ function modeBriefing(state: GameState) {
   const twists = (state.twists || []).map(id => MarketWars.TWISTS[id as keyof typeof MarketWars.TWISTS]).filter(Boolean);
   return `MODE: Classic Super Buffed. These rules REPLACE the normal ones:
 - Everyone starts with $5,000 and gets $3,000 every time they pass Gateway of India. Cash is plentiful; property and towers win the game.
+- There is no trading: you cannot propose or receive trade offers.
 - After you land on a property you own (once it is bought, land on it again), you may build as many levels as you can afford in ONE visit, straight to the tower. No even-building rule.
 - A tower's rent is about 25x a single house, so building a tower immediately on a busy property is usually right. Keep only about $1,000 spare.
 - Buy almost every property you land on; each one is a future tower.

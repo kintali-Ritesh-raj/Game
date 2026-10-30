@@ -775,6 +775,14 @@ test('jail cards name the Launch money of the mode: $200 in Classic, $3,000 in S
   assert.match(buffed.describeCard(cbi), /do not collect \$3,000\./);
   assert.ok([...DECKS.market, ...DECKS.economic].every(card => !/collect \$200/.test(card.text)), 'no card hard-codes $200 Launch money');
 });
+test('Super Buffed has no trading; Classic still does', () => {
+  const offer = { to: 1, give: { cash: 200, properties: [] }, get: { cash: 0, properties: [2] } };
+  const buffed = new Game(players.slice(0, 2), {}, { mode: 'buffed', random: () => .4, wait: async () => {} });
+  own(buffed, 2, 1);
+  assert.throws(() => buffed.proposeTrade(offer), /Trading is off in Super Buffed/);
+  assert.equal(buffed.state.trade ?? null, null); assert.equal(buffed.state.phase, 'ready');
+  const classic = create(); own(classic, 2, 1); classic.proposeTrade(offer); assert.equal(classic.state.phase, 'trade');
+});
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
   game.forfeit(0);
