@@ -755,6 +755,13 @@ test('more new cards: pickpocket, Robin of Sherwood Bazaar, mystery box, lockdow
   g = create(); g.player(1).penalty = { kind: 'prison', attempts: 1 }; await playCard(g, 'economic', 'Jail amnesty'); assert.equal(g.player(1).penalty, null);
   g = create(); g.state.jackpot = 400; await playCard(g, 'economic', 'Taj Mahal mela'); assert.deepEqual([g.player(0).cash, g.player(1).cash, g.state.jackpot], [1700, 1700, 100]);
 });
+test('jail cards name the Launch money of the mode: $200 in Classic, $3,000 in Super Buffed', () => {
+  const cbi = DECKS.economic.find(card => card.title === 'CBI summons') || DECKS.market.find(card => card.title === 'CBI summons');
+  assert.match(create().describeCard(cbi), /do not collect \$200\./);
+  const buffed = new Game(players.slice(0, 2), {}, { mode: 'buffed', random: () => .4, wait: async () => {} });
+  assert.match(buffed.describeCard(cbi), /do not collect \$3,000\./);
+  assert.ok([...DECKS.market, ...DECKS.economic].every(card => !/collect \$200/.test(card.text)), 'no card hard-codes $200 Launch money');
+});
 test('a player who leaves forfeits assets and the turn passes on', () => {
   const game = create(3); own(game, 1); game.asset(1).buildings = 2;
   game.forfeit(0);
