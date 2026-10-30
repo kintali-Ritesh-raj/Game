@@ -111,41 +111,70 @@ export function useMultiplayer(initialCode?: string) {
     const heartbeat = () => request('/api/rooms/' + code, 'POST', { operation: 'heartbeat', client_id: clientId }).then(() => { if (!disposed) succeeded(); }, () => { if (!disposed) failed(); });
     // One channel per room: the server pushes every saved room on Broadcast, and check-ins (who is online) come from
     // the database. A room arriving more than one revision ahead means a push was missed, so fetch the room at once.
-    const channel = supabase.channel('mw-room-' + code)
-      .on('broadcast', { event: 'room' }, message => {
-        const incoming = (message.payload as { room?: Room })?.room;
-        if (disposed || incoming?.code !== code) return;
-        const known = roomRef.current?.revision ?? -1;
-        accept({ room: incoming });
-        if (incoming.revision > known + 1) void refresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mw_connections', filter: 'code=eq.' + code }, payload => {
-        const row = payload.new as Connection | undefined;
-        if (disposed || !row?.client_id) return;
-        const next = [...connectionsRef.current.filter(item => item.client_id !== row.client_id), row];
-        connectionsRef.current = next; setConnections(next);
-      })
-      .subscribe(status => {
-        subscribed = status === 'SUBSCRIBED';
-        if (disposed) return;
-        // Catch up now, and once more shortly after: a move made while the channel was still opening is not pushed.
-        if (subscribed) { failures = 0; setConnection('connected'); void heartbeat(); void refresh(); setTimeout(() => { if (!disposed) void refresh(); }, 1500); }
-        else setConnection(navigator.onLine ? 'reconnecting' : 'offline');
-        schedulePoll();
-      });
+    // A channel that errors, times out or closes is thrown away and rebuilt (with backoff): waiting for a dead socket
+    // to heal itself is what left players stuck until they refreshed the page.
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let rejoinTimer: ReturnType<typeof setTimeout> | undefined, rejoinDelay = 1000, lastPush = Date.now();
+    const open = () => {
+      if (disposed) return;
+      // Forget the old channel first, so its own CLOSED callback is ignored instead of scheduling another rebuild.
+      const old = channel; channel = null;
+      if (old) void supabase.removeChannel(old);
+      const current = supabase.channel('mw-room-' + code)
+        .on('broadcast', { event: 'room' }, message => {
+          const incoming = (message.payload as { room?: Room })?.room;
+          if (disposed || incoming?.code !== code) return;
+          lastPush = Date.now();
+          const known = roomRef.current?.revision ?? -1;
+          accept({ room: incoming });
+          if (incoming.revision > known + 1) void refresh();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'mw_connections', filter: 'code=eq.' + code }, payload => {
+          const row = payload.new as Connection | undefined;
+          if (disposed || !row?.client_id) return;
+          const next = [...connectionsRef.current.filter(item => item.client_id !== row.client_id), row];
+          connectionsRef.current = next; setConnections(next);
+        })
+        .subscribe(status => {
+          if (disposed || channel !== current) return;
+          subscribed = status === 'SUBSCRIBED';
+          // Catch up now, and once more shortly after: a move made while the channel was still opening is not pushed.
+          if (subscribed) { rejoinDelay = 1000; failures = 0; setConnection('connected'); void heartbeat(); void refresh(); setTimeout(() => { if (!disposed) void refresh(); }, 1500); }
+          else {
+            setConnection(navigator.onLine ? 'reconnecting' : 'offline');
+            clearTimeout(rejoinTimer);
+            rejoinTimer = setTimeout(open, rejoinDelay); rejoinDelay = Math.min(rejoinDelay * 2, 15000);
+          }
+          schedulePoll();
+        });
+      channel = current;
+    };
+    open();
     setConnection('connecting');
     void heartbeat(); void refresh();
-    // A safety net for missed pushes: every 20 s while the live channel is up, every 5 s while it is down. (It was every
-    // 5 s always, plus a duplicate database feed of every move: most of the game's server traffic.) A hidden tab skips
-    // it and refreshes as soon as it is shown again.
+    // A safety net for missed pushes: every 8 s while the live channel is up, every 3 s while it is down. The lookup
+    // costs the database about 1 ms. A hidden tab skips it and refreshes as soon as it is shown again.
     function schedulePoll() {
       clearTimeout(pollTimer);
-      pollTimer = setTimeout(() => { if (!document.hidden) void refresh(); schedulePoll(); }, subscribed ? 20000 : 5000);
+      pollTimer = setTimeout(() => {
+        if (!document.hidden) {
+          void refresh();
+          // "Subscribed" but silent for a long time during a game: the socket may be half-dead, so rebuild it.
+          if (subscribed && roomRef.current?.status === 'playing' && Date.now() - lastPush > 60000) { lastPush = Date.now(); open(); }
+        }
+        schedulePoll();
+      }, subscribed ? 8000 : 3000);
     }
     schedulePoll();
     // Check-ins every 20 s: a seat counts as online for 45 s after its last one, so two can be missed.
     const heartbeats = setInterval(() => { if (navigator.onLine) void heartbeat(); }, 20000);
-    const reconnect = () => { if (!disposed && navigator.onLine && !document.hidden) { void heartbeat(); void refresh(); } };
+    // Back online, tab shown again, or the page restored from the back/forward cache (phones do this after switching
+    // apps): catch up at once, and rebuild the channel if it is not live.
+    const reconnect = () => {
+      if (disposed || !navigator.onLine || document.hidden) return;
+      void heartbeat(); void refresh();
+      if (!subscribed) { clearTimeout(rejoinTimer); rejoinDelay = 1000; open(); }
+    };
     const offline = () => setConnection('offline');
     const disconnect = async () => {
       const { data } = await supabase.auth.getSession();
@@ -157,18 +186,20 @@ export function useMultiplayer(initialCode?: string) {
     };
     window.addEventListener('online', reconnect); window.addEventListener('offline', offline);
     window.addEventListener('pagehide', disconnect); document.addEventListener('visibilitychange', reconnect);
+    window.addEventListener('pageshow', reconnect); window.addEventListener('focus', reconnect);
     return () => {
       disposed = true; clearTimeout(pollTimer); clearInterval(heartbeats);
       window.removeEventListener('online', reconnect); window.removeEventListener('offline', offline);
       window.removeEventListener('pagehide', disconnect); document.removeEventListener('visibilitychange', reconnect);
-      void disconnect(); void supabase.removeChannel(channel);
+      window.removeEventListener('pageshow', reconnect); window.removeEventListener('focus', reconnect);
+      clearTimeout(rejoinTimer); void disconnect(); if (channel) void supabase.removeChannel(channel);
     };
   }, [code, userId, isMember, accept]);
 
   const activeBot = room ? botSeat(room) : null;
   const botRevision = room?.revision;
   useEffect(() => {
-    if (screen !== 'room' || activeBot === null || connection !== 'connected') return;
+    if (screen !== 'room' || activeBot === null || connection === 'offline') return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const advance = async () => {
@@ -203,7 +234,7 @@ export function useMultiplayer(initialCode?: string) {
   const idle = room ? idleSeat(room) : null;
   const idleRevision = room?.revision;
   useEffect(() => {
-    if (screen !== 'room' || idle === null || connection !== 'connected') return;
+    if (screen !== 'room' || idle === null || connection === 'offline') return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const expire = async () => {
