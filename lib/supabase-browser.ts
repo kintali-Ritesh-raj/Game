@@ -18,8 +18,10 @@ export function ensureIdentity(): Promise<string> {
   if (!identity) identity = (async () => {
     const supabase = getBrowserClient();
     const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    if (data.session) return data.session.user.id;
+    if (data.session && !error) return data.session.user.id;
+    // A saved session that can no longer be used (expired, or its anonymous account was cleaned up): drop it here and
+    // sign in afresh, instead of failing.
+    if (error) await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     const result = await supabase.auth.signInAnonymously();
     if (result.error) throw new Error(result.error.message + ' Enable anonymous sign-ins in Supabase Authentication.');
     if (!result.data.user) throw new Error('Could not establish your player identity.');
@@ -37,6 +39,13 @@ export async function request<T>(path: string, method = 'GET', body?: unknown, r
   if (data.session?.expires_at && data.session.expires_at * 1000 - Date.now() < 60_000) {
     const renewed = await supabase.auth.refreshSession();
     if (renewed.data.session) data = { session: renewed.data.session };
+  }
+  if (!data.session) {
+    // The session could not be renewed: start a fresh identity once rather than asking for a reload.
+    identity = undefined;
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    await ensureIdentity();
+    data = (await supabase.auth.getSession()).data;
   }
   if (!data.session) throw new Error('Your player session expired. Reload to reconnect.');
   let response: Response;
