@@ -149,8 +149,11 @@ function tradeOffer(game:Engine, state:GameState, bot:Seat):TradeOffer | null {
 /** Which coupon a bot moves: the free one over a jailed one, and the landing that costs least or gains most. */
 function couponChoice(game:Engine, player:Seat):number {
   const rolled = game.state.rolled!, size = game.board.length;
-  const score = (position:number, penalty:unknown) => {
-    if (penalty) return -1e6; // picking a jailed coupon costs the $5,000 fine and wastes the roll
+  // Doubles (or a single-die 6) free a jailed coupon for nothing: worth taking, on top of where it lands.
+  const frees = game.rollFreesCoupon();
+  const score = (position:number, penalty:unknown) => (penalty ? 600 : 0) + base(position, penalty);
+  const base = (position:number, penalty:unknown) => {
+    if (penalty && !frees) return -1e6; // picking a jailed coupon costs the $5,000 fine and wastes the roll
     const target = game.board[(position + rolled.total) % size], asset = target.price ? game.asset(target.id) : null;
     if (!asset) return 0;
     if (asset.owner === null) return player.cash >= target.price ? target.price : 0;      // land worth buying

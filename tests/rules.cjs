@@ -678,6 +678,19 @@ test('Coupons (Super Buffed): two pieces each; after rolling the player picks co
   game = make(); game.active.alt.penalty = { kind: 'prison', attempts: 7 }; game.active.alt.position = 10;
   k = 0; game.random = () => [.1, .3][k++] ?? .3; await game.rollDice(); await drain(game);
   await game.chooseCoupon(0); await drain(game); assert.equal(game.player(0).alt.penalty, null, 'free after 8 turns');
+  // Doubles free a jailed coupon for nothing, and it moves the roll at once.
+  game = make(); game.active.penalty = { kind: 'prison', attempts: 0 }; game.active.position = 10;
+  k = 0; game.random = () => [.5, .5][k++] ?? .3; await game.rollDice(); await drain(game); // 4 + 4
+  assert.equal(game.rollFreesCoupon(), true, 'doubles free a jailed coupon');
+  await game.chooseCoupon(0); await drain(game);
+  assert.equal(game.player(0).penalty, null, 'released by the doubles'); assert.equal(game.player(0).position, 18, 'and moved 8'); assert.equal(game.player(0).cash, 5000, 'no fine');
+  // A single-die 6 frees it too; an ordinary roll does not.
+  game = make(); game.state.phase = 'coupon'; game.state.dice = [6]; game.state.rolled = { single: true, total: 6, doubles: false, pair: false, triple: false };
+  assert.equal(game.rollFreesCoupon(), true, 'a 6 in a single-die round');
+  game.state.dice = [5]; game.state.rolled = { single: true, total: 5, doubles: false, pair: false, triple: false };
+  assert.equal(game.rollFreesCoupon(), false, 'a 5 does not');
+  game.state.dice = [1, 2]; game.state.rolled = { single: false, total: 3, doubles: false, pair: false, triple: false };
+  assert.equal(game.rollFreesCoupon(), false, 'an ordinary roll does not');
 });
 test('the 20 new power-ups each work once per charge', async () => {
   const give = (game, key, n = 1) => { game.active.perks[key] = n; return game; };
