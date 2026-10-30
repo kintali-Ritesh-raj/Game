@@ -255,9 +255,6 @@
 .coupon-tip{margin:0;font-size:12px;text-align:center;opacity:.8}
 .player-token.coupon-pick[data-coupon=A]{outline-color:var(--coupon-a)}
 .player-token.coupon-pick[data-coupon=B]{outline-color:var(--coupon-b)}
-/* The auto camera is a phone feature. */
-.follow-camera{display:none}
-@media(max-width:760px){.follow-camera{display:inline-flex}.follow-camera[aria-pressed=false]{background:#ffd54a;color:#111}}
 /* Phones: the coupon choice lives in the fixed bottom bar while it is open. */
 .mobile-coupons{display:none}
 .mobile-controls.choosing>button{display:none}
@@ -268,10 +265,6 @@
 .mobile-coupons .coupon-tip{grid-column:1/-1;font-size:11px}
 /* The landing label may be wider than its space. */
 #game-board .board-tile.land-preview,#game-board .board-tile.land-preview .tile-face{overflow:visible}
-/* Phone camera: the board view is moved by a GPU transform inside a clipping viewport. */
-.board-viewport.camera{overflow:hidden;border-radius:14px}
-#classic-board-view{transform-origin:0 0;transition:transform .45s cubic-bezier(.2,.7,.2,1)}
-@media(prefers-reduced-motion:reduce){#classic-board-view{transition:none}}
 /* The game dialog opens non-modally (see game-ui.js): it is placed like a modal, above a scrim that blocks the page.
    No backdrop blur: blurring the whole screen every frame behind a moving board is costly on phones. */
 #modal[open]{position:fixed;inset:0;margin:auto;height:fit-content;max-height:90dvh;overflow:auto;z-index:1101}
