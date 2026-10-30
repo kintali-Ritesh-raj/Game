@@ -29,7 +29,13 @@ function sent<T extends { room?: unknown }>(body: T, init?: ResponseInit) {
 }
 export async function POST(request: Request, context: Context) {
   try {
+    // Server-Timing on moves: how long each step took (auth, read, rules, commit), visible in the browser's network panel.
+    const marks: [string, number][] = [], started = performance.now();
+    let last = started;
+    const mark = (name: string) => { const now = performance.now(); marks.push([name, now - last]); last = now; };
+    const timing = () => ({ headers: { 'Server-Timing': marks.map(([name, ms]) => name + ';dur=' + ms.toFixed(1)).join(', ') } });
     const { db, actor } = await authenticate(request);
+    mark('auth');
     const code = roomCode((await context.params).code), body = await jsonBody(request);
     if (body.operation === 'join') return sent({ room: await roomRpc(db, 'mw_join_room', { p_code: code, p_actor: actor, p_profile: profile(body) }) });
     // Before joining, a player may see which colours are already in use, so they can pick a free one.
@@ -58,6 +64,7 @@ export async function POST(request: Request, context: Context) {
         readMemberGameRoom(db, code, actor),
         db.from('mw_commands').select('actor,fingerprint').eq('code', code).eq('request_id', id).maybeSingle(),
       ]);
+      mark('read');
       if (receiptError) throw receiptError;
       if (receipt) {
         if (receipt.actor !== actor || receipt.fingerprint !== fingerprint) throw new ApiError(403, 'This request identifier belongs to a different action.');
@@ -66,14 +73,20 @@ export async function POST(request: Request, context: Context) {
       requireRevision(room, expected);
       if (!state) throw new ApiError(503, 'The game state is unavailable. Try again.');
       const result = await applyGameAction({ ...room, state }, actor, action);
-      return sent({ room: await roomRpc(db, 'mw_commit_game', {
+      mark('rules');
+      const committed = await roomRpc(db, 'mw_commit_game', {
         p_code: code, p_actor: actor, p_expected: expected, p_state: result.state,
         p_transition: result.transition, p_request_id: id, p_fingerprint: fingerprint, p_start: false,
-      }) });
+      });
+      mark('commit');
+      return sent({ room: committed }, timing());
     }
     if (body.operation === 'bot-step') {
       const { room, state } = await readMemberGameRoom(db, code, actor);
-      return sent({ room: await advanceBot(db, room, actor, revision(body.revision), state) });
+      mark('read');
+      const advanced = await advanceBot(db, room, actor, revision(body.revision), state);
+      mark('bot');
+      return sent({ room: advanced }, timing());
     }
     const room = await readRoom(db, code, actor);
     if (body.operation === 'rejoin-code') return Response.json({ rejoin_code: await seatKey(db, room, actor) });

@@ -36,7 +36,7 @@ export function useMultiplayer(initialCode?: string) {
   const accept = useCallback((snapshot: Snapshot) => {
     const incoming = snapshot.room;
     if (snapshot.connections) { setConnections(snapshot.connections); connectionsRef.current = snapshot.connections; }
-    // The same revision often arrives twice (Broadcast, database change, the HTTP reply); keep the room we have.
+    // The same revision often arrives twice (Broadcast, the HTTP reply, a safety-net poll); keep the room we have.
     if (roomRef.current?.code === incoming.code && roomRef.current.revision >= incoming.revision) return;
     roomRef.current = incoming;
     setRoom(incoming);
@@ -90,27 +90,35 @@ export function useMultiplayer(initialCode?: string) {
     if (!code || !userId || !isMember) return;
     const supabase = getBrowserClient();
     const clientId = crypto.randomUUID();
-    let disposed = false, subscribed = false, refreshing = false;
+    let disposed = false, subscribed = false, refreshing = false, failures = 0;
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
+    // "Reconnecting" means the live channel is down, or several requests in a row failed: one slow request on a phone
+    // network is not a lost connection, and saying so made the game look broken when it was fine.
+    const succeeded = () => { failures = 0; if (!disposed && subscribed) setConnection('connected'); };
+    const failed = () => {
+      failures++;
+      if (!disposed && (!navigator.onLine || !subscribed || failures >= 3)) setConnection(navigator.onLine ? 'reconnecting' : 'offline');
+    };
     const refresh = async () => {
       if (disposed || refreshing || !navigator.onLine) return;
       refreshing = true;
       try {
         const snapshot = await request<Snapshot>('/api/rooms/' + code);
-        if (!disposed) {
-          accept(snapshot);
-          if (subscribed) setConnection('connected');
-        }
-      } catch { if (!disposed) setConnection(navigator.onLine ? 'reconnecting' : 'offline'); }
+        if (!disposed) { accept(snapshot); succeeded(); }
+      } catch { if (!disposed) failed(); }
       finally { refreshing = false; }
     };
-    const heartbeat = () => request('/api/rooms/' + code, 'POST', { operation: 'heartbeat', client_id: clientId }).catch(() => {
-      if (!disposed) setConnection(navigator.onLine ? 'reconnecting' : 'offline');
-    });
-    const channel = supabase.channel('mw-room-' + code + '-' + clientId)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mw_rooms', filter: 'code=eq.' + code }, payload => {
-        if (!disposed) accept({ room: payload.new as Room });
+    const heartbeat = () => request('/api/rooms/' + code, 'POST', { operation: 'heartbeat', client_id: clientId }).then(() => { if (!disposed) succeeded(); }, () => { if (!disposed) failed(); });
+    // One channel per room: the server pushes every saved room on Broadcast, and check-ins (who is online) come from
+    // the database. A room arriving more than one revision ahead means a push was missed, so fetch the room at once.
+    const channel = supabase.channel('mw-room-' + code)
+      .on('broadcast', { event: 'room' }, message => {
+        const incoming = (message.payload as { room?: Room })?.room;
+        if (disposed || incoming?.code !== code) return;
+        const known = roomRef.current?.revision ?? -1;
+        accept({ room: incoming });
+        if (incoming.revision > known + 1) void refresh();
       })
-      // A check-in only changes who is online: update that list directly instead of re-downloading the room.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'mw_connections', filter: 'code=eq.' + code }, payload => {
         const row = payload.new as Connection | undefined;
         if (disposed || !row?.client_id) return;
@@ -121,21 +129,23 @@ export function useMultiplayer(initialCode?: string) {
         subscribed = status === 'SUBSCRIBED';
         if (disposed) return;
         // Catch up now, and once more shortly after: a move made while the channel was still opening is not pushed.
-        if (subscribed) { void heartbeat(); void refresh(); setTimeout(() => { if (!disposed) void refresh(); }, 1500); }
+        if (subscribed) { failures = 0; setConnection('connected'); void heartbeat(); void refresh(); setTimeout(() => { if (!disposed) void refresh(); }, 1500); }
         else setConnection(navigator.onLine ? 'reconnecting' : 'offline');
+        schedulePoll();
       });
-    // Moves arrive first on Broadcast (the server pushes each saved room); the database channel above is the backup.
-    const fast = supabase.channel('mw-room-' + code)
-      .on('broadcast', { event: 'room' }, message => { const room = (message.payload as { room?: Room })?.room; if (!disposed && room?.code === code) accept({ room }); })
-      .subscribe();
     setConnection('connecting');
     void heartbeat(); void refresh();
-    // Re-fetch after subscribing and every 5 seconds to close missed-event gaps. Live updates can drop on phones and
-    // mobile data (or arrive before a new channel is ready), so this backstop must stay short; a hidden tab skips it
-    // and refreshes as soon as it is shown again.
-    const polling = setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
-    const heartbeats = setInterval(() => { if (navigator.onLine) void heartbeat(); }, 15000);
-    const reconnect = () => { if (!disposed && navigator.onLine) { void heartbeat(); void refresh(); } };
+    // A safety net for missed pushes: every 20 s while the live channel is up, every 5 s while it is down. (It was every
+    // 5 s always, plus a duplicate database feed of every move: most of the game's server traffic.) A hidden tab skips
+    // it and refreshes as soon as it is shown again.
+    function schedulePoll() {
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(() => { if (!document.hidden) void refresh(); schedulePoll(); }, subscribed ? 20000 : 5000);
+    }
+    schedulePoll();
+    // Check-ins every 20 s: a seat counts as online for 45 s after its last one, so two can be missed.
+    const heartbeats = setInterval(() => { if (navigator.onLine) void heartbeat(); }, 20000);
+    const reconnect = () => { if (!disposed && navigator.onLine && !document.hidden) { void heartbeat(); void refresh(); } };
     const offline = () => setConnection('offline');
     const disconnect = async () => {
       const { data } = await supabase.auth.getSession();
@@ -148,10 +158,10 @@ export function useMultiplayer(initialCode?: string) {
     window.addEventListener('online', reconnect); window.addEventListener('offline', offline);
     window.addEventListener('pagehide', disconnect); document.addEventListener('visibilitychange', reconnect);
     return () => {
-      disposed = true; clearInterval(polling); clearInterval(heartbeats);
+      disposed = true; clearTimeout(pollTimer); clearInterval(heartbeats);
       window.removeEventListener('online', reconnect); window.removeEventListener('offline', offline);
       window.removeEventListener('pagehide', disconnect); document.removeEventListener('visibilitychange', reconnect);
-      void disconnect(); void supabase.removeChannel(channel); void supabase.removeChannel(fast);
+      void disconnect(); void supabase.removeChannel(channel);
     };
   }, [code, userId, isMember, accept]);
 
